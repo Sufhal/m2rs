@@ -52,18 +52,20 @@ impl Camera {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct CameraUniform {
+    view_position: [f32; 4],
     view_proj: [[f32; 4]; 4],
 }
 
 impl CameraUniform {
     fn new() -> Self {
-        use cgmath::SquareMatrix;
         Self {
+            view_position: [0.0; 4],
             view_proj: cgmath::Matrix4::identity().into(),
         }
     }
 
     fn update_view_proj(&mut self, camera: &Camera) {
+        self.view_position = camera.eye.to_homogeneous().into();
         self.view_proj = (OPENGL_TO_WGPU_MATRIX * camera.build_view_projection_matrix()).into();
     }
 }
@@ -136,7 +138,6 @@ impl CameraController {
     }
 
     fn update_camera(&self, camera: &mut Camera) {
-        use cgmath::InnerSpace;
         let forward = camera.target - camera.eye;
         let forward_norm = forward.normalize();
         let forward_mag = forward.magnitude();
@@ -188,6 +189,7 @@ struct State<'a> {
     render_pipeline: wgpu::RenderPipeline,
     #[allow(dead_code)]
     diffuse_texture: texture::Texture,
+    #[allow(dead_code)]
     diffuse_bind_group: wgpu::BindGroup,
     // NEW!
     camera: Camera,
@@ -338,7 +340,7 @@ impl<'a> State<'a> {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -589,8 +591,6 @@ impl<'a> State<'a> {
             });
 
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
-            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
 
             use crate::model::DrawLight; // NEW!
             render_pass.set_pipeline(&self.light_render_pipeline); // NEW!
@@ -631,8 +631,9 @@ pub async fn run() {
     }
 
     let event_loop = EventLoop::new().unwrap();
-    event_loop.set_control_flow(ControlFlow::Poll); // <- solves the issue of performance drop when refocusing the window in wasm export
+    // event_loop.set_control_flow(ControlFlow::Poll); // <- solves the issue of performance drop when refocusing the window in wasm export
     let window = WindowBuilder::new().build(&event_loop).unwrap();
+    window.set_title("M2RS");
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -659,6 +660,7 @@ pub async fn run() {
 
     event_loop
         .run(move |event, control_flow| {
+            control_flow.set_control_flow(ControlFlow::Poll);
             match event {
                 Event::WindowEvent {
                     ref event,
