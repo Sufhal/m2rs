@@ -187,10 +187,6 @@ struct State<'a> {
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
-    #[allow(dead_code)]
-    diffuse_texture: texture::Texture,
-    #[allow(dead_code)]
-    diffuse_bind_group: wgpu::BindGroup,
     // NEW!
     camera: Camera,
     camera_controller: CameraController,
@@ -274,10 +270,6 @@ impl<'a> State<'a> {
             desired_maximum_frame_latency: 2,
         };
 
-        let diffuse_bytes = include_bytes!("happy-tree.png");
-        let diffuse_texture =
-            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
-
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -300,21 +292,6 @@ impl<'a> State<'a> {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-
-        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
 
         let camera = Camera {
             eye: (0.0, 1.0, 2.0).into(),
@@ -416,7 +393,7 @@ impl<'a> State<'a> {
         let render_pipeline = {
             let shader = wgpu::ShaderModuleDescriptor {
                 label: Some("Normal Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shader.wgsl").into()),
             };
             functions::create_render_pipeline(
                 &device,
@@ -440,7 +417,7 @@ impl<'a> State<'a> {
             });
             let shader = wgpu::ShaderModuleDescriptor {
                 label: Some("Light Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("light.wgsl").into()),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/light.wgsl").into()),
             };
             functions::create_render_pipeline(
                 &device,
@@ -494,8 +471,6 @@ impl<'a> State<'a> {
             config,
             size,
             render_pipeline,
-            diffuse_texture,
-            diffuse_bind_group,
             camera,
             camera_controller,
             camera_buffer,
