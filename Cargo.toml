@@ -1,5 +1,5 @@
 [package]
-name = "game"
+name = "m2rs"
 version = "0.1.0"
 authors = ["Sufhal"]
 edition = "2018"
