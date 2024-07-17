@@ -21,6 +21,15 @@ pub struct InstanceRaw {
 }
 
 impl InstanceRaw {
+    pub fn new(position: cgmath::Vector3<f32>, rotation: cgmath::Quaternion<f32>) -> Self {
+        InstanceRaw {
+            model: (cgmath::Matrix4::from_translation(position) * cgmath::Matrix4::from(rotation)).into(),
+            normal: cgmath::Matrix3::from(rotation).into(),
+        }
+    }
+}
+
+impl InstanceRaw {
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {

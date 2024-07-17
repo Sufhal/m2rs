@@ -5,22 +5,21 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>game</title>
+    <title>M2RS</title>
     <style>
         html, body, div, canvas { display: block; margin: 0; padding: 0; }
         canvas { outline: none; }
     </style>
 </head>
 
-<body id="render">
-<div id="wasm-example"></div>
-
-  <script type="module">
-      import init from "./pkg/m2rs.js";
-      init().then(() => {
-          console.log("game loaded");
-      });
-  </script>
+<body>
+    <div id="render"></div>
+    <script type="module">
+        import init from "./pkg/m2rs.js";
+        init().then(() => {
+            console.log("✨");
+        });
+    </script>
 </body>
 
 </html>

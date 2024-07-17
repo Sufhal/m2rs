@@ -9,11 +9,15 @@ use winit::{
 };
 use cgmath::prelude::*;
 
-use crate::modules::core::{light, model,texture,instance};
+use crate::modules::core::object_3d::Object3D;
+use crate::modules::core::{instance, light, model, object_3d, texture};
 use crate::modules::assets::assets;
 use crate::modules::camera::camera;
 use crate::modules::utils::functions;
+use crate::modules::utils::id_gen::IdGen;
 use model::Vertex;
+
+use super::core::scene;
 
 const NUM_INSTANCES_PER_ROW: u32 = 10;
 
@@ -33,16 +37,17 @@ pub struct State<'a> {
     camera_uniform: camera::CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    instances: Vec<instance::Instance>,
-    #[allow(dead_code)]
-    instance_buffer: wgpu::Buffer,
+    // instances: Vec<instance::Instance>,
+    // #[allow(dead_code)]
+    // instance_buffer: wgpu::Buffer,
     depth_texture: texture::Texture,
-    obj_model: model::Model,
+    // obj_model: model::Model,
     light_uniform: light::LightUniform,
     light_buffer: wgpu::Buffer,
     light_render_pipeline: wgpu::RenderPipeline,
     light_bind_group: wgpu::BindGroup,
     pub window: &'a Window,
+    scene: scene::Scene<'a>
 }
 
 impl<'a> State<'a> {
@@ -288,14 +293,24 @@ impl<'a> State<'a> {
             })
         }).collect::<Vec<_>>();
 
-        let instance_data = instances.iter().map(instance::Instance::to_raw).collect::<Vec<_>>();
-        let instance_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Instance Buffer"),
-                contents: bytemuck::cast_slice(&instance_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            }
-        );
+        // let instance_data = instances.iter().map(instance::Instance::to_raw).collect::<Vec<_>>();
+        // let instance_buffer = device.create_buffer_init(
+        //     &wgpu::util::BufferInitDescriptor {
+        //         label: Some("Instance Buffer"),
+        //         contents: bytemuck::cast_slice(&instance_data),
+        //         usage: wgpu::BufferUsages::VERTEX,
+        //     }
+        // );
+
+        let mut scene = scene::Scene::new();
+        let mut object_3d = Object3D::new(&device, Some(obj_model));
+        for i in 1..10 {
+            let instance = object_3d.request_instance(&device);
+            instance.take();
+            instance.set_position(cgmath::Vector3 { x: (i * 3) as f32, y: 0.0, z: 0.0 });
+        }
+        scene.add(object_3d);
+        
 
         Self {
             surface,
@@ -311,15 +326,16 @@ impl<'a> State<'a> {
             camera_buffer,
             camera_bind_group,
             camera_uniform,
-            instances,
-            instance_buffer,
+            // instances,
+            // instance_buffer,
             depth_texture,
-            obj_model,
+            // obj_model,
             light_buffer,
             light_uniform,
             light_bind_group,
             light_render_pipeline,
             window,
+            scene,
         }
     }
 
@@ -420,25 +436,33 @@ impl<'a> State<'a> {
                 timestamp_writes: None,
             });
 
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            // render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
 
-            use model::DrawLight; // NEW!
-            render_pass.set_pipeline(&self.light_render_pipeline); // NEW!
-            render_pass.draw_light_model(
-                &self.obj_model,
-                &self.camera_bind_group,
-                &self.light_bind_group,
-            ); // NEW!
+            // use model::DrawLight; // NEW!
+            // render_pass.set_pipeline(&self.light_render_pipeline); // NEW!
+            // render_pass.draw_light_model(
+            //     &self.obj_model,
+            //     &self.camera_bind_group,
+            //     &self.light_bind_group,
+            // ); // NEW!
 
-            use model::DrawModel;
+            // use model::DrawModel;
+            // render_pass.set_pipeline(&self.render_pipeline);
+            // render_pass.draw_model_instanced(
+            //     &self.obj_model, 
+            //     0..self.instances.len() as u32, 
+            //     &self.camera_bind_group,
+            //     &self.light_bind_group
+            // );
+
+            use scene::DrawScene;
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw_model_instanced(
-                &self.obj_model, 
-                0..self.instances.len() as u32, 
-                &self.camera_bind_group,
+            render_pass.draw_scene(
+                &self.queue,
+                &mut self.scene, 
+                &self.camera_bind_group, 
                 &self.light_bind_group
             );
-
             
         }
 
