@@ -12,9 +12,12 @@ use crate::modules::core::{instance, light, model, texture};
 use crate::modules::assets::assets;
 use crate::modules::camera::camera;
 use crate::modules::utils::functions;
+use crate::modules::geometry::buffer::ToMesh;
 use model::Vertex;
+use super::core::model::Model;
 use super::core::object_3d::Transform;
 use super::core::{object_3d, scene};
+use super::geometry::plane::{self, Plane};
 
 pub struct State<'a> {
     surface: wgpu::Surface<'a>,
@@ -248,6 +251,21 @@ impl<'a> State<'a> {
             instance.set_position(cgmath::Vector3 { x: (i * 3) as f32, y: 0.0, z: 0.0 });
         }
         scene.add(object_3d);
+
+        let plane = Plane::new(10.0, 10.0, 1, 1);
+        let mesh = plane.to_mesh(&device, "A place".to_string());
+        let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await;
+        if let Ok(material) = material {
+            let model = Model { 
+                meshes: vec![mesh], 
+                materials: vec![material] 
+            };
+            let mut object = Object3D::new(&device, Some(model));
+            let instance = object.request_instance(&device);
+            instance.take();
+            scene.add(object);
+        }
+        
         
         Self {
             surface,
@@ -326,23 +344,11 @@ impl<'a> State<'a> {
         let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
         self.light_uniform.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
         self.queue.write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light_uniform]));
-        // println!("dt is {}", dt.as_secs_f32());
         for object_3d in self.scene.get_objects() {
             for (index, instance) in object_3d.get_instances().iter_mut().enumerate() {
-                // let current = instance.get_rotation();
-                // let euler_angles: Euler<Rad<f32>> = current.clone().into();
-                // let rotation_speed = std::f32::consts::PI * 2.0; // 90 degrés par seconde
-                // let rotation_angle = rotation_speed * dt.as_secs_f32();
-                // let transform = Euler::<Rad<f32>>::new(euler_angles.x + Rad(rotation_angle * index as f32 * 0.2), euler_angles.y, euler_angles.z);
-                // let transform: Quaternion<f32> = transform.into();
-                // instance.set_rotation(transform);
-
                 let rotation_speed = std::f32::consts::PI * 2.0; // 90 degrés par seconde
                 let rotation_angle = rotation_speed * dt.as_secs_f32();
                 let rotation = rotation_angle * index as f32 * 0.2;
-                // instance.add_x_rotation( rotation_angle * index as f32 * 0.2);
-                // instance.add_y_rotation( rotation_angle * index as f32 * 0.2);
-                // instance.add_z_rotation( rotation_angle * index as f32 * 0.2);
                 instance.add_xyz_rotation(rotation, rotation, rotation);
             }
         }

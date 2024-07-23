@@ -1,78 +1,83 @@
+
+use wgpu::util::DeviceExt;
+
+use crate::modules::core::model::{Mesh, ModelVertex};
+
 use super::buffer::ToMesh;
 
-struct Plane {
-    width: f32,
-    height: f32,
-    width_segments: f32,
-    height_segments: f32,
+pub struct Plane {
+    vertices: Vec<ModelVertex>,
     indices: Vec<u32>,
-    vertices: Vec<f32>,
-    normals: Vec<f32>,
 }
 
 impl Plane {
-    
-    pub fn new(width: f32, height: f32, width_segments: f32, height_segments: f32) -> Plane {
+    pub fn new(width: f32, height: f32, segments_x: u32, segments_y: u32) -> Self {
+        let mut vertices = Vec::new();
+        let mut indices = Vec::new();
+        let segment_width = width / segments_x as f32;
+        let segment_height = height / segments_y as f32;
+        let normal = [0.0, 1.0, 0.0]; // Normale pointant vers le haut
+        for y in 0..=segments_y {
+            for x in 0..=segments_x {
+                let position = [
+                    x as f32 * segment_width - width / 2.0,
+                    0.0,
+                    y as f32 * segment_height - height / 2.0,
+                ];
 
-        let width_half = width / 2.0;
-		let height_half = height / 2.0;
+                let tex_coords = [
+                    x as f32 / segments_x as f32,
+                    y as f32 / segments_y as f32,
+                ];
 
-		let grid_x = width_segments.floor() as u32;
-		let grid_y = height_segments.floor() as u32;
-
-		let grid_x1 = grid_x + 1;
-		let grid_y1 = grid_y + 1;
-
-		let segment_width = width / grid_x as f32;
-		let segment_height = height / grid_y as f32;
-
-        let mut indices = Vec::<u32>::new();
-        let mut vertices = Vec::<f32>::new();
-        let mut normals = Vec::<f32>::new();
-        let mut uvs = Vec::<f32>::new();
-
-        for iy in 0..grid_y1 {
-			let y = iy as f32 * segment_height - height_half;
-            for ix in 0..grid_x1 {
-				let x = ix as f32 * segment_width - width_half;
-                vertices.push(x);
-                vertices.push(-y);
-                vertices.push(0.0);
-				normals.push(0.0);
-				normals.push(0.0);
-				normals.push(1.0);
-				uvs.push((ix / grid_x) as f32);
-				uvs.push((1 - ( iy / grid_y)) as f32);
-			}
-		}
-
-        for iy in 0..grid_y {
-            for ix in 0..grid_x {
-				let a = ix + grid_x1 * iy;
-				let b = ix + grid_x1 * ( iy + 1 );
-				let c = ( ix + 1 ) + grid_x1 * ( iy + 1 );
-				let d = ( ix + 1 ) + grid_x1 * iy;
-                indices.push(a);
-                indices.push(b);
-                indices.push(c);
-                indices.push(b);
-                indices.push(c);
-                indices.push(d);
-			}
-		}
-
-        Plane {
-            width,
-            height,
-            width_segments,
-            height_segments,
-            indices,
-            vertices,
-            normals
+                vertices.push(ModelVertex {
+                    position,
+                    tex_coords,
+                    normal,
+                });
+            }
         }
+        for y in 0..segments_y {
+            for x in 0..segments_x {
+                let i0 = y * (segments_x + 1) + x;
+                let i1 = i0 + 1;
+                let i2 = i0 + (segments_x + 1);
+                let i3 = i2 + 1;
 
+                indices.push(i0);
+                indices.push(i2);
+                indices.push(i1);
+
+                indices.push(i1);
+                indices.push(i2);
+                indices.push(i3);
+            }
+        }
+        Plane {
+            vertices,
+            indices,
+        }
     }
-
 }
 
-impl ToMesh for Plane {}
+impl ToMesh for Plane {
+    fn to_mesh(&self, device: &wgpu::Device, name: String) -> Mesh {
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Plane Vertex Buffer"),
+            contents: bytemuck::cast_slice(&self.vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Plane Index Buffer"),
+            contents: bytemuck::cast_slice(&self.indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        Mesh {
+            name,
+            vertex_buffer,
+            index_buffer,
+            num_elements: self.indices.len() as u32,
+            material: 0
+        }
+    }
+}
