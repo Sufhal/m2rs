@@ -5,7 +5,7 @@ pub struct Scene<'a> {
     objects_3d: Vec<Object3D<'a>>
 }
 
-impl Scene<'_> {
+impl <'a> Scene<'a> {
     pub fn new() -> Scene<'static> {
         Scene {
             objects_3d: Vec::new()
@@ -13,6 +13,9 @@ impl Scene<'_> {
     }
     pub fn add(&mut self, object_3d: Object3D<'static>) {
         self.objects_3d.push(object_3d)
+    }
+    pub fn get_objects(&mut self) -> &mut Vec<Object3D<'a>> {
+        &mut self.objects_3d
     }
 }
 

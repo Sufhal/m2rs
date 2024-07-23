@@ -1,5 +1,7 @@
-use cgmath::SquareMatrix;
+use cgmath::{One, Quaternion, Rad, Rotation3, SquareMatrix};
 use wgpu::util::DeviceExt;
+
+use crate::modules::utils::id_gen::generate_unique_string;
 
 use super::{instance::InstanceRaw, model::Model};
 
@@ -10,6 +12,7 @@ type Quat = cgmath::Quaternion<f32>;
 const INITIAL_INSTANCES_COUNT: usize = 100;
 
 pub struct Object3D<'a> {
+    pub id: String,
     pub model: Option<Model>,
     instances: Vec<Object3DInstance>,
     instance_buffer: wgpu::Buffer,
@@ -29,6 +32,7 @@ impl Object3D<'_> {
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
         Object3D {
+            id: generate_unique_string(),
             instances,
             instance_buffer,
             childrens: Vec::new(),
@@ -55,6 +59,12 @@ impl Object3D<'_> {
                 );
             }
         }
+    }
+    pub fn get_instance(&mut self, id: &str) -> Option<&mut Object3DInstance> {
+        self.instances.iter_mut().find(|i| &i.id == id)
+    }
+    pub fn get_instances(&mut self) -> &mut Vec<Object3DInstance> {
+        &mut self.instances
     }
     pub fn find_available_instance(&self) -> Option<usize> {
         self.instances.iter().position(|v| v.busy == false)
@@ -85,6 +95,7 @@ impl Object3D<'_> {
 
 #[derive(Clone)]
 pub struct Object3DInstance {
+    pub id: String,
     rotation: Quat,
     position: Vec3,
     matrix: Mat4,
@@ -96,7 +107,8 @@ pub struct Object3DInstance {
 impl Object3DInstance {
     pub fn new() -> Object3DInstance {
         Object3DInstance {
-            rotation: cgmath::Quaternion::new(0.0, 0.0, 0.0, 0.0),
+            id: generate_unique_string(),
+            rotation: cgmath::Quaternion::one(),
             position: cgmath::Vector3::new(0.0, 0.0, 0.0),
             matrix: cgmath::Matrix4::identity(),
             matrix_world: cgmath::Matrix4::identity(),
@@ -107,9 +119,6 @@ impl Object3DInstance {
     pub fn take(&mut self) {
         self.busy = true;
     }
-    pub fn get_matrix(&self) -> Mat4 {
-        self.matrix
-    }
     pub fn set_rotation(&mut self, rotation: Quat) {
         self.rotation = rotation;
         self.needs_update = true;
@@ -117,9 +126,6 @@ impl Object3DInstance {
     pub fn set_position(&mut self, position: Vec3) {
         self.position = position;
         self.needs_update = true;
-    }
-    pub fn get_world_matrix(&self) -> Mat4 {
-        self.matrix_world
     }
     pub fn to_instance_raw(&self) -> InstanceRaw {
         InstanceRaw::new(self.position, self.rotation)
@@ -138,4 +144,33 @@ impl Object3DInstance {
         self.busy = false;
         self.needs_update = false;
     } 
+}
+
+pub trait Transform {
+    fn add_x_rotation(&mut self, angle: f32);
+    fn add_y_rotation(&mut self, angle: f32);
+    fn add_z_rotation(&mut self, angle: f32);
+    fn add_xyz_rotation(&mut self, x: f32, y: f32, z: f32);
+}
+
+impl Transform for Object3DInstance {
+    fn add_x_rotation(&mut self, angle: f32) {
+        let incremental_rotation = Quaternion::from_angle_x(Rad(angle));
+        self.set_rotation(self.rotation * incremental_rotation);
+    }
+    fn add_y_rotation(&mut self, angle: f32) {
+        let incremental_rotation = Quaternion::from_angle_y(Rad(angle));
+        self.set_rotation(self.rotation * incremental_rotation);
+    }
+    fn add_z_rotation(&mut self, angle: f32) {
+        let incremental_rotation = Quaternion::from_angle_z(Rad(angle));
+        self.set_rotation(self.rotation * incremental_rotation);
+    }
+    fn add_xyz_rotation(&mut self, x: f32, y: f32, z: f32) {
+        let incremental_rotation = 
+            Quaternion::from_angle_x(Rad(x)) *
+            Quaternion::from_angle_y(Rad(y)) *
+            Quaternion::from_angle_z(Rad(z));
+        self.set_rotation(self.rotation * incremental_rotation);
+    }
 }
