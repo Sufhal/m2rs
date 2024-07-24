@@ -71,6 +71,13 @@ struct Light {
 @group(2) @binding(0)
 var<uniform> light: Light;
 
+fn wireframePattern(uv: vec2<f32>) -> f32 {
+    let lineWidth = 0.01; // Width of the wireframe lines
+    let uvMod = fract(uv * 10.0); // Adjust 10.0 to control density of the wireframe
+    let edge = step(uvMod.x, lineWidth) + step(uvMod.y, lineWidth) + step(1.0 - uvMod.x, lineWidth) + step(1.0 - uvMod.y, lineWidth);
+    return clamp(edge, 0.0, 1.0);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let object_color: vec4<f32> = textureSample(t_diffuse, s_diffuse, in.tex_coords);
@@ -90,7 +97,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let specular_color = specular_strength * light.color;
 
     let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz;
+    let final_color = vec4<f32>(result, object_color.a);
+    let wireframe = wireframePattern(in.tex_coords);
+    return mix(final_color, vec4<f32>(1.0, 0.0, 0.0, 1.0), wireframe); // Black lines for wireframe
 
-    return vec4<f32>(result, object_color.a);
 }
  
