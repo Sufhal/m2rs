@@ -161,24 +161,58 @@ pub async fn load_material(
     layout: &wgpu::BindGroupLayout,
 ) -> anyhow::Result<model::Material> {
     let diffuse_texture = load_texture(file_name, device, queue).await?;
-    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout,
-        entries: &[
-            wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-            },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-            },
-        ],
-        label: None,
-    });
-
+    let bind_group = create_bind_group(
+        device, 
+        layout, 
+        &diffuse_texture.view, 
+        &diffuse_texture.sampler
+    );
     Ok(model::Material {
         name: file_name.to_string(),
         diffuse_texture,
         bind_group,
+    })
+}
+
+pub fn load_material_from_bytes(
+    label: &str,
+    bytes: &[u8],
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    layout: &wgpu::BindGroupLayout,
+) -> anyhow::Result<model::Material> {
+    let diffuse_texture = texture::Texture::from_bytes(device, queue, bytes, label)?;
+    let bind_group = create_bind_group(
+        device, 
+        layout, 
+        &diffuse_texture.view, 
+        &diffuse_texture.sampler
+    );
+    Ok(model::Material {
+        name: label.to_string(),
+        diffuse_texture,
+        bind_group,
+    })
+}
+
+fn create_bind_group(
+    device: &wgpu::Device,
+    layout: &wgpu::BindGroupLayout,
+    view: &wgpu::TextureView,
+    sampler: &wgpu::Sampler
+) -> wgpu::BindGroup {
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(sampler),
+            },
+        ],
+        label: None,
     })
 }

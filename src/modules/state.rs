@@ -265,9 +265,9 @@ impl<'a> State<'a> {
         instance.take();
         scene.add(object);
         
-        let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        let mut vlad = load_model_glb("shaman.glb", &device, &queue).await.expect("unable to load");
-        vlad.materials.push(material);
+        // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
+        let vlad = load_model_glb("vladimir.glb", &device, &queue, &texture_bind_group_layout).await.expect("unable to load");
+        // vlad.materials.push(material);
         println!("vlad have {} meshes", vlad.meshes.len());
         let mut object = Object3D::new(&device, Some(vlad));
         let instance = object.request_instance(&device);

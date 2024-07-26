@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use anyhow::*;
 use image::GenericImageView;
 
@@ -14,6 +16,7 @@ impl Texture {
         bytes: &[u8],
         label: &str,
     ) -> Result<Self> {
+        let _ = std::fs::write(Path::new("bytes_image.png"), bytes);
         let img = image::load_from_memory(bytes)?;
         Self::from_image(device, queue, &img, Some(label))
     }
