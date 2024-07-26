@@ -151,6 +151,10 @@ pub trait Transform {
     fn add_y_rotation(&mut self, angle: f32);
     fn add_z_rotation(&mut self, angle: f32);
     fn add_xyz_rotation(&mut self, x: f32, y: f32, z: f32);
+    fn add_x_position(&mut self, value: f32);
+    fn add_y_position(&mut self, value: f32);
+    fn add_z_position(&mut self, value: f32);
+    fn add_xyz_position(&mut self, x: f32, y: f32, z: f32);
 }
 
 impl Transform for Object3DInstance {
@@ -172,5 +176,17 @@ impl Transform for Object3DInstance {
             Quaternion::from_angle_y(Rad(y)) *
             Quaternion::from_angle_z(Rad(z));
         self.set_rotation(self.rotation * incremental_rotation);
+    }
+    fn add_x_position(&mut self, value: f32) {
+        self.set_position(self.position + cgmath::Vector3 { x: value, y: 0.0, z: 0.0 });
+    }
+    fn add_y_position(&mut self, value: f32) {
+        self.set_position(self.position + cgmath::Vector3 { x: 0.0, y: value, z: 0.0 });
+    }
+    fn add_z_position(&mut self, value: f32) {
+        self.set_position(self.position + cgmath::Vector3 { x: 0.0, y: 0.0, z: value });
+    }
+    fn add_xyz_position(&mut self, x: f32, y: f32, z: f32) {
+        self.set_position(self.position + cgmath::Vector3 { x, y, z });
     }
 }

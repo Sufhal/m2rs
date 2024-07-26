@@ -14,6 +14,7 @@ use crate::modules::camera::camera;
 use crate::modules::utils::functions;
 use crate::modules::geometry::buffer::ToMesh;
 use model::Vertex;
+use super::assets::gltf_loader::{load_model_glb, load_model_gltf};
 use super::core::model::Model;
 use super::core::object_3d::Transform;
 use super::core::{object_3d, scene};
@@ -254,19 +255,26 @@ impl<'a> State<'a> {
 
         let plane = Plane::new(10.0, 10.0, 1, 1);
         let mesh = plane.to_mesh(&device, "A place".to_string());
-        let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await;
-        if let Ok(material) = material {
-            let model = Model { 
-                meshes: vec![mesh], 
-                materials: vec![material] 
-            };
-            let mut object = Object3D::new(&device, Some(model));
-            let instance = object.request_instance(&device);
-            instance.take();
-            scene.add(object);
-        }
+        let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
+        let model = Model { 
+            meshes: vec![mesh], 
+            materials: vec![material] 
+        };
+        let mut object = Object3D::new(&device, Some(model));
+        let instance = object.request_instance(&device);
+        instance.take();
+        scene.add(object);
         
-        
+        let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
+        let mut vlad = load_model_glb("shaman.glb", &device, &queue).await.expect("unable to load");
+        vlad.materials.push(material);
+        println!("vlad have {} meshes", vlad.meshes.len());
+        let mut object = Object3D::new(&device, Some(vlad));
+        let instance = object.request_instance(&device);
+        instance.take();
+        // instance.add_y_position(3.0);
+        scene.add(object);
+
         Self {
             surface,
             device,

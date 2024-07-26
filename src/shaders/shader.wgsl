@@ -29,6 +29,7 @@ struct VertexOutput {
     @location(0) tex_coords: vec2<f32>,
     @location(1) world_normal: vec3<f32>,
     @location(2) world_position: vec3<f32>,
+    @location(3) position: vec3<f32>,
 }
 
 @vertex
@@ -53,6 +54,7 @@ fn vs_main(
     var world_position: vec4<f32> = model_matrix * vec4<f32>(model.position, 1.0);
     out.world_position = world_position.xyz;
     out.clip_position = camera.view_proj * world_position;
+    out.position = model.position;
     return out;
 }
 
@@ -72,8 +74,8 @@ struct Light {
 var<uniform> light: Light;
 
 fn wireframePattern(uv: vec2<f32>) -> f32 {
-    let lineWidth = 0.01; // Width of the wireframe lines
-    let uvMod = fract(uv * 10.0); // Adjust 10.0 to control density of the wireframe
+    let lineWidth = 0.05; // Width of the wireframe lines
+    let uvMod = fract(uv * 30.0); // Adjust 10.0 to control density of the wireframe
     let edge = step(uvMod.x, lineWidth) + step(uvMod.y, lineWidth) + step(1.0 - uvMod.x, lineWidth) + step(1.0 - uvMod.y, lineWidth);
     return clamp(edge, 0.0, 1.0);
 }
@@ -97,9 +99,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let specular_color = specular_strength * light.color;
 
     let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz;
-    let final_color = vec4<f32>(result, object_color.a);
-    let wireframe = wireframePattern(in.tex_coords);
-    return mix(final_color, vec4<f32>(1.0, 0.0, 0.0, 1.0), wireframe); // Black lines for wireframe
 
+    let wireframeEnabled = false;
+
+    if wireframeEnabled {
+        let final_color = vec4<f32>(result, object_color.a);
+        let wireframe = wireframePattern(in.tex_coords);
+        return mix(final_color, vec4<f32>(1.0, 0.0, 0.0, 1.0), wireframe);
+    }
+
+    return vec4<f32>(result, object_color.a);
 }
  
