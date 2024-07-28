@@ -1,5 +1,7 @@
+use cgmath::SquareMatrix;
+
 use crate::modules::core::texture;
-use std::ops::Range;
+use std::{ops::Range, os::macos::raw};
 
 pub trait Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
@@ -51,8 +53,28 @@ pub struct Material {
     pub bind_group: wgpu::BindGroup,
 }
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TransformUniform {
+    transform: [[f32; 4]; 4],
+}
+
+impl TransformUniform {
+    pub fn from(raw_matrix: [[f32; 4]; 4]) -> Self {
+        TransformUniform {
+            transform: raw_matrix
+        }
+    }
+    pub fn identity() -> Self {
+        TransformUniform {
+            transform: cgmath::Matrix4::identity().into()
+        }
+    }
+}
+
 pub struct Mesh {
     pub name: String,
+    pub transform_bind_group: wgpu::BindGroup,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub num_elements: u32,
@@ -119,6 +141,7 @@ where
         self.set_bind_group(0, &material.bind_group, &[]);
         self.set_bind_group(1, camera_bind_group, &[]);
         self.set_bind_group(2, light_bind_group, &[]);
+        self.set_bind_group(3, &mesh.transform_bind_group, &[]);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 

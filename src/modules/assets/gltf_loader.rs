@@ -1,49 +1,51 @@
 use std::{any::Any, io::{BufReader, Cursor}};
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::model::{Material, Mesh, Model, ModelVertex}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::Object, object_3d::Object3D}};
 use super::assets::{load_binary, load_string};
 
 pub async fn load_model_glb(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    layout: &wgpu::BindGroupLayout
-) -> anyhow::Result<Model> {
+    texture_bind_group_layout: &wgpu::BindGroupLayout,
+    transform_bind_group_layout: &wgpu::BindGroupLayout,
+) -> anyhow::Result<Object> {
     let gltf_bin = load_binary(file_name).await?;
     let gltf_cursor = Cursor::new(gltf_bin);
     let gltf_reader = BufReader::new(gltf_cursor);
     let gltf = gltf::Gltf::from_reader(gltf_reader)?;
 
     let buffer_data = extract_buffer_data(&gltf).await?;
-    let materials = extract_materials(device, queue, layout, gltf.materials(), &buffer_data).await?;
-    let meshes = extract_meshes(device, file_name, gltf.scenes(), &buffer_data);
+    let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
+    let meshes = extract_meshes(device, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
 
-    Ok(Model {
-        meshes,
-        materials,
-    })
+    let model = Model { meshes, materials };
+    let mut object = Object::new();
+    object.set_object_3d(Object3D::new(device, model));
+    Ok(object)
 }
 
 pub async fn load_model_gltf(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    layout: &wgpu::BindGroupLayout
-) -> anyhow::Result<Model> {
+    texture_bind_group_layout: &wgpu::BindGroupLayout,
+    transform_bind_group_layout: &wgpu::BindGroupLayout,
+) -> anyhow::Result<Object> {
     let gltf_text = load_string(file_name).await?;
     let gltf_cursor = Cursor::new(gltf_text);
     let gltf_reader = BufReader::new(gltf_cursor);
     let gltf = gltf::Gltf::from_reader(gltf_reader)?;
 
     let buffer_data = extract_buffer_data(&gltf).await?;
-    let materials = extract_materials(device, queue, layout, gltf.materials(), &buffer_data).await?;
-    let meshes = extract_meshes(device, file_name, gltf.scenes(), &buffer_data);
+    let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
+    let meshes = extract_meshes(device, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
 
-    Ok(Model {
-        meshes,
-        materials,
-    })
+    let model = Model { meshes, materials };
+    let mut object = Object::new();
+    object.set_object_3d(Object3D::new(device, model));
+    Ok(object)
 }
 
 async fn extract_buffer_data(
@@ -69,6 +71,7 @@ async fn extract_buffer_data(
 
 fn extract_meshes(
     device: &wgpu::Device, 
+    transform_bind_group_layout: &wgpu::BindGroupLayout,
     file_name: &str, 
     scenes: gltf::iter::Scenes,
     buffer_data: &Vec<Vec<u8>>
@@ -76,33 +79,49 @@ fn extract_meshes(
 
     let mut meshes = Vec::<Mesh>::new();
 
-    fn extract_from_node(node: &gltf::Node, device: &wgpu::Device, meshes: &mut Vec<Mesh>, buffer_data: &Vec<Vec<u8>>, file_name: &str) {
+    fn extract_from_node(
+        node: &gltf::Node, 
+        device: &wgpu::Device, 
+        transform_bind_group_layout: &wgpu::BindGroupLayout, 
+        object: &mut Object,
+        meshes: &mut Vec<Mesh>, 
+        buffer_data: &Vec<Vec<u8>>, 
+        file_name: &str
+    ) {
+        // dbg!(node.transform());
+        let m = node.transform().matrix();
+        object.matrix = node.transform().matrix();
         if let Some(mesh) = node.mesh() {
             let primitives = mesh.primitives();
             primitives.for_each(|primitive| {
                 let reader = primitive.reader(|buffer| Some(&buffer_data[buffer.index()]));
                 let mut vertices = Vec::new();
-                if let Some(vertex_attribute) = reader.read_positions() {
-                    vertex_attribute.for_each(|vertex| {
-                        vertices.push(ModelVertex {
-                            position: vertex,
-                            tex_coords: Default::default(),
-                            normal: Default::default(),
-                        })
-                    });
-                }
-                if let Some(normal_attribute) = reader.read_normals() {
-                    let mut normal_index = 0;
-                    normal_attribute.for_each(|normal| {
-                        vertices[normal_index].normal = normal;
-                        normal_index += 1;
-                    });
-                }
-                if let Some(tex_coord_attribute) = reader.read_tex_coords(0).map(|v| v.into_f32()) {
-                    let mut tex_coord_index = 0;
-                    tex_coord_attribute.for_each(|tex_coord| {
-                        vertices[tex_coord_index].tex_coords = tex_coord;
-                        tex_coord_index += 1;
+
+                // Extraire les positions
+                let positions: Vec<[f32; 3]> = reader.read_positions()
+                    .map(|positions| positions.collect())
+                    .unwrap_or_default();
+
+                // Extraire les coordonnées de texture
+                let tex_coords: Vec<[f32; 2]> = reader.read_tex_coords(0)
+                    .map(|tex_coords| tex_coords.into_f32().collect())
+                    .unwrap_or_default();
+
+                // Extraire les normales
+                let normals: Vec<[f32; 3]> = reader.read_normals()
+                    .map(|normals| normals.collect())
+                    .unwrap_or_default();
+
+                // Construire les vertices
+                for i in 0..positions.len() {
+                    let position = positions.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
+                    let tex_coord = tex_coords.get(i).unwrap_or(&[0.0, 0.0]);
+                    let normal = normals.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
+
+                    vertices.push(ModelVertex {
+                        position: *position,
+                        tex_coords: *tex_coord,
+                        normal: *normal,
                     });
                 }
 
@@ -110,6 +129,9 @@ fn extract_meshes(
                 if let Some(indices_raw) = reader.read_indices() {
                     indices.append(&mut indices_raw.into_u32().collect::<Vec<u32>>());
                 }
+
+                let report = &vertices.clone()[0..3];
+                // dbg!(report);
 
                 let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("{:?} Vertex Buffer", file_name)),
@@ -121,30 +143,58 @@ fn extract_meshes(
                     contents: bytemuck::cast_slice(&indices),
                     usage: wgpu::BufferUsages::INDEX,
                 });
-
+                let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Transform Buffer"),
+                    contents: bytemuck::cast_slice(&[TransformUniform::from(m)]),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                });
+                let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    layout: &transform_bind_group_layout,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: transform_buffer.as_entire_binding(),
+                    }],
+                    label: None,
+                });
+                // dbg!(primitive.clone());
+                let material = primitive.material();
+                println!("{} have material {:?} at {:?}", file_name, material.name(), material.index());
+                // dbg!(m);
                 meshes.push(Mesh {
                     name: file_name.to_string(),
+                    transform_bind_group,
                     vertex_buffer,
                     index_buffer,
                     num_elements: indices.len() as u32,
-                    // material:  mesh. mesh.material_id.unwrap_or(0),
-                    material: 0,
+                    material: primitive.material().index().unwrap_or(0),
                 });
             });
         }
     }
 
-    fn traverse(node: &gltf::Node, device: &wgpu::Device, meshes: &mut Vec<Mesh>, buffer_data: &Vec<Vec<u8>>, file_name: &str) {
-        println!("traversing node {}", node.index());
-        extract_from_node(node, device, meshes, buffer_data, file_name);
+    fn traverse(
+        node: &gltf::Node,
+        device: &wgpu::Device, 
+        transform_bind_group_layout: &wgpu::BindGroupLayout,
+        object: &mut Object,
+        meshes: &mut Vec<Mesh>, 
+        buffer_data: &Vec<Vec<u8>>, 
+        file_name: &str
+    ) {
+        // println!("traversing node {}", node.index());
+        extract_from_node(node, device, transform_bind_group_layout, object, meshes, buffer_data, file_name);
         for children in node.children() {
-            traverse(&children, device, meshes, buffer_data, file_name);
+            // todo: create object graph, but currently it depends on &mut scene 
+            traverse(&children, device, transform_bind_group_layout, object, meshes, buffer_data, file_name);
         }
     }
+
+    let mut object = Object::new();
     
     for scene in scenes {
         for node in scene.nodes() {
-            traverse(&node, device, &mut meshes, buffer_data, file_name);
+            println!("node, but having {}", node.children().len());
+            traverse(&node, device, transform_bind_group_layout, &mut object, &mut meshes, buffer_data, file_name);
         }
     }
 
@@ -174,10 +224,13 @@ async fn extract_materials(
 
         match texture_source {
             gltf::image::Source::View { view, mime_type } => {
-                dbg!(mime_type);
+                let buffer = &buffer_data[view.buffer().index()];
+                let start = view.offset();
+                let end = start + view.length();
+                let image_data = &buffer[start..end];
                 let material = load_material_from_bytes(
                     material.name().unwrap_or("Default Material"),
-                    &buffer_data[view.buffer().index()],
+                    image_data,
                     device, 
                     queue, 
                     layout
@@ -191,5 +244,8 @@ async fn extract_materials(
             }
         };
     }
+    let report = extracted_materials.iter().enumerate().map(|(idx, m)| (idx, m.name.clone())).collect::<Vec<_>>();
+    dbg!(report);
+    // println!("extracted materials {:#?}", Vec::clone(&extracted_materials).iter().map(|m, idx| (m.name)));
     Ok(extracted_materials)
 }

@@ -18,6 +18,12 @@ struct CameraUniform {
 @group(1) @binding(0)
 var<uniform> camera: CameraUniform;
 
+struct TransformUniform {
+    transform: mat4x4<f32>,
+};
+@group(3) @binding(0)
+var<uniform> transform: TransformUniform;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
@@ -51,7 +57,8 @@ fn vs_main(
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
     out.world_normal = normal_matrix * model.normal;
-    var world_position: vec4<f32> = model_matrix * vec4<f32>(model.position, 1.0);
+    var transformed_model_matrix = model_matrix * transform.transform;
+    var world_position: vec4<f32> = transformed_model_matrix * vec4<f32>(model.position, 1.0);
     out.world_position = world_position.xyz;
     out.clip_position = camera.view_proj * world_position;
     out.position = model.position;

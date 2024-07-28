@@ -16,7 +16,15 @@ impl Texture {
         bytes: &[u8],
         label: &str,
     ) -> Result<Self> {
-        let _ = std::fs::write(Path::new("bytes_image.png"), bytes);
+        let debug = true;
+        if debug {
+            let filename = if label.ends_with(".png") || label.ends_with(".jpg") {
+                format!("trash/{label}")
+            } else {
+                format!("trash/{label}.png")
+            };
+            let _ = std::fs::write(Path::new(&filename), bytes);
+        }
         let img = image::load_from_memory(bytes)?;
         Self::from_image(device, queue, &img, Some(label))
     }
@@ -65,9 +73,9 @@ impl Texture {
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,

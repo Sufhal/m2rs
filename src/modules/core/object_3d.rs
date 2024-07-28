@@ -11,17 +11,15 @@ type Quat = cgmath::Quaternion<f32>;
 
 const INITIAL_INSTANCES_COUNT: usize = 100;
 
-pub struct Object3D<'a> {
+pub struct Object3D {
     pub id: String,
-    pub model: Option<Model>,
+    pub model: Model,
     instances: Vec<Object3DInstance>,
-    instance_buffer: wgpu::Buffer,
-    childrens: Vec<&'a Object3D<'a>>,
-    parent: Option<&'a Object3D<'a>>,
+    instance_buffer: wgpu::Buffer
 }
 
-impl Object3D<'_> {
-    pub fn new(device: &wgpu::Device, model: Option<Model>) -> Object3D<'static> {
+impl Object3D {
+    pub fn new(device: &wgpu::Device, model: Model) -> Self {
         let instances = vec![
             Object3DInstance::new();
             INITIAL_INSTANCES_COUNT
@@ -31,12 +29,10 @@ impl Object3D<'_> {
             contents: bytemuck::cast_slice(&instances.iter().map(|i| i.to_instance_raw()).collect::<Vec<_>>()),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
-        Object3D {
+        Self {
             id: generate_unique_string(),
             instances,
             instance_buffer,
-            childrens: Vec::new(),
-            parent: None,
             model,
         }
     }
@@ -44,7 +40,6 @@ impl Object3D<'_> {
         if let Some(index) = self.find_available_instance() {
             return self.instances.get_mut(index).unwrap();
         } 
-        println!("oui");
         self.increase_instances_capability(device);
         self.request_instance(device)
     }

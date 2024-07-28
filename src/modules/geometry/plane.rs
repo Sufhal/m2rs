@@ -1,7 +1,8 @@
 
+use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use crate::modules::core::model::{Mesh, ModelVertex};
+use crate::modules::core::model::{Mesh, ModelVertex, TransformUniform};
 
 use super::buffer::ToMesh;
 
@@ -61,7 +62,7 @@ impl Plane {
 }
 
 impl ToMesh for Plane {
-    fn to_mesh(&self, device: &wgpu::Device, name: String) -> Mesh {
+    fn to_mesh(&self, device: &wgpu::Device, transform_bind_group_layout: &wgpu::BindGroupLayout, name: String) -> Mesh {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Plane Vertex Buffer"),
             contents: bytemuck::cast_slice(&self.vertices),
@@ -72,8 +73,22 @@ impl ToMesh for Plane {
             contents: bytemuck::cast_slice(&self.indices),
             usage: wgpu::BufferUsages::INDEX,
         });
+        let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Transform Buffer"),
+            contents: bytemuck::cast_slice(&[TransformUniform::identity()]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &transform_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: transform_buffer.as_entire_binding(),
+            }],
+            label: None,
+        });
         Mesh {
             name,
+            transform_bind_group,
             vertex_buffer,
             index_buffer,
             num_elements: self.indices.len() as u32,

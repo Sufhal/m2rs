@@ -7,6 +7,7 @@ use winit::{
     window::Window,
 };
 use cgmath::{prelude::*, Deg, Euler, Quaternion, Rad, Vector3};
+use crate::modules::core::object::Object;
 use crate::modules::core::object_3d::Object3D;
 use crate::modules::core::{instance, light, model, texture};
 use crate::modules::assets::assets;
@@ -38,8 +39,9 @@ pub struct State<'a> {
     light_uniform: light::LightUniform,
     light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
+    transform_bind_group_layout: wgpu::BindGroupLayout,
     pub window: &'a Window,
-    scene: scene::Scene<'a>
+    scene: scene::Scene
 }
 
 impl<'a> State<'a> {
@@ -209,6 +211,23 @@ impl<'a> State<'a> {
             label: None,
         });
 
+        // TRANSFORM
+
+        let transform_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("transform_bind_group_layout"),
+            });
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
@@ -216,6 +235,7 @@ impl<'a> State<'a> {
                     &texture_bind_group_layout, 
                     &camera_bind_group_layout,
                     &light_bind_group_layout,
+                    &transform_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -239,41 +259,49 @@ impl<'a> State<'a> {
             )
         };
 
-        let obj_model =
-            assets::load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
+        let mut scene = scene::Scene::new();
+
+        let mut cube =
+            assets::load_model("cube.obj", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout)
                 .await
                 .unwrap();
 
-        let mut scene = scene::Scene::new();
-        let mut object_3d = Object3D::new(&device, Some(obj_model));
-        for i in 1..10 {
-            let instance = object_3d.request_instance(&device);
-            instance.take();
-            instance.set_position(cgmath::Vector3 { x: (i * 3) as f32, y: 0.0, z: 0.0 });
+        if let Some(object_3d) = cube.get_object_3d() {
+            for i in 1..10 {
+                let instance = object_3d.request_instance(&device);
+                instance.take();
+                instance.set_position(cgmath::Vector3 { x: (i * 3) as f32, y: 0.0, z: 0.0 });
+            }
         }
-        scene.add(object_3d);
+        scene.add(cube);
 
         let plane = Plane::new(10.0, 10.0, 1, 1);
-        let mesh = plane.to_mesh(&device, "A place".to_string());
+        let mesh = plane.to_mesh(&device, &transform_bind_group_layout, "A place".to_string());
         let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
         let model = Model { 
             meshes: vec![mesh], 
             materials: vec![material] 
         };
-        let mut object = Object3D::new(&device, Some(model));
-        let instance = object.request_instance(&device);
+        let mut object = Object::new();
+        object.set_object_3d(Object3D::new(&device, model));
+        let instance = object.get_object_3d().unwrap().request_instance(&device);
         instance.take();
         scene.add(object);
         
         // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        let vlad = load_model_glb("vladimir.glb", &device, &queue, &texture_bind_group_layout).await.expect("unable to load");
+        let mut vlad = load_model_glb("vladimir.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
         // vlad.materials.push(material);
-        println!("vlad have {} meshes", vlad.meshes.len());
-        let mut object = Object3D::new(&device, Some(vlad));
-        let instance = object.request_instance(&device);
-        instance.take();
+        if let Some(object_3d) = vlad.get_object_3d() {
+            for i in 0..object_3d.model.materials.len() {
+                let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
+                object_3d.model.materials[i] = material;
+            }
+            let instance = object_3d.request_instance(&device);
+            instance.take();
+        }
+        
         // instance.add_y_position(3.0);
-        scene.add(object);
+        scene.add(vlad);
 
         Self {
             surface,
@@ -293,6 +321,7 @@ impl<'a> State<'a> {
             light_buffer,
             light_uniform,
             light_bind_group,
+            transform_bind_group_layout,
             window,
             scene,
         }
@@ -352,14 +381,17 @@ impl<'a> State<'a> {
         let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
         self.light_uniform.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
         self.queue.write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light_uniform]));
-        for object_3d in self.scene.get_objects() {
-            for (index, instance) in object_3d.get_instances().iter_mut().enumerate() {
-                let rotation_speed = std::f32::consts::PI * 2.0; // 90 degrés par seconde
-                let rotation_angle = rotation_speed * dt.as_secs_f32();
-                let rotation = rotation_angle * index as f32 * 0.2;
-                instance.add_xyz_rotation(rotation, rotation, rotation);
+        for object in self.scene.get_all_objects() {
+            if let Some(object_3d) = object.get_object_3d() {
+                for (index, instance) in object_3d.get_instances().iter_mut().enumerate() {
+                    let rotation_speed = std::f32::consts::PI * 2.0; // 90 degrés par seconde
+                    let rotation_angle = rotation_speed * dt.as_secs_f32();
+                    let rotation = rotation_angle * index as f32 * 0.2;
+                    instance.add_xyz_rotation(rotation, rotation, rotation);
+                }
             }
         }
+        self.scene.compute_world_matrices();
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

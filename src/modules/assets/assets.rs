@@ -1,9 +1,10 @@
 use std::io::{BufReader, Cursor};
 
 use cfg_if::cfg_if;
+use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use crate::modules::core::{model,texture::{self, Texture}};
+use crate::modules::core::{model::{self, TransformUniform}, object::Object, object_3d::Object3D, texture::{self, Texture}};
 
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> reqwest::Url {
@@ -70,8 +71,9 @@ pub async fn load_model(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    layout: &wgpu::BindGroupLayout,
-) -> anyhow::Result<model::Model> {
+    texture_bind_group_layout: &wgpu::BindGroupLayout,
+    transform_bind_group_layout: &wgpu::BindGroupLayout,
+) -> anyhow::Result<Object> {
     let obj_text = load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
@@ -92,7 +94,7 @@ pub async fn load_model(
 
     let mut materials = Vec::new();
     for m in obj_materials? {
-        let material = load_material(&m.diffuse_texture, device, queue, layout).await?;
+        let material = load_material(&m.diffuse_texture, device, queue, texture_bind_group_layout).await?;
         materials.push(material)
     }
 
@@ -139,9 +141,23 @@ pub async fn load_model(
                 contents: bytemuck::cast_slice(&m.mesh.indices),
                 usage: wgpu::BufferUsages::INDEX,
             });
+            let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Transform Buffer"),
+                contents: bytemuck::cast_slice(&[TransformUniform::identity()]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
+            let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &transform_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: transform_buffer.as_entire_binding(),
+                }],
+                label: None,
+            });
 
             model::Mesh {
                 name: file_name.to_string(),
+                transform_bind_group,
                 vertex_buffer,
                 index_buffer,
                 num_elements: m.mesh.indices.len() as u32,
@@ -150,7 +166,10 @@ pub async fn load_model(
         })
         .collect::<Vec<_>>();
 
-    Ok(model::Model { meshes, materials })
+    let model = model::Model { meshes, materials };
+    let mut object = Object::new();
+    object.set_object_3d(Object3D::new(device, model));
+    Ok(object)
 }
 
 
