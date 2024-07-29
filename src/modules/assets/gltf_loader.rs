@@ -17,8 +17,7 @@ pub async fn load_model_glb(
     let gltf = gltf::Gltf::from_reader(gltf_reader)?;
 
     let buffer_data = extract_buffer_data(&gltf).await?;
-    let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
-    let objects = extract_objects(device, transform_bind_group_layout, file_name, gltf.scenes(), materials, &buffer_data);
+    let objects = extract_objects(device, queue, transform_bind_group_layout, texture_bind_group_layout, file_name, &gltf, &buffer_data).await;
 
     Ok(objects)
 }
@@ -66,23 +65,26 @@ async fn extract_buffer_data(
     Ok(buffer_data)
 }
 
-fn extract_objects(
+async fn extract_objects(
     device: &wgpu::Device, 
+    queue: &wgpu::Queue,
     transform_bind_group_layout: &wgpu::BindGroupLayout,
+    texture_bind_group_layout: &wgpu::BindGroupLayout,
     file_name: &str, 
     gltf_model: &gltf::Gltf,
-    materials: Vec<Material>,
     buffer_data: &Vec<Vec<u8>>
 ) -> Vec<Object> {
 
     let mut objects = Vec::<Object>::new();
 
-    fn extract_from_node(
-        node: &gltf::Node, 
+    async fn extract_from_node(
+        node: &gltf::Node<'_>, 
         device: &wgpu::Device, 
+        queue: &wgpu::Queue,
         transform_bind_group_layout: &wgpu::BindGroupLayout, 
+        texture_bind_group_layout: &wgpu::BindGroupLayout,
+        gltf_model: &gltf::Gltf,
         objects: &mut Vec<Object>,
-        materials: Vec<Material>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) -> String {
@@ -168,6 +170,7 @@ fn extract_objects(
                 });
             });
             if meshes.len() > 0 {
+                let materials = extract_materials(device, queue, texture_bind_group_layout, gltf_model.materials(), &buffer_data).await.unwrap();
                 let model = Model { meshes, materials };
                 let object_3d = Object3D::new(device, model);
                 object.set_object_3d(object_3d);
@@ -178,16 +181,19 @@ fn extract_objects(
         object_id
     }
 
-    fn traverse(
+    async fn traverse(
         node: &gltf::Node,
         device: &wgpu::Device, 
+        queue: &wgpu::Queue,
         transform_bind_group_layout: &wgpu::BindGroupLayout,
+        texture_bind_group_layout: &wgpu::BindGroupLayout,
+        gltf_model: &gltf::Gltf,
         parent_id: Option<String>,
         objects: &mut Vec<Object>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) {
-        let object_id = extract_from_node(node, device, transform_bind_group_layout, objects, buffer_data, file_name);
+        let object_id = extract_from_node(node, device, queue, transform_bind_group_layout, texture_bind_group_layout, gltf_model, objects, buffer_data, file_name).await;
         if let Some(parent_id) = parent_id {
             let (current_object, parent_object) = objects.iter_mut().fold((None, None), |mut acc, object| {
                 if object.id == object_id {
