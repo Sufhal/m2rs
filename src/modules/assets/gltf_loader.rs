@@ -1,7 +1,7 @@
 use std::{any::Any, io::{BufReader, Cursor}};
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::Object, object_3d::Object3D}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::Object, object_3d::{self, Object3D}}};
 use super::assets::{load_binary, load_string};
 
 pub async fn load_model_glb(
@@ -10,7 +10,7 @@ pub async fn load_model_glb(
     queue: &wgpu::Queue,
     texture_bind_group_layout: &wgpu::BindGroupLayout,
     transform_bind_group_layout: &wgpu::BindGroupLayout,
-) -> anyhow::Result<Object> {
+) -> anyhow::Result<Vec<Object>> {
     let gltf_bin = load_binary(file_name).await?;
     let gltf_cursor = Cursor::new(gltf_bin);
     let gltf_reader = BufReader::new(gltf_cursor);
@@ -18,35 +18,32 @@ pub async fn load_model_glb(
 
     let buffer_data = extract_buffer_data(&gltf).await?;
     let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
-    let meshes = extract_meshes(device, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
+    let objects = extract_objects(device, transform_bind_group_layout, file_name, gltf.scenes(), materials, &buffer_data);
 
-    let model = Model { meshes, materials };
-    let mut object = Object::new();
-    object.set_object_3d(Object3D::new(device, model));
-    Ok(object)
+    Ok(objects)
 }
 
-pub async fn load_model_gltf(
-    file_name: &str,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    texture_bind_group_layout: &wgpu::BindGroupLayout,
-    transform_bind_group_layout: &wgpu::BindGroupLayout,
-) -> anyhow::Result<Object> {
-    let gltf_text = load_string(file_name).await?;
-    let gltf_cursor = Cursor::new(gltf_text);
-    let gltf_reader = BufReader::new(gltf_cursor);
-    let gltf = gltf::Gltf::from_reader(gltf_reader)?;
+// pub async fn load_model_gltf(
+//     file_name: &str,
+//     device: &wgpu::Device,
+//     queue: &wgpu::Queue,
+//     texture_bind_group_layout: &wgpu::BindGroupLayout,
+//     transform_bind_group_layout: &wgpu::BindGroupLayout,
+// ) -> anyhow::Result<Object> {
+//     let gltf_text = load_string(file_name).await?;
+//     let gltf_cursor = Cursor::new(gltf_text);
+//     let gltf_reader = BufReader::new(gltf_cursor);
+//     let gltf = gltf::Gltf::from_reader(gltf_reader)?;
 
-    let buffer_data = extract_buffer_data(&gltf).await?;
-    let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
-    let meshes = extract_meshes(device, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
+//     let buffer_data = extract_buffer_data(&gltf).await?;
+//     let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
+//     let meshes = extract_meshes(device, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
 
-    let model = Model { meshes, materials };
-    let mut object = Object::new();
-    object.set_object_3d(Object3D::new(device, model));
-    Ok(object)
-}
+//     let model = Model { meshes, materials };
+//     let mut object = Object::new();
+//     object.set_object_3d(Object3D::new(device, model));
+//     Ok(object)
+// }
 
 async fn extract_buffer_data(
     model: &gltf::Gltf
@@ -69,29 +66,30 @@ async fn extract_buffer_data(
     Ok(buffer_data)
 }
 
-fn extract_meshes(
+fn extract_objects(
     device: &wgpu::Device, 
     transform_bind_group_layout: &wgpu::BindGroupLayout,
     file_name: &str, 
-    scenes: gltf::iter::Scenes,
+    gltf_model: &gltf::Gltf,
+    materials: Vec<Material>,
     buffer_data: &Vec<Vec<u8>>
-) -> Vec<Mesh> {
+) -> Vec<Object> {
 
-    let mut meshes = Vec::<Mesh>::new();
+    let mut objects = Vec::<Object>::new();
 
     fn extract_from_node(
         node: &gltf::Node, 
         device: &wgpu::Device, 
         transform_bind_group_layout: &wgpu::BindGroupLayout, 
-        object: &mut Object,
-        meshes: &mut Vec<Mesh>, 
+        objects: &mut Vec<Object>,
+        materials: Vec<Material>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
-    ) {
-        // dbg!(node.transform());
-        let m = node.transform().matrix();
+    ) -> String {
+        let mut object = Object::new();
         object.matrix = node.transform().matrix();
         if let Some(mesh) = node.mesh() {
+            let mut meshes = Vec::<Mesh>::new();
             let primitives = mesh.primitives();
             primitives.for_each(|primitive| {
                 let reader = primitive.reader(|buffer| Some(&buffer_data[buffer.index()]));
@@ -145,7 +143,7 @@ fn extract_meshes(
                 });
                 let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Transform Buffer"),
-                    contents: bytemuck::cast_slice(&[TransformUniform::from(m)]),
+                    contents: bytemuck::cast_slice(&[TransformUniform::from(object.matrix)]),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
                 let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -169,36 +167,57 @@ fn extract_meshes(
                     material: primitive.material().index().unwrap_or(0),
                 });
             });
+            if meshes.len() > 0 {
+                let model = Model { meshes, materials };
+                let object_3d = Object3D::new(device, model);
+                object.set_object_3d(object_3d);
+            }
         }
+        let object_id = object.id.clone();
+        objects.push(object);
+        object_id
     }
 
     fn traverse(
         node: &gltf::Node,
         device: &wgpu::Device, 
         transform_bind_group_layout: &wgpu::BindGroupLayout,
-        object: &mut Object,
-        meshes: &mut Vec<Mesh>, 
+        parent_id: Option<String>,
+        objects: &mut Vec<Object>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) {
-        // println!("traversing node {}", node.index());
-        extract_from_node(node, device, transform_bind_group_layout, object, meshes, buffer_data, file_name);
+        let object_id = extract_from_node(node, device, transform_bind_group_layout, objects, buffer_data, file_name);
+        if let Some(parent_id) = parent_id {
+            let (current_object, parent_object) = objects.iter_mut().fold((None, None), |mut acc, object| {
+                if object.id == object_id {
+                    acc.0 = Some(object);
+                }
+                else if object.id == parent_id {
+                    acc.1 = Some(object);
+                }
+                acc
+            });
+            if let Some(current_object) = current_object {
+                current_object.parent = Some(parent_id.clone());
+            }
+            if let Some(parent_object) = parent_object {
+                parent_object.childrens.push(object_id.clone());
+            }
+        }
         for children in node.children() {
-            // todo: create object graph, but currently it depends on &mut scene 
-            traverse(&children, device, transform_bind_group_layout, object, meshes, buffer_data, file_name);
+            traverse(&children, device, transform_bind_group_layout, Some(object_id.clone()), objects, buffer_data, file_name);
         }
     }
 
-    let mut object = Object::new();
-    
-    for scene in scenes {
+    for scene in gltf_model.scenes() {
         for node in scene.nodes() {
             println!("node, but having {}", node.children().len());
-            traverse(&node, device, transform_bind_group_layout, &mut object, &mut meshes, buffer_data, file_name);
+            traverse(&node, device, transform_bind_group_layout, None, &mut objects, buffer_data, file_name);
         }
     }
 
-    meshes
+    objects
 }
 
 async fn extract_materials(
