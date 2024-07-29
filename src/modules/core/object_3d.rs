@@ -11,6 +11,7 @@ type Quat = cgmath::Quaternion<f32>;
 
 const INITIAL_INSTANCES_COUNT: usize = 100;
 
+#[derive(Debug)]
 pub struct Object3D {
     pub id: String,
     pub model: Model,
@@ -88,7 +89,7 @@ impl Object3D {
 }
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Object3DInstance {
     pub id: String,
     rotation: Quat,

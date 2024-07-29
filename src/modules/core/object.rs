@@ -3,6 +3,7 @@ use crate::modules::utils::id_gen::generate_unique_string;
 
 use super::{object_3d::{self, Object3D}, scene::Scene};
 
+#[derive(Debug)]
 pub struct Object {
     pub id: String,
     pub parent: Option<String>,

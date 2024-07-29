@@ -1,4 +1,4 @@
-use std::{any::Any, io::{BufReader, Cursor}};
+use std::{any::Any, io::{BufReader, Cursor}, ops::Deref};
 use wgpu::util::DeviceExt;
 
 use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::Object, object_3d::{self, Object3D}}};
@@ -17,7 +17,8 @@ pub async fn load_model_glb(
     let gltf = gltf::Gltf::from_reader(gltf_reader)?;
 
     let buffer_data = extract_buffer_data(&gltf).await?;
-    let objects = extract_objects(device, queue, transform_bind_group_layout, texture_bind_group_layout, file_name, &gltf, &buffer_data).await;
+    let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
+    let objects = extract_objects(device, materials, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
 
     Ok(objects)
 }
@@ -65,26 +66,23 @@ async fn extract_buffer_data(
     Ok(buffer_data)
 }
 
-async fn extract_objects(
+fn extract_objects(
     device: &wgpu::Device, 
-    queue: &wgpu::Queue,
+    materials: Vec<Material>,
     transform_bind_group_layout: &wgpu::BindGroupLayout,
-    texture_bind_group_layout: &wgpu::BindGroupLayout,
     file_name: &str, 
-    gltf_model: &gltf::Gltf,
+    scenes: gltf::iter::Scenes,
     buffer_data: &Vec<Vec<u8>>
 ) -> Vec<Object> {
 
     let mut objects = Vec::<Object>::new();
 
-    async fn extract_from_node(
+    fn extract_from_node(
         node: &gltf::Node<'_>, 
         device: &wgpu::Device, 
-        queue: &wgpu::Queue,
         transform_bind_group_layout: &wgpu::BindGroupLayout, 
-        texture_bind_group_layout: &wgpu::BindGroupLayout,
-        gltf_model: &gltf::Gltf,
         objects: &mut Vec<Object>,
+        materials: &Vec<Material>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) -> String {
@@ -170,8 +168,7 @@ async fn extract_objects(
                 });
             });
             if meshes.len() > 0 {
-                let materials = extract_materials(device, queue, texture_bind_group_layout, gltf_model.materials(), &buffer_data).await.unwrap();
-                let model = Model { meshes, materials };
+                let model = Model { meshes, materials: Vec::new() };
                 let object_3d = Object3D::new(device, model);
                 object.set_object_3d(object_3d);
             }
@@ -181,19 +178,25 @@ async fn extract_objects(
         object_id
     }
 
-    async fn traverse(
-        node: &gltf::Node,
+    fn traverse(
+        node: &gltf::Node<'_>,
         device: &wgpu::Device, 
-        queue: &wgpu::Queue,
         transform_bind_group_layout: &wgpu::BindGroupLayout,
-        texture_bind_group_layout: &wgpu::BindGroupLayout,
-        gltf_model: &gltf::Gltf,
         parent_id: Option<String>,
         objects: &mut Vec<Object>,
+        materials: &Vec<Material>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) {
-        let object_id = extract_from_node(node, device, queue, transform_bind_group_layout, texture_bind_group_layout, gltf_model, objects, buffer_data, file_name).await;
+        let object_id = extract_from_node(
+            node, 
+            device, 
+            transform_bind_group_layout, 
+            objects, 
+            materials, 
+            buffer_data, 
+            file_name
+        );
         if let Some(parent_id) = parent_id {
             let (current_object, parent_object) = objects.iter_mut().fold((None, None), |mut acc, object| {
                 if object.id == object_id {
@@ -212,14 +215,14 @@ async fn extract_objects(
             }
         }
         for children in node.children() {
-            traverse(&children, device, transform_bind_group_layout, Some(object_id.clone()), objects, buffer_data, file_name);
+            traverse(&children, device, transform_bind_group_layout, Some(object_id.clone()), objects, materials, buffer_data, file_name);
         }
     }
 
-    for scene in gltf_model.scenes() {
+    for scene in scenes {
         for node in scene.nodes() {
             println!("node, but having {}", node.children().len());
-            traverse(&node, device, transform_bind_group_layout, None, &mut objects, buffer_data, file_name);
+            traverse(&node, device, transform_bind_group_layout,  None, &mut objects, &materials, buffer_data, file_name);
         }
     }
 

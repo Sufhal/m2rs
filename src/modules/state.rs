@@ -1,4 +1,5 @@
 use std::iter;
+use cgmath::Rotation3;
 use log::info;
 use wgpu::util::DeviceExt;
 use winit::{
@@ -6,7 +7,6 @@ use winit::{
     keyboard::PhysicalKey,
     window::Window,
 };
-use cgmath::{prelude::*, Deg, Euler, Quaternion, Rad, Vector3};
 use crate::modules::core::object::Object;
 use crate::modules::core::object_3d::Object3D;
 use crate::modules::core::{instance, light, model, texture};
@@ -15,11 +15,11 @@ use crate::modules::camera::camera;
 use crate::modules::utils::functions;
 use crate::modules::geometry::buffer::ToMesh;
 use model::Vertex;
-use super::assets::gltf_loader::{load_model_glb, load_model_gltf};
+use super::assets::gltf_loader::load_model_glb;
 use super::core::model::Model;
 use super::core::object_3d::Transform;
-use super::core::{object_3d, scene};
-use super::geometry::plane::{self, Plane};
+use super::core::scene;
+use super::geometry::plane::Plane;
 
 pub struct State<'a> {
     surface: wgpu::Surface<'a>,
@@ -289,19 +289,25 @@ impl<'a> State<'a> {
         scene.add(object);
         
         // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        let mut vlad = load_model_glb("vladimir.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
+        let vlad = load_model_glb("vladimir.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
         // vlad.materials.push(material);
-        if let Some(object_3d) = vlad.get_object_3d() {
-            for i in 0..object_3d.model.materials.len() {
-                let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-                object_3d.model.materials[i] = material;
-            }
-            let instance = object_3d.request_instance(&device);
-            instance.take();
-        }
+
+        dbg!(vlad);
+        // for object in vlad {
+        //     scene.add(object);
+        // }
+
+        // if let Some(object_3d) = vlad.get_object_3d() {
+        //     for i in 0..object_3d.model.materials.len() {
+        //         let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
+        //         object_3d.model.materials[i] = material;
+        //     }
+        //     let instance = object_3d.request_instance(&device);
+        //     instance.take();
+        // }
         
         // instance.add_y_position(3.0);
-        scene.add(vlad);
+        // scene.add(vlad);
 
         Self {
             surface,

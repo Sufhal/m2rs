@@ -1,7 +1,7 @@
 use cgmath::SquareMatrix;
 
 use crate::modules::core::texture;
-use std::{ops::Range, os::macos::raw};
+use std::ops::Range;
 
 pub trait Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
@@ -42,11 +42,13 @@ impl Vertex for ModelVertex {
     }
 }
 
+#[derive(Debug)]
 pub struct Model {
     pub meshes: Vec<Mesh>,
     pub materials: Vec<Material>,
 }
 
+#[derive(Debug)]
 pub struct Material {
     pub name: String,
     pub diffuse_texture: texture::Texture,
@@ -72,6 +74,7 @@ impl TransformUniform {
     }
 }
 
+#[derive(Debug)]
 pub struct Mesh {
     pub name: String,
     pub transform_bind_group: wgpu::BindGroup,
