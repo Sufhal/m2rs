@@ -7,8 +7,8 @@ use winit::{
     keyboard::PhysicalKey,
     window::Window,
 };
-use crate::modules::core::object::Object;
-use crate::modules::core::object_3d::Object3D;
+use crate::modules::core::object::{self, Object};
+use crate::modules::core::object_3d::{self, Object3D};
 use crate::modules::core::{instance, light, model, texture};
 use crate::modules::assets::assets;
 use crate::modules::camera::camera;
@@ -289,13 +289,27 @@ impl<'a> State<'a> {
         scene.add(object);
         
         // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        let vlad = load_model_glb("vladimir.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
+        let vlad = load_model_glb("shaman.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
         // vlad.materials.push(material);
+        
+        // for obj in &vlad[0..3] {
+        //     dbg!(&obj.id);
+        //     dbg!(&obj.parent);
+        //     dbg!(&obj.childrens);
+        //     dbg!(&obj.matrix);
 
-        dbg!(vlad);
-        // for object in vlad {
-        //     scene.add(object);
         // }
+        // dbg!(&vlad[0..3]);
+        for mut object in vlad {
+            let id = object.id.clone();
+            if let Some(object_3d) = &mut object.object_3d {
+                dbg!(&object.matrix);
+                // println!("object {} have mesh", id);
+                let instance = object_3d.request_instance(&device);
+                instance.take();
+            }
+            scene.add(object);
+        }
 
         // if let Some(object_3d) = vlad.get_object_3d() {
         //     for i in 0..object_3d.model.materials.len() {
@@ -398,6 +412,7 @@ impl<'a> State<'a> {
             }
         }
         self.scene.compute_world_matrices();
+        self.scene.update_objects_buffers(&self.queue);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

@@ -1,9 +1,10 @@
 use std::collections::{HashMap, VecDeque};
 use cgmath::SquareMatrix;
+use wgpu::core::device::queue;
 
 use super::object::{self, Object};
 use super::object_3d::{self, Object3D};
-use super::model::DrawModel;
+use super::model::{DrawModel, TransformUniform};
 
 pub struct Scene {
     objects: HashMap<String, Object>,
@@ -64,6 +65,16 @@ impl Scene {
                             queue.push_back(child_id.clone());
                         }
                     }
+                }
+            }
+        }
+    }
+    pub fn update_objects_buffers(&mut self, queue: &wgpu::Queue) {
+        for (_, object) in &mut self.objects {
+            if let Some(object_3d) = &object.object_3d {
+                for mesh in &object_3d.model.meshes {
+                    // dbg!(&object.matrix_world);
+                    // queue.write_buffer(&mesh.transform_buffer, 0, bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]));
                 }
             }
         }

@@ -94,8 +94,6 @@ pub struct Object3DInstance {
     pub id: String,
     rotation: Quat,
     position: Vec3,
-    matrix: Mat4,
-    matrix_world: Mat4,
     needs_update: bool,
     busy: bool
 }
@@ -106,8 +104,6 @@ impl Object3DInstance {
             id: generate_unique_string(),
             rotation: cgmath::Quaternion::one(),
             position: cgmath::Vector3::new(0.0, 0.0, 0.0),
-            matrix: cgmath::Matrix4::identity(),
-            matrix_world: cgmath::Matrix4::identity(),
             needs_update: false,
             busy: false
         }
@@ -126,17 +122,10 @@ impl Object3DInstance {
     pub fn to_instance_raw(&self) -> InstanceRaw {
         InstanceRaw::new(self.position, self.rotation)
     }
-    pub fn update(&mut self) {
-        if self.needs_update {
-            self.needs_update = false;
-        }
-    }
     pub fn dispose(&mut self) {
         let default = Self::new();
         self.rotation = default.rotation;
         self.position = default.position;
-        self.matrix = default.matrix;
-        self.matrix_world = default.matrix_world;
         self.busy = false;
         self.needs_update = false;
     } 

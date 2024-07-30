@@ -1,4 +1,4 @@
-use std::{any::Any, io::{BufReader, Cursor}, ops::Deref};
+use std::{any::Any, collections::{HashMap, HashSet}, hash::Hash, io::{BufReader, Cursor}, ops::Deref};
 use wgpu::util::DeviceExt;
 
 use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::Object, object_3d::{self, Object3D}}};
@@ -18,7 +18,47 @@ pub async fn load_model_glb(
 
     let buffer_data = extract_buffer_data(&gltf).await?;
     let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
-    let objects = extract_objects(device, materials, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
+    let mut objects = extract_objects(device, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
+
+    // dbg!(&materials.iter().map(|m| m.name.clone()).collect::<Vec<_>>());
+
+    let mut materials_per_idx = materials.into_iter().enumerate().fold(HashMap::new(), |mut acc, (idx, material)| {
+        acc.insert(idx, material);
+        acc
+    });
+
+    dbg!(&materials_per_idx.iter().map(|(idx, material)| (idx, material.name.clone())).collect::<Vec<_>>());
+
+    objects.iter_mut().for_each(|object| {
+        if let Some(object_3d) = &mut object.object_3d {
+            for mesh in &mut object_3d.model.meshes {
+                if let Some(material) = materials_per_idx.remove(&mesh.material) {
+                    mesh.material = object_3d.model.materials.len();
+                    object_3d.model.materials.push(material);
+                } else {
+                    panic!("no more material")
+                }
+            }
+
+    //         let material_indexes = object_3d.model.meshes.iter().fold(HashSet::new(), |mut acc, mesh| {
+    //             // println!("mesh {} need material {} and still having {} materials in the pocket", mesh.name, mesh.material, materials.len());
+    //             acc.insert(mesh.material);
+    //             acc
+    //         });
+    //         for material_idx in material_indexes {
+    // // dbg!(&materials.iter().map(|m| m.name.clone()).collect::<Vec<_>>());
+    //             if let Some(material) = materials_per_idx.remove(&material_idx) {
+    //                 object_3d.model.materials.push(material);
+    //             } else {
+    //                 panic!("no more material");
+    //             }
+    //         }
+    //         dbg!(&object_3d.model.materials.iter().map(|m| m.name.clone()).collect::<Vec<_>>());
+    //         println!("current model have {} meshes", object_3d.model.meshes.len());
+        }
+    });
+
+    println!("model have {} objects", objects.len());
 
     Ok(objects)
 }
@@ -68,7 +108,6 @@ async fn extract_buffer_data(
 
 fn extract_objects(
     device: &wgpu::Device, 
-    materials: Vec<Material>,
     transform_bind_group_layout: &wgpu::BindGroupLayout,
     file_name: &str, 
     scenes: gltf::iter::Scenes,
@@ -82,7 +121,6 @@ fn extract_objects(
         device: &wgpu::Device, 
         transform_bind_group_layout: &wgpu::BindGroupLayout, 
         objects: &mut Vec<Object>,
-        materials: &Vec<Material>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) -> String {
@@ -143,7 +181,7 @@ fn extract_objects(
                 });
                 let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Transform Buffer"),
-                    contents: bytemuck::cast_slice(&[TransformUniform::from(object.matrix)]),
+                    contents: bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
                 let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -161,6 +199,7 @@ fn extract_objects(
                 meshes.push(Mesh {
                     name: file_name.to_string(),
                     transform_bind_group,
+                    transform_buffer,
                     vertex_buffer,
                     index_buffer,
                     num_elements: indices.len() as u32,
@@ -184,7 +223,6 @@ fn extract_objects(
         transform_bind_group_layout: &wgpu::BindGroupLayout,
         parent_id: Option<String>,
         objects: &mut Vec<Object>,
-        materials: &Vec<Material>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) {
@@ -193,7 +231,6 @@ fn extract_objects(
             device, 
             transform_bind_group_layout, 
             objects, 
-            materials, 
             buffer_data, 
             file_name
         );
@@ -215,14 +252,14 @@ fn extract_objects(
             }
         }
         for children in node.children() {
-            traverse(&children, device, transform_bind_group_layout, Some(object_id.clone()), objects, materials, buffer_data, file_name);
+            traverse(&children, device, transform_bind_group_layout, Some(object_id.clone()), objects, buffer_data, file_name);
         }
     }
 
     for scene in scenes {
         for node in scene.nodes() {
             println!("node, but having {}", node.children().len());
-            traverse(&node, device, transform_bind_group_layout,  None, &mut objects, &materials, buffer_data, file_name);
+            traverse(&node, device, transform_bind_group_layout,  None, &mut objects, buffer_data, file_name);
         }
     }
 

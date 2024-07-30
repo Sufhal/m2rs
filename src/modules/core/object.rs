@@ -11,7 +11,7 @@ pub struct Object {
     pub matrix: [[f32; 4]; 4],
     pub matrix_world: [[f32; 4]; 4],
     matrix_world_needs_update: bool,
-    object_3d: Option<Object3D>,
+    pub object_3d: Option<Object3D>,
 }
 
 impl Object {

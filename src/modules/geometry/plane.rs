@@ -89,6 +89,7 @@ impl ToMesh for Plane {
         Mesh {
             name,
             transform_bind_group,
+            transform_buffer,
             vertex_buffer,
             index_buffer,
             num_elements: self.indices.len() as u32,
