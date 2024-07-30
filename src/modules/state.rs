@@ -267,7 +267,7 @@ impl<'a> State<'a> {
                 .unwrap();
 
         if let Some(object_3d) = cube.get_object_3d() {
-            for i in 1..10 {
+            for i in 2..11 {
                 let instance = object_3d.request_instance(&device);
                 instance.take();
                 instance.set_position(cgmath::Vector3 { x: (i * 3) as f32, y: 0.0, z: 0.0 });
@@ -285,31 +285,59 @@ impl<'a> State<'a> {
         let mut object = Object::new();
         object.set_object_3d(Object3D::new(&device, model));
         let instance = object.get_object_3d().unwrap().request_instance(&device);
+        instance.add_y_position(-1.0);
         instance.take();
         scene.add(object);
         
         // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        let vlad = load_model_glb("shaman.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
-        // vlad.materials.push(material);
-        
-        // for obj in &vlad[0..3] {
-        //     dbg!(&obj.id);
-        //     dbg!(&obj.parent);
-        //     dbg!(&obj.childrens);
-        //     dbg!(&obj.matrix);
-
-        // }
-        // dbg!(&vlad[0..3]);
-        for mut object in vlad {
+        let model_objects = load_model_glb("vladimir.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
+        for mut object in model_objects {
             let id = object.id.clone();
             if let Some(object_3d) = &mut object.object_3d {
-                dbg!(&object.matrix);
+                // dbg!(&object.matrix);
                 // println!("object {} have mesh", id);
                 let instance = object_3d.request_instance(&device);
+                instance.add_x_position(-1.0);
                 instance.take();
             }
             scene.add(object);
         }
+
+        let model_objects = load_model_glb("shaman.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
+        for mut object in model_objects {
+            let id = object.id.clone();
+            if let Some(object_3d) = &mut object.object_3d {
+                // dbg!(&object.matrix);
+                // println!("object {} have mesh", id);
+                let instance = object_3d.request_instance(&device);
+                instance.add_x_position(1.0);
+                instance.take();
+            }
+            scene.add(object);
+        }
+
+        let model_objects = load_model_glb("official_gltf/gltf_binary/2CylinderEngine.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
+        for mut object in model_objects {
+            let id = object.id.clone();
+            if let Some(object_3d) = &mut object.object_3d {
+                // dbg!(&object.matrix);
+                // println!("object {} have mesh", id);
+                let instance = object_3d.request_instance(&device);
+                instance.add_x_position(0.0);
+                instance.take();
+            }
+            scene.add(object);
+        }
+
+        scene.compute_world_matrices();
+        scene.update_objects_buffers(&queue);
+
+        scene.get_all_objects().iter().for_each(|obj| {
+            if let Some(object_3d) = &obj.object_3d {
+                dbg!(&object_3d.model.meshes[0].name);
+                dbg!(&obj.matrix_world);
+            }
+        });
 
         // if let Some(object_3d) = vlad.get_object_3d() {
         //     for i in 0..object_3d.model.materials.len() {
@@ -411,8 +439,8 @@ impl<'a> State<'a> {
                 }
             }
         }
-        self.scene.compute_world_matrices();
-        self.scene.update_objects_buffers(&self.queue);
+        // self.scene.compute_world_matrices();
+        // self.scene.update_objects_buffers(&self.queue);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

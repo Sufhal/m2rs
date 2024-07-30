@@ -74,7 +74,7 @@ impl Scene {
             if let Some(object_3d) = &object.object_3d {
                 for mesh in &object_3d.model.meshes {
                     // dbg!(&object.matrix_world);
-                    // queue.write_buffer(&mesh.transform_buffer, 0, bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]));
+                    queue.write_buffer(&mesh.transform_buffer, 0, bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]));
                 }
             }
         }
