@@ -316,18 +316,18 @@ impl<'a> State<'a> {
             scene.add(object);
         }
 
-        let model_objects = load_model_glb("official_gltf/gltf_binary/2CylinderEngine.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
-        for mut object in model_objects {
-            let id = object.id.clone();
-            if let Some(object_3d) = &mut object.object_3d {
-                // dbg!(&object.matrix);
-                // println!("object {} have mesh", id);
-                let instance = object_3d.request_instance(&device);
-                instance.add_x_position(0.0);
-                instance.take();
-            }
-            scene.add(object);
-        }
+        // let model_objects = load_model_glb("official_gltf/gltf_binary/2CylinderEngine.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
+        // for mut object in model_objects {
+        //     let id = object.id.clone();
+        //     if let Some(object_3d) = &mut object.object_3d {
+        //         // dbg!(&object.matrix);
+        //         // println!("object {} have mesh", id);
+        //         let instance = object_3d.request_instance(&device);
+        //         instance.add_x_position(0.0);
+        //         instance.take();
+        //     }
+        //     scene.add(object);
+        // }
 
         scene.compute_world_matrices();
         scene.update_objects_buffers(&queue);
@@ -439,8 +439,8 @@ impl<'a> State<'a> {
                 }
             }
         }
-        // self.scene.compute_world_matrices();
-        // self.scene.update_objects_buffers(&self.queue);
+        self.scene.compute_world_matrices();
+        self.scene.update_objects_buffers(&self.queue);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

@@ -35,6 +35,8 @@ impl Plane {
                     position,
                     tex_coords,
                     normal,
+                    weight: [0.0, 0.0, 0.0, 0.0],
+                    joint: [0,0,0,0]
                 });
             }
         }

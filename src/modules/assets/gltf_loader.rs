@@ -133,31 +133,39 @@ fn extract_objects(
                 let reader = primitive.reader(|buffer| Some(&buffer_data[buffer.index()]));
                 let mut vertices = Vec::new();
 
-                // Extraire les positions
                 let positions: Vec<[f32; 3]> = reader.read_positions()
                     .map(|positions| positions.collect())
                     .unwrap_or_default();
 
-                // Extraire les coordonnées de texture
                 let tex_coords: Vec<[f32; 2]> = reader.read_tex_coords(0)
                     .map(|tex_coords| tex_coords.into_f32().collect())
                     .unwrap_or_default();
 
-                // Extraire les normales
                 let normals: Vec<[f32; 3]> = reader.read_normals()
                     .map(|normals| normals.collect())
                     .unwrap_or_default();
 
-                // Construire les vertices
+                let weights: Vec<[f32; 4]> = reader.read_weights(0)
+                    .map(|weights| weights.into_f32().collect())
+                    .unwrap_or_default();
+
+                let joints: Vec<[u16; 4]> = reader.read_joints(0)
+                    .map(|joints| joints.into_u16().collect())
+                    .unwrap_or_default();
+
                 for i in 0..positions.len() {
                     let position = positions.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
                     let tex_coord = tex_coords.get(i).unwrap_or(&[0.0, 0.0]);
                     let normal = normals.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
+                    let weight = weights.get(i).unwrap_or(&[0.0, 0.0, 0.0, 0.0]);
+                    let joint = joints.get(i).unwrap_or(&[0, 1, 2, 3]);
 
                     vertices.push(ModelVertex {
                         position: *position,
                         tex_coords: *tex_coord,
                         normal: *normal,
+                        weight: *weight,
+                        joint: *joint,
                     });
                 }
 
@@ -167,7 +175,7 @@ fn extract_objects(
                 }
 
                 let report = &vertices.clone()[0..3];
-                // dbg!(report);
+                dbg!(report);
 
                 let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("{:?} Vertex Buffer", file_name)),

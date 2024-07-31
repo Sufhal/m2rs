@@ -13,6 +13,8 @@ pub struct ModelVertex {
     pub position: [f32; 3],
     pub tex_coords: [f32; 2],
     pub normal: [f32; 3],
+    pub weight: [f32; 4],
+    pub joint: [u16; 4],
 }
 
 impl Vertex for ModelVertex {

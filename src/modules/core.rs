@@ -5,3 +5,4 @@ pub mod instance;
 pub mod light;
 pub mod texture;
 pub mod scene;
+pub mod skeleton;
