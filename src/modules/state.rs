@@ -228,6 +228,23 @@ impl<'a> State<'a> {
                 label: Some("transform_bind_group_layout"),
             });
 
+        //  SKINNING
+
+        let bones_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("bones_bind_group_layout"),
+            });
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
@@ -236,6 +253,7 @@ impl<'a> State<'a> {
                     &camera_bind_group_layout,
                     &light_bind_group_layout,
                     &transform_bind_group_layout,
+                    &bones_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });

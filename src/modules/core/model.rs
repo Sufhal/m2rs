@@ -90,9 +90,9 @@ impl TransformUniform {
 pub struct Mesh {
     pub name: String,
     pub transform_bind_group: wgpu::BindGroup,
+    pub transform_buffer: wgpu::Buffer,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
-    pub transform_buffer: wgpu::Buffer,
     pub num_elements: u32,
     pub material: usize,
 }
