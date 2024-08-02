@@ -20,6 +20,7 @@ use super::core::model::Model;
 use super::core::object_3d::Transform;
 use super::core::scene;
 use super::geometry::plane::Plane;
+use super::pipelines::render_pipeline::RenderPipeline;
 
 pub struct State<'a> {
     surface: wgpu::Surface<'a>,
@@ -253,7 +254,7 @@ impl<'a> State<'a> {
                     &camera_bind_group_layout,
                     &light_bind_group_layout,
                     &transform_bind_group_layout,
-                    &bones_bind_group_layout,
+                    // &bones_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -276,6 +277,8 @@ impl<'a> State<'a> {
                 &config
             )
         };
+
+        let new_render_pipeline = RenderPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT));
 
         let mut scene = scene::Scene::new();
 
