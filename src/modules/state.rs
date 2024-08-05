@@ -325,6 +325,7 @@ impl<'a> State<'a> {
         }
 
         let model_objects = load_model_glb("shaman.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
+        dbg!(model_objects.len());
         // dbg!(model_objects.iter().map(|o| &o.name).collect::<Vec<_>>());
         for mut object in model_objects {
             let id = object.id.clone();

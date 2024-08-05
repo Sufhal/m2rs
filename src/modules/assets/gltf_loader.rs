@@ -1,7 +1,7 @@
 use std::{any::Any, collections::{HashMap, HashSet}, hash::Hash, io::{BufReader, Cursor}, ops::Deref};
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{Metadata, Object}, object_3d::{self, Object3D}}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skeleton::Skeleton}};
 use super::assets::{load_binary, load_string};
 
 pub async fn load_model_glb(
@@ -18,21 +18,13 @@ pub async fn load_model_glb(
 
     let buffer_data = extract_buffer_data(&gltf).await?;
     let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
-    let mut objects = extract_objects(device, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
-    let bones_map = extract_bones(&mut objects, gltf.scenes());
-    let bones_map_inversed = bones_map.clone().iter().fold(HashMap::new(), |mut acc, (index, id)| {
-        acc.insert(id.clone(), *index);
-        acc
-    });
-    let bones_array = bones_map.iter().map(|(_, id)| id.clone()).collect::<Vec<_>>();
-    let bones_indices = bones_array.iter().enumerate().fold(HashMap::new(), |mut acc, (index, id)| {
-        acc.insert(id.clone(), index);
-        acc
-    });
-
-    dbg!(&bones_map);
-
-    // dbg!(&materials.iter().map(|m| m.name.clone()).collect::<Vec<_>>());
+    let mut objects = extract_objects(
+        device, 
+        transform_bind_group_layout, 
+        file_name, 
+        &gltf, 
+        &buffer_data
+    );
 
     let mut materials_per_idx = materials.into_iter().enumerate().fold(HashMap::new(), |mut acc, (idx, material)| {
         acc.insert(idx, material);
@@ -102,56 +94,28 @@ async fn extract_buffer_data(
     Ok(buffer_data)
 }
 
-fn extract_bones(
-    objects: &mut Vec<Object>,
-    scenes: gltf::iter::Scenes
-) -> HashMap<usize, String> {
-    fn traverse(
-        node: &gltf::Node<'_>,
-        objects: &mut Vec<Object>,
-        bones: &mut HashMap<usize, String>
-    ) {
-        if let Some(skin) = node.skin() {
-            // Save both node index as provided in the gltf and the object id
-            // Those informations will be used to rewrite joint indices on each vertices of the meshes
-            for joint in skin.joints() {
-                if let Some(object) = objects.iter().find(|o| o.metadata.as_ref().and_then(|metadata| metadata.gltf_node_index).map_or(false, |index| index == joint.index())) {
-                    bones.insert(joint.index(), object.id.clone());
-                }
-            }
-        }
-        for children in node.children() {
-            traverse(&children, objects, bones);
-        }
-    }
-
-    let mut bones = HashMap::new();
-    for scene in scenes {
-        for node in scene.nodes() {
-            traverse(&node, objects, &mut bones);
-        }
-    }
-    bones
-}
-
 fn extract_objects(
     device: &wgpu::Device, 
     transform_bind_group_layout: &wgpu::BindGroupLayout,
     file_name: &str, 
-    scenes: gltf::iter::Scenes,
+    model: &gltf::Gltf,
     buffer_data: &Vec<Vec<u8>>
 ) -> Vec<Object> {
 
-    let mut objects = Vec::<Object>::new();
+    let mut objects = Vec::new();
+    let mut bones_map = HashMap::new();
 
-    fn extract_from_node(
-        node: &gltf::Node<'_>, 
-        device: &wgpu::Device, 
-        transform_bind_group_layout: &wgpu::BindGroupLayout, 
-        objects: &mut Vec<Object>,
-        buffer_data: &Vec<Vec<u8>>, 
-        file_name: &str
-    ) -> String {
+    // looking for bones
+    for skin in model.skins() {
+        for joint in skin.joints() {
+            let index = joint.index();
+            let object = Object::new();
+            bones_map.insert(index, object.id.clone());
+            objects.push(object);
+        }
+    }
+
+    let extract_from_node = |node: &gltf::Node<'_>| -> String {
         let mut object = Object::new();
         object.metadata = Some(
             Metadata { 
@@ -275,24 +239,11 @@ fn extract_objects(
         let object_id = object.id.clone();
         objects.push(object);
         object_id
-    }
+    };
 
-    fn traverse(
-        node: &gltf::Node<'_>,
-        device: &wgpu::Device, 
-        transform_bind_group_layout: &wgpu::BindGroupLayout,
-        parent_id: Option<String>,
-        objects: &mut Vec<Object>,
-        buffer_data: &Vec<Vec<u8>>, 
-        file_name: &str
-    ) {
+    let traverse = |node: &gltf::Node<'_>, parent_id: Option<String>| {
         let object_id = extract_from_node(
-            node, 
-            device, 
-            transform_bind_group_layout, 
-            objects, 
-            buffer_data, 
-            file_name
+            node
         );
         if let Some(parent_id) = parent_id {
             let (current_object, parent_object) = objects.iter_mut().fold((None, None), |mut acc, object| {
@@ -312,14 +263,14 @@ fn extract_objects(
             }
         }
         for children in node.children() {
-            traverse(&children, device, transform_bind_group_layout, Some(object_id.clone()), objects, buffer_data, file_name);
+            traverse(&children, Some(object_id.clone()));
         }
     }
 
-    for scene in scenes {
+    for scene in model.scenes() {
         for node in scene.nodes() {
             println!("node, but having {}", node.children().len());
-            traverse(&node, device, transform_bind_group_layout,  None, &mut objects, buffer_data, file_name);
+            traverse(&node, None);
         }
     }
 
