@@ -1,7 +1,7 @@
 use std::{any::Any, collections::{HashMap, HashSet}, hash::Hash, io::{BufReader, Cursor}, ops::Deref};
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::Object, object_3d::{self, Object3D}}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{Metadata, Object}, object_3d::{self, Object3D}}};
 use super::assets::{load_binary, load_string};
 
 pub async fn load_model_glb(
@@ -19,6 +19,18 @@ pub async fn load_model_glb(
     let buffer_data = extract_buffer_data(&gltf).await?;
     let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
     let mut objects = extract_objects(device, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
+    let bones_map = extract_bones(&mut objects, gltf.scenes());
+    let bones_map_inversed = bones_map.clone().iter().fold(HashMap::new(), |mut acc, (index, id)| {
+        acc.insert(id.clone(), *index);
+        acc
+    });
+    let bones_array = bones_map.iter().map(|(_, id)| id.clone()).collect::<Vec<_>>();
+    let bones_indices = bones_array.iter().enumerate().fold(HashMap::new(), |mut acc, (index, id)| {
+        acc.insert(id.clone(), index);
+        acc
+    });
+
+    dbg!(&bones_map);
 
     // dbg!(&materials.iter().map(|m| m.name.clone()).collect::<Vec<_>>());
 
@@ -39,22 +51,6 @@ pub async fn load_model_glb(
                     panic!("no more material")
                 }
             }
-
-    //         let material_indexes = object_3d.model.meshes.iter().fold(HashSet::new(), |mut acc, mesh| {
-    //             // println!("mesh {} need material {} and still having {} materials in the pocket", mesh.name, mesh.material, materials.len());
-    //             acc.insert(mesh.material);
-    //             acc
-    //         });
-    //         for material_idx in material_indexes {
-    // // dbg!(&materials.iter().map(|m| m.name.clone()).collect::<Vec<_>>());
-    //             if let Some(material) = materials_per_idx.remove(&material_idx) {
-    //                 object_3d.model.materials.push(material);
-    //             } else {
-    //                 panic!("no more material");
-    //             }
-    //         }
-    //         dbg!(&object_3d.model.materials.iter().map(|m| m.name.clone()).collect::<Vec<_>>());
-    //         println!("current model have {} meshes", object_3d.model.meshes.len());
         }
     });
 
@@ -106,6 +102,38 @@ async fn extract_buffer_data(
     Ok(buffer_data)
 }
 
+fn extract_bones(
+    objects: &mut Vec<Object>,
+    scenes: gltf::iter::Scenes
+) -> HashMap<usize, String> {
+    fn traverse(
+        node: &gltf::Node<'_>,
+        objects: &mut Vec<Object>,
+        bones: &mut HashMap<usize, String>
+    ) {
+        if let Some(skin) = node.skin() {
+            // Save both node index as provided in the gltf and the object id
+            // Those informations will be used to rewrite joint indices on each vertices of the meshes
+            for joint in skin.joints() {
+                if let Some(object) = objects.iter().find(|o| o.metadata.as_ref().and_then(|metadata| metadata.gltf_node_index).map_or(false, |index| index == joint.index())) {
+                    bones.insert(joint.index(), object.id.clone());
+                }
+            }
+        }
+        for children in node.children() {
+            traverse(&children, objects, bones);
+        }
+    }
+
+    let mut bones = HashMap::new();
+    for scene in scenes {
+        for node in scene.nodes() {
+            traverse(&node, objects, &mut bones);
+        }
+    }
+    bones
+}
+
 fn extract_objects(
     device: &wgpu::Device, 
     transform_bind_group_layout: &wgpu::BindGroupLayout,
@@ -125,7 +153,31 @@ fn extract_objects(
         file_name: &str
     ) -> String {
         let mut object = Object::new();
+        object.metadata = Some(
+            Metadata { 
+                gltf_node_index: Some(node.index()) 
+            }
+        );
+        if let Some(name) = node.name() {
+            object.name = Some(name.to_string());
+            println!("obj name {file_name}: {name}");
+        }
         object.matrix = node.transform().matrix();
+        
+        if let Some(skin) = node.skin() {
+            println!("node {:?} have skin", node.name());
+            skin.joints().any(|joint| joint.index() == node.index());
+            skin.joints().for_each(|node| {
+                println!("skin joint is {:?}, with index {:?}", node.name(), node.index());
+            });
+
+            // skin.index()
+            
+        }
+        // node.
+        // if let Some(skin) = node.skin() {
+        //     dbg!(skin.inverse_bind_matrices().unwrap().);
+        // }
         if let Some(mesh) = node.mesh() {
             let mut meshes = Vec::<Mesh>::new();
             let primitives = mesh.primitives();

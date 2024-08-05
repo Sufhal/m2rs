@@ -325,6 +325,7 @@ impl<'a> State<'a> {
         }
 
         let model_objects = load_model_glb("shaman.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
+        // dbg!(model_objects.iter().map(|o| &o.name).collect::<Vec<_>>());
         for mut object in model_objects {
             let id = object.id.clone();
             if let Some(object_3d) = &mut object.object_3d {
@@ -336,6 +337,7 @@ impl<'a> State<'a> {
             }
             scene.add(object);
         }
+
 
         // let model_objects = load_model_glb("official_gltf/gltf_binary/2CylinderEngine.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
         // for mut object in model_objects {

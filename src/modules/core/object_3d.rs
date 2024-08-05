@@ -16,7 +16,8 @@ pub struct Object3D {
     pub id: String,
     pub model: Model,
     instances: Vec<Object3DInstance>,
-    instance_buffer: wgpu::Buffer
+    instances_buffer: wgpu::Buffer,
+    skeletons_buffer: Option<wgpu::Buffer>
 }
 
 impl Object3D {
@@ -25,15 +26,21 @@ impl Object3D {
             Object3DInstance::new();
             INITIAL_INSTANCES_COUNT
         ];
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let instances_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instances.iter().map(|i| i.to_instance_raw()).collect::<Vec<_>>()),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
+        // let skeletons_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        //     label: Some("Skeletons Buffer"),
+        //     contents: bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]),
+        //     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        // });
         Self {
             id: generate_unique_string(),
             instances,
-            instance_buffer,
+            instances_buffer,
+            skeletons_buffer: None,
             model,
         }
     }
@@ -49,7 +56,7 @@ impl Object3D {
         for (index, instance) in self.instances.iter().enumerate() {
             if instance.needs_update == true {
                 queue.write_buffer(
-                    &self.instance_buffer,
+                    &self.instances_buffer,
                     (index * size) as wgpu::BufferAddress,
                     bytemuck::cast_slice(&[instance.to_instance_raw()]),
                 );
@@ -73,7 +80,7 @@ impl Object3D {
         for _ in 0..current_capacity {
             self.instances.push(Object3DInstance::new());
         }
-        self.instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        self.instances_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Instance Buffer"),
             size: (new_capacity * std::mem::size_of::<InstanceRaw>()) as wgpu::BufferAddress,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -84,7 +91,7 @@ impl Object3D {
         self.instances.iter().filter(|i| i.busy == true).count()
     }
     pub fn get_instance_buffer_slice(&self) -> wgpu::BufferSlice {
-        self.instance_buffer.slice(..)
+        self.instances_buffer.slice(..)
     }
 }
 
