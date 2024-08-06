@@ -115,8 +115,25 @@ fn extract_objects(
         }
     }
 
-    let extract_from_node = |node: &gltf::Node<'_>| -> String {
-        let mut object = Object::new();
+    fn extract_from_node(
+        node: &gltf::Node<'_>, 
+        device: &wgpu::Device, 
+        transform_bind_group_layout: &wgpu::BindGroupLayout, 
+        objects: &mut Vec<Object>,
+        bones_map: &HashMap<usize, String>,
+        buffer_data: &Vec<Vec<u8>>, 
+        file_name: &str
+    ) -> String {
+        let position = if let Some(id) = bones_map.get(&node.index()) {
+            objects.iter().position(|v| v.id == *id).unwrap()
+        } else {
+            let object = Object::new();
+            let index = objects.len();
+            objects.push(object);
+            index
+        };
+        let object = objects.get_mut(position).unwrap();
+        let object_id = object.id.clone();
         object.metadata = Some(
             Metadata { 
                 gltf_node_index: Some(node.index()) 
@@ -236,14 +253,27 @@ fn extract_objects(
                 object.set_object_3d(object_3d);
             }
         }
-        let object_id = object.id.clone();
-        objects.push(object);
         object_id
-    };
+    }
 
-    let traverse = |node: &gltf::Node<'_>, parent_id: Option<String>| {
+    fn traverse(
+        node: &gltf::Node<'_>,
+        device: &wgpu::Device, 
+        transform_bind_group_layout: &wgpu::BindGroupLayout,
+        parent_id: Option<String>,
+        objects: &mut Vec<Object>,
+        bones_map: &HashMap<usize, String>,
+        buffer_data: &Vec<Vec<u8>>, 
+        file_name: &str
+    ) {
         let object_id = extract_from_node(
-            node
+            node, 
+            device, 
+            transform_bind_group_layout, 
+            objects, 
+            bones_map,
+            buffer_data, 
+            file_name
         );
         if let Some(parent_id) = parent_id {
             let (current_object, parent_object) = objects.iter_mut().fold((None, None), |mut acc, object| {
@@ -263,14 +293,14 @@ fn extract_objects(
             }
         }
         for children in node.children() {
-            traverse(&children, Some(object_id.clone()));
+            traverse(&children, device, transform_bind_group_layout, Some(object_id.clone()), objects, bones_map, buffer_data, file_name);
         }
     }
 
     for scene in model.scenes() {
         for node in scene.nodes() {
             println!("node, but having {}", node.children().len());
-            traverse(&node, None);
+            traverse(&node, device, transform_bind_group_layout,  None, &mut objects, &bones_map, buffer_data, file_name);
         }
     }
 
