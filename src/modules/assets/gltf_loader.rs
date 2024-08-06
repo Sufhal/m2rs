@@ -102,30 +102,37 @@ fn extract_objects(
     buffer_data: &Vec<Vec<u8>>
 ) -> Vec<Object> {
 
+    type NodeIndex = usize;
+    type ObjectIndex = usize;
+
     let mut objects = Vec::new();
     let mut bones_map = HashMap::new();
+
 
     // looking for bones
     for skin in model.skins() {
         for joint in skin.joints() {
             let index = joint.index();
             let object = Object::new();
-            bones_map.insert(index, object.id.clone());
+            bones_map.insert(index, objects.len());
             objects.push(object);
         }
     }
+
+    dbg!(&bones_map);
+
 
     fn extract_from_node(
         node: &gltf::Node<'_>, 
         device: &wgpu::Device, 
         transform_bind_group_layout: &wgpu::BindGroupLayout, 
         objects: &mut Vec<Object>,
-        bones_map: &HashMap<usize, String>,
+        bones_map: &HashMap<NodeIndex, ObjectIndex>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) -> String {
-        let position = if let Some(id) = bones_map.get(&node.index()) {
-            objects.iter().position(|v| v.id == *id).unwrap()
+        let position = if let Some(index) = bones_map.get(&node.index()) {
+            *index
         } else {
             let object = Object::new();
             let index = objects.len();
@@ -185,6 +192,7 @@ fn extract_objects(
                 let joints: Vec<[u16; 4]> = reader.read_joints(0)
                     .map(|joints| joints.into_u16().collect())
                     .unwrap_or_default();
+                    
 
                 for i in 0..positions.len() {
                     let position = positions.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
@@ -192,13 +200,13 @@ fn extract_objects(
                     let normal = normals.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
                     let weight = weights.get(i).unwrap_or(&[0.0, 0.0, 0.0, 0.0]);
                     let joint = joints.get(i).unwrap_or(&[0, 1, 2, 3]);
-
+                    let converted_joint: [u16; 4] = core::array::from_fn(|i| (*(bones_map.get(&(joint[i] as usize))).unwrap_or(&0)) as u16);
                     vertices.push(ModelVertex {
                         position: *position,
                         tex_coords: *tex_coord,
                         normal: *normal,
                         weight: *weight,
-                        joint: *joint,
+                        joint: converted_joint,
                     });
                 }
 
@@ -262,7 +270,7 @@ fn extract_objects(
         transform_bind_group_layout: &wgpu::BindGroupLayout,
         parent_id: Option<String>,
         objects: &mut Vec<Object>,
-        bones_map: &HashMap<usize, String>,
+        bones_map: &HashMap<NodeIndex, ObjectIndex>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) {
