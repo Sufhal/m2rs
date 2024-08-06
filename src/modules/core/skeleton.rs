@@ -1,7 +1,7 @@
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use super::object::Object;
+use super::{object::Object, scene::Scene};
 
 // get all bones ids
 // compute all bones inverse
@@ -58,6 +58,17 @@ impl Skeleton {
 			buffer,
 			bind_group
 		}
+	}
+
+	pub fn update(&mut self, queue: &wgpu::Queue, scene: &Scene) {
+		for (index, bone_id) in self.bones_ids.iter().enumerate() {
+			if let Some(object) = scene.get(&bone_id) {
+				if let Some(uniform) = self.bones_uniforms.get_mut(index) {
+					uniform.bone_matrix = object.matrix_world.clone();
+				}
+			}
+		}
+		queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&self.bones_uniforms));
 	}
 
 	// pub fn set_bones(&mut self, bones: Vec<&Object>) {
