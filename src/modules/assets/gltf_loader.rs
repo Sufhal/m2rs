@@ -174,7 +174,7 @@ fn extract_objects(
                     let normal = normals.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
                     let weight = weights.get(i).unwrap_or(&[0.0, 0.0, 0.0, 0.0]);
                     let joint = joints.get(i).unwrap_or(&[0, 1, 2, 3]);
-                    let converted_joint: [u16; 4] = core::array::from_fn(|i| (*(bones_map.get(&(joint[i] as usize))).unwrap_or(&0)) as u16);
+                    let converted_joint: [u32; 4] = core::array::from_fn(|i| (*(bones_map.get(&(joint[i] as usize))).unwrap_or(&0)) as u32);
                     vertices.push(ModelVertex {
                         position: *position,
                         tex_coords: *tex_coord,

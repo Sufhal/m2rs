@@ -16,7 +16,7 @@ pub struct ModelVertex {
     pub tex_coords: [f32; 2],
     pub normal: [f32; 3],
     pub weight: [f32; 4],
-    pub joint: [u16; 4],
+    pub joint: [u32; 4],
 }
 
 impl Vertex for ModelVertex {
@@ -139,12 +139,14 @@ pub trait DrawModel<'a> {
         &mut self,
         mesh: &'a Mesh,
         mesh_bind_group: &'a wgpu::BindGroup,
+        instances_bind_group: &'a wgpu::BindGroup,
         render_pipeline: &'a RenderPipeline,
     );
     fn draw_mesh_instanced(
         &mut self,
         mesh: &'a Mesh,
         mesh_bind_group: &'a wgpu::BindGroup,
+        instances_bind_group: &'a wgpu::BindGroup,
         instances: Range<u32>,
         render_pipeline: &'a RenderPipeline,
     );
@@ -152,11 +154,13 @@ pub trait DrawModel<'a> {
     fn draw_model(
         &mut self,
         model: &'a Model,
+        instances_bind_group: &'a wgpu::BindGroup,
         render_pipeline: &'a RenderPipeline,
     );
     fn draw_model_instanced(
         &mut self,
         model: &'a Model,
+        instances_bind_group: &'a wgpu::BindGroup,
         instances: Range<u32>,
         render_pipeline: &'a RenderPipeline,
     );
@@ -170,15 +174,17 @@ where
         &mut self,
         mesh: &'b Mesh,
         mesh_bind_group: &'b wgpu::BindGroup,
+        instances_bind_group: &'b wgpu::BindGroup,
         render_pipeline: &'a RenderPipeline,
     ) {
-        self.draw_mesh_instanced(mesh, mesh_bind_group, 0..1, render_pipeline);
+        self.draw_mesh_instanced(mesh, mesh_bind_group, instances_bind_group, 0..1, render_pipeline);
     }
 
     fn draw_mesh_instanced(
         &mut self,
         mesh: &'b Mesh,
         mesh_bind_group: &'b wgpu::BindGroup,
+        instances_bind_group: &'b wgpu::BindGroup,
         instances: Range<u32>,
         render_pipeline: &'a RenderPipeline,
     ) {
@@ -186,6 +192,7 @@ where
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.set_bind_group(0, &render_pipeline.global_bind_group, &[]);
         self.set_bind_group(1, &mesh_bind_group, &[]);
+        self.set_bind_group(2, &instances_bind_group, &[]);
         // self.set_bind_group(3, &mesh.transform_bind_group, &[]);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
@@ -193,21 +200,23 @@ where
     fn draw_model(
         &mut self,
         model: &'b Model,
+        instances_bind_group: &'b wgpu::BindGroup,
         render_pipeline: &'a RenderPipeline,
     ) {
-        self.draw_model_instanced(model, 0..1, render_pipeline);
+        self.draw_model_instanced(model, instances_bind_group, 0..1, render_pipeline);
     }
 
     fn draw_model_instanced(
         &mut self,
         model: &'b Model,
+        instances_bind_group: &'b wgpu::BindGroup,
         instances: Range<u32>,
         render_pipeline: &'a RenderPipeline,
     ) {
         for i in 0..model.meshes.len() {
             let mesh = &model.meshes[i];
             let mesh_bind_group = &model.meshes_bind_groups[i];
-            self.draw_mesh_instanced(mesh, mesh_bind_group, instances.clone(), render_pipeline);
+            self.draw_mesh_instanced(mesh, mesh_bind_group, instances_bind_group, instances.clone(), render_pipeline);
         }
     }
 }

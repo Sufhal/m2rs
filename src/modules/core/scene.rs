@@ -108,6 +108,7 @@ where
                 self.set_vertex_buffer(1, object_3d.get_instance_buffer_slice());
                 self.draw_model_instanced(
                     &object_3d.model, 
+                    &object_3d.instances_bind_group,
                     0..object_3d.get_taken_instances_count() as u32, 
                     render_pipeline
                 );

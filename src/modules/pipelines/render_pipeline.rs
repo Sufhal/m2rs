@@ -41,7 +41,7 @@ impl RenderPipeline {
             bind_group_layouts: &[
                 &global,
                 &mesh,
-                // &instances
+                &instances
             ],
             push_constant_ranges: &[],
         });
@@ -136,7 +136,7 @@ impl RenderPipeline {
     fn create_instances_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
-                // skeletons
+                // skeletons matrices
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::VERTEX,
@@ -147,8 +147,19 @@ impl RenderPipeline {
                     },
                     count: None,
                 },
+                // skeletons bind inverse matrices
+                // wgpu::BindGroupLayoutEntry {
+                //     binding: 1,
+                //     visibility: wgpu::ShaderStages::VERTEX,
+                //     ty: wgpu::BindingType::Buffer {
+                //         ty: wgpu::BufferBindingType::Storage { read_only: true },
+                //         has_dynamic_offset: false,
+                //         min_binding_size: None,
+                //     },
+                //     count: None,
+                // },
             ],
-            label: Some("instance_bind_group_layout"),
+            label: Some("instances_bind_group_layout"),
         })
     }
 

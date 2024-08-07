@@ -15,11 +15,13 @@ const INITIAL_INSTANCES_COUNT: usize = 100;
 pub struct Object3D {
     pub id: String,
     pub model: Model,
+    pub instances_bind_group: wgpu::BindGroup,
     instances: Vec<Object3DInstance>,
     instances_buffer: wgpu::Buffer,
     // skeletons: Vec<SkeletonInstance>,
-    skeletons_bind_group: Option<wgpu::BindGroup>,
-    skeletons_buffer: Option<wgpu::Buffer>
+    // skeletons_bind_group: Option<wgpu::BindGroup>,
+    skeletons_buffer: wgpu::Buffer,
+    // skeletons_bind_inverse_buffer: wgpu::Buffer,
 }
 
 impl Object3D {
@@ -33,36 +35,44 @@ impl Object3D {
             contents: bytemuck::cast_slice(&instances.iter().map(|i| i.to_instance_raw()).collect::<Vec<_>>()),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
-        let skeletons_buffer = if let Some(skeleton) = &model.skeleton {
-            let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Skeleton Buffer"),
-                contents: bytemuck::cast_slice(&skeleton.to_raw()),
-                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-            });
-            Some(buffer)
-        } else {
-            None
-        };
-        // let skeletons_bind_group = if let Some(buffer) = &skeletons_buffer {
-        //     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        //         layout: &bind_group_layouts.mesh,
-        //         entries: &[wgpu::BindGroupEntry {
-        //             binding: 3,
-        //             resource: buffer.as_entire_binding(),
-        //         }],
-        //         label: None,
-        //     });
-        //     Some(bind_group)
-        // } else {
-        //     None
-        // };
+        let skeletons_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Skeleton Buffer"),
+            contents: bytemuck::cast_slice(&
+                if let Some(skeleton) = &model.skeleton {
+                    skeleton.to_raw()
+                } else {
+                    Vec::new()
+                }
+            ),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        });
+        // let skeletons_bind_inverse_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        //     label: Some("Skeleton Buffer"),
+        //     contents: bytemuck::cast_slice(&
+        //         if let Some(skeleton) = &model.skeleton {
+        //             skeleton.to_raw()
+        //         } else {
+        //             Vec::new()
+        //         }
+        //     ),
+        //     usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        // });
+
+        let instances_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layouts.instances,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: skeletons_buffer.as_entire_binding(),
+            }],
+            label: None,
+        });
 
         Self {
             id: generate_unique_string(),
             instances,
             instances_buffer,
             skeletons_buffer,
-            skeletons_bind_group: None,
+            instances_bind_group,
             model,
         }
     }

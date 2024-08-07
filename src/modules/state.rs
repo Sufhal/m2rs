@@ -365,6 +365,28 @@ impl<'a> State<'a> {
         // }
 
         let model_objects = load_model_glb(
+            // "vladimir.glb", 
+            "shaman.glb", 
+            &device, 
+            &queue, 
+            &new_render_pipeline
+        ).await.expect("unable to load");
+        dbg!(model_objects.len());
+        // dbg!(model_objects.iter().map(|o| &o.name).collect::<Vec<_>>());
+        for mut object in model_objects {
+            let id = object.id.clone();
+            if let Some(object_3d) = &mut object.object_3d {
+                // dbg!(&object.matrix);
+                // println!("object {} have mesh", id);
+                let instance = object_3d.request_instance(&device);
+                instance.add_x_position(1.0);
+                instance.take();
+                
+            }
+            scene.add(object);
+        }
+
+        let model_objects = load_model_glb(
             "vladimir.glb", 
             // "shaman.glb", 
             &device, 
@@ -379,7 +401,7 @@ impl<'a> State<'a> {
                 // dbg!(&object.matrix);
                 // println!("object {} have mesh", id);
                 let instance = object_3d.request_instance(&device);
-                instance.add_x_position(1.0);
+                instance.add_x_position(-1.0);
                 instance.take();
                 
             }
