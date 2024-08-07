@@ -12,11 +12,11 @@ pub struct Bone {
 }
 
 impl Bone {
-    pub fn new(parent_index: Option<usize>, transform_matrix: [[f32; 4]; 4]) -> Self {
+    pub fn new(parent_index: Option<usize>, matrix: [[f32; 4]; 4]) -> Self {
         Self {
             parent_index,
-            transform_matrix,
-            matrix: Matrix4::identity().into(),
+            matrix,
+            transform_matrix: Matrix4::identity().into(),
             bind_matrix: Matrix4::identity().into(),
             inverse_bind_matrix: Matrix4::identity().into(),
         }
@@ -32,7 +32,7 @@ pub struct Skeleton {
 impl Skeleton {
     pub fn create_instance(&self) -> SkeletonInstance {
         SkeletonInstance {
-            bones: self.bones.clone()
+            bones: self.bones.clone(),
         }
     }
     pub fn compute_bind_matrices(&mut self) {
@@ -52,7 +52,7 @@ impl Skeleton {
     }
     /// Returns each bones inversed bind matrix
     pub fn to_raw(&self) -> Vec<[[f32; 4]; 4]> {
-        self.bones.iter().map(|bone| bone.inverse_bind_matrix).collect::<Vec<_>>()
+        self.bones.iter().map(|bone| bone.bind_matrix).collect::<Vec<_>>()
     }
 }
 

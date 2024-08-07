@@ -2,6 +2,8 @@ use std::collections::{HashMap, VecDeque};
 use cgmath::SquareMatrix;
 use wgpu::core::device::queue;
 
+use crate::modules::pipelines::render_pipeline::RenderPipeline;
+
 use super::object::{self, Object};
 use super::object_3d::{self, Object3D};
 use super::model::{DrawModel, TransformUniform};
@@ -86,8 +88,7 @@ pub trait DrawScene<'a> {
         &mut self,
         queue: &wgpu::Queue,
         scene: &'a mut Scene,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
+        render_pipeline: &'a RenderPipeline,
     );
 }
 
@@ -99,8 +100,7 @@ where
         &mut self,
         queue: &wgpu::Queue,
         scene: &'b mut Scene,
-        camera_bind_group: &'b wgpu::BindGroup,
-        light_bind_group: &'b wgpu::BindGroup,
+        render_pipeline: &'a RenderPipeline,
     ) {
         for object in scene.get_all_objects() {
             if let Some(object_3d) = object.get_object_3d() {
@@ -109,8 +109,7 @@ where
                 self.draw_model_instanced(
                     &object_3d.model, 
                     0..object_3d.get_taken_instances_count() as u32, 
-                    camera_bind_group, 
-                    light_bind_group
+                    render_pipeline
                 );
             }
         }

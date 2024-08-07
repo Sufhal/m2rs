@@ -12,7 +12,7 @@ use crate::modules::core::object_3d::{self, Object3D};
 use crate::modules::core::{instance, light, model, texture};
 use crate::modules::assets::assets;
 use crate::modules::camera::camera;
-use crate::modules::utils::functions;
+use crate::modules::geometry::sphere::Sphere;
 use crate::modules::geometry::buffer::ToMesh;
 use model::Vertex;
 use super::assets::gltf_loader::load_model_glb;
@@ -28,19 +28,20 @@ pub struct State<'a> {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    render_pipeline: wgpu::RenderPipeline,
+    // render_pipeline: wgpu::RenderPipeline,
+    new_render_pipeline: RenderPipeline,
     camera: camera::Camera,
     projection: camera::Projection,
     pub camera_controller: camera::CameraController,
     pub mouse_pressed: bool,
-    camera_uniform: camera::CameraUniform,
-    camera_buffer: wgpu::Buffer,
-    camera_bind_group: wgpu::BindGroup,
+    // camera_uniform: camera::CameraUniform,
+    // camera_buffer: wgpu::Buffer,
+    // camera_bind_group: wgpu::BindGroup,
     depth_texture: texture::Texture,
-    light_uniform: light::LightUniform,
-    light_buffer: wgpu::Buffer,
-    light_bind_group: wgpu::BindGroup,
-    transform_bind_group_layout: wgpu::BindGroupLayout,
+    // light_uniform: light::LightUniform,
+    // light_buffer: wgpu::Buffer,
+    // light_bind_group: wgpu::BindGroup,
+    // transform_bind_group_layout: wgpu::BindGroupLayout,
     pub window: &'a Window,
     scene: scene::Scene
 }
@@ -110,28 +111,28 @@ impl<'a> State<'a> {
             desired_maximum_frame_latency: 2,
         };
 
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("texture_bind_group_layout"),
-            });
+        // let texture_bind_group_layout =
+        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        //         entries: &[
+        //             wgpu::BindGroupLayoutEntry {
+        //                 binding: 0,
+        //                 visibility: wgpu::ShaderStages::FRAGMENT,
+        //                 ty: wgpu::BindingType::Texture {
+        //                     multisampled: false,
+        //                     view_dimension: wgpu::TextureViewDimension::D2,
+        //                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
+        //                 },
+        //                 count: None,
+        //             },
+        //             wgpu::BindGroupLayoutEntry {
+        //                 binding: 1,
+        //                 visibility: wgpu::ShaderStages::FRAGMENT,
+        //                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+        //                 count: None,
+        //             },
+        //         ],
+        //         label: Some("texture_bind_group_layout"),
+        //     });
 
         let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
@@ -146,29 +147,29 @@ impl<'a> State<'a> {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let camera_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("camera_bind_group_layout"),
-            });
+        // let camera_bind_group_layout =
+        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        //         entries: &[wgpu::BindGroupLayoutEntry {
+        //             binding: 0,
+        //             visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+        //             ty: wgpu::BindingType::Buffer {
+        //                 ty: wgpu::BufferBindingType::Uniform,
+        //                 has_dynamic_offset: false,
+        //                 min_binding_size: None,
+        //             },
+        //             count: None,
+        //         }],
+        //         label: Some("camera_bind_group_layout"),
+        //     });
 
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-            label: Some("camera_bind_group"),
-        });
+        // let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        //     layout: &camera_bind_group_layout,
+        //     entries: &[wgpu::BindGroupEntry {
+        //         binding: 0,
+        //         resource: camera_buffer.as_entire_binding(),
+        //     }],
+        //     label: Some("camera_bind_group"),
+        // });
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
@@ -188,144 +189,188 @@ impl<'a> State<'a> {
             }
         );
 
-        let light_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: None,
-            });
+        // let light_bind_group_layout =
+        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        //         entries: &[wgpu::BindGroupLayoutEntry {
+        //             binding: 0,
+        //             visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+        //             ty: wgpu::BindingType::Buffer {
+        //                 ty: wgpu::BufferBindingType::Uniform,
+        //                 has_dynamic_offset: false,
+        //                 min_binding_size: None,
+        //             },
+        //             count: None,
+        //         }],
+        //         label: None,
+        //     });
 
-        let light_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &light_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: light_buffer.as_entire_binding(),
-            }],
-            label: None,
-        });
+        // let light_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        //     layout: &light_bind_group_layout,
+        //     entries: &[wgpu::BindGroupEntry {
+        //         binding: 0,
+        //         resource: light_buffer.as_entire_binding(),
+        //     }],
+        //     label: None,
+        // });
 
         // TRANSFORM
 
-        let transform_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("transform_bind_group_layout"),
-            });
+        // let transform_bind_group_layout =
+        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        //         entries: &[wgpu::BindGroupLayoutEntry {
+        //             binding: 0,
+        //             visibility: wgpu::ShaderStages::VERTEX,
+        //             ty: wgpu::BindingType::Buffer {
+        //                 ty: wgpu::BufferBindingType::Uniform,
+        //                 has_dynamic_offset: false,
+        //                 min_binding_size: None,
+        //             },
+        //             count: None,
+        //         }],
+        //         label: Some("transform_bind_group_layout"),
+        //     });
 
         //  SKINNING
 
-        let bones_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("bones_bind_group_layout"),
-            });
+        // let bones_bind_group_layout =
+        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        //         entries: &[wgpu::BindGroupLayoutEntry {
+        //             binding: 0,
+        //             visibility: wgpu::ShaderStages::VERTEX,
+        //             ty: wgpu::BindingType::Buffer {
+        //                 ty: wgpu::BufferBindingType::Storage { read_only: true },
+        //                 has_dynamic_offset: false,
+        //                 min_binding_size: None,
+        //             },
+        //             count: None,
+        //         }],
+        //         label: Some("bones_bind_group_layout"),
+        //     });
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[
-                    &texture_bind_group_layout, 
-                    &camera_bind_group_layout,
-                    &light_bind_group_layout,
-                    &transform_bind_group_layout,
-                    // &bones_bind_group_layout,
-                ],
-                push_constant_ranges: &[],
-            });
+        // let render_pipeline_layout =
+        //     device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        //         label: Some("Render Pipeline Layout"),
+        //         bind_group_layouts: &[
+        //             &texture_bind_group_layout, 
+        //             &camera_bind_group_layout,
+        //             &light_bind_group_layout,
+        //             &transform_bind_group_layout,
+        //             // &bones_bind_group_layout,
+        //         ],
+        //         push_constant_ranges: &[],
+        //     });
 
-        let render_pipeline = {
-            let shader = wgpu::ShaderModuleDescriptor {
-                label: Some("Normal Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
-            };
-            functions::create_render_pipeline(
-                &device,
-                &render_pipeline_layout,
-                config.format,
-                Some(texture::Texture::DEPTH_FORMAT),
-                &[
-                    model::ModelVertex::desc(), 
-                    instance::InstanceRaw::desc()
-                ],
-                shader,
-                &config
-            )
-        };
+        // let render_pipeline = {
+        //     let shader = wgpu::ShaderModuleDescriptor {
+        //         label: Some("Normal Shader"),
+        //         source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
+        //     };
+        //     functions::create_render_pipeline(
+        //         &device,
+        //         &render_pipeline_layout,
+        //         config.format,
+        //         Some(texture::Texture::DEPTH_FORMAT),
+        //         &[
+        //             model::ModelVertex::desc(), 
+        //             instance::InstanceRaw::desc()
+        //         ],
+        //         shader,
+        //         &config
+        //     )
+        // };
 
-        let new_render_pipeline = RenderPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT));
+        let new_render_pipeline = RenderPipeline::new(
+            &device, 
+            &config, 
+            Some(texture::Texture::DEPTH_FORMAT)
+        );
 
         let mut scene = scene::Scene::new();
 
-        let mut cube =
-            assets::load_model("cube.obj", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout)
-                .await
-                .unwrap();
+        // let mut cube =
+        //     assets::load_model("cube.obj", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout)
+        //         .await
+        //         .unwrap();
 
-        if let Some(object_3d) = cube.get_object_3d() {
-            for i in 2..11 {
-                let instance = object_3d.request_instance(&device);
-                instance.take();
-                instance.set_position(cgmath::Vector3 { x: (i * 3) as f32, y: 0.0, z: 0.0 });
-            }
-        }
-        scene.add(cube);
+        // if let Some(object_3d) = cube.get_object_3d() {
+        //     for i in 2..11 {
+        //         let instance = object_3d.request_instance(&device);
+        //         instance.take();
+        //         instance.set_position(cgmath::Vector3 { x: (i * 3) as f32, y: 0.0, z: 0.0 });
+        //     }
+        // }
+        // scene.add(cube);
 
-        let plane = Plane::new(10.0, 10.0, 1, 1);
-        let mesh = plane.to_mesh(&device, &transform_bind_group_layout, "A place".to_string());
-        let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        let model = Model { 
-            meshes: vec![mesh], 
-            skeleton: None,
-            materials: vec![material] 
-        };
-        let mut object = Object::new();
-        object.set_object_3d(Object3D::new(&device, model));
-        let instance = object.get_object_3d().unwrap().request_instance(&device);
-        instance.add_y_position(-1.0);
-        instance.take();
-        scene.add(object);
+        // let plane = Plane::new(10.0, 10.0, 1, 1);
+        // let mesh = plane.to_mesh(&device, &transform_bind_group_layout, "A plane".to_string());
+        // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
+        // let model = Model { 
+        //     meshes: vec![mesh], 
+        //     skeleton: None,
+        //     materials: vec![material] 
+        // };
+        // let mut object = Object::new();
+        // object.set_object_3d(Object3D::new(&device, model));
+        // let instance = object.get_object_3d().unwrap().request_instance(&device);
+        // instance.add_y_position(-1.0);
+        // instance.take();
+        // scene.add(object);
+
+        // let sphere = Sphere::new(2.0, 16, 16);
+        // let mesh = sphere.to_mesh(&device, &transform_bind_group_layout, "A sphere".to_string());
+        // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
+        // let model = Model { 
+        //     meshes: vec![mesh], 
+        //     skeleton: None,
+        //     materials: vec![material] 
+        // };
+        // let mut object = Object::new();
+        // object.set_object_3d(Object3D::new(&device, model));
+        // let instance = object.get_object_3d().unwrap().request_instance(&device);
+        // instance.add_y_position(1.0);
+        // instance.take();
+        // scene.add(object);
         
         // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        let model_objects = load_model_glb("vladimir.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
-        for mut object in model_objects {
-            let id = object.id.clone();
-            if let Some(object_3d) = &mut object.object_3d {
-                // dbg!(&object.matrix);
-                // println!("object {} have mesh", id);
-                let instance = object_3d.request_instance(&device);
-                instance.add_x_position(-1.0);
-                instance.take();
-            }
-            scene.add(object);
-        }
+        // let model_objects = load_model_glb("vladimir.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
+        // for mut object in model_objects {
+        //     let id = object.id.clone();
+        //     if let Some(object_3d) = &mut object.object_3d {
+        //         // dbg!(&object.matrix);
+        //         // println!("object {} have mesh", id);
+        //         let instance = object_3d.request_instance(&device);
+        //         instance.add_x_position(-1.0);
+        //         instance.take();
+        //         // if let Some(skeleton) = &object_3d.model.skeleton {
+        //         //     let sphere = Sphere::new(2.0, 16, 16);
+        //         //     let mesh = sphere.to_mesh(&device, &transform_bind_group_layout, "A sphere".to_string());
+        //         //     let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
+        //         //     let model = Model { 
+        //         //         meshes: vec![mesh], 
+        //         //         skeleton: None,
+        //         //         materials: vec![material] 
+        //         //     };
+        //         //     let mut object = Object::new();
+        //         //     object.set_object_3d(Object3D::new(&device, model));
+        //         //     for bone in &skeleton.bones {
+        //         //         let instance = object.get_object_3d().unwrap().request_instance(&device);
+        //         //         let matrix = cgmath::Matrix4::from(bone.transform_matrix);
+        //         //         instance.add_xyz_position(matrix.w[0], matrix.w[1], matrix.w[2]);
+        //         //         instance.take();
+        //         //     }
+        //         //     scene.add(object);
+        //         // }
+        //     }
+        //     scene.add(object);
+        // }
 
-        let model_objects = load_model_glb("shaman.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
+        let model_objects = load_model_glb(
+            "vladimir.glb", 
+            // "shaman.glb", 
+            &device, 
+            &queue, 
+            &new_render_pipeline
+        ).await.expect("unable to load");
         dbg!(model_objects.len());
         // dbg!(model_objects.iter().map(|o| &o.name).collect::<Vec<_>>());
         for mut object in model_objects {
@@ -336,6 +381,7 @@ impl<'a> State<'a> {
                 let instance = object_3d.request_instance(&device);
                 instance.add_x_position(1.0);
                 instance.take();
+                
             }
             scene.add(object);
         }
@@ -357,24 +403,30 @@ impl<'a> State<'a> {
         scene.compute_world_matrices();
         scene.update_objects_buffers(&queue);
 
-        scene.get_all_objects().iter().for_each(|obj| {
-            if let Some(object_3d) = &obj.object_3d {
-                dbg!(&object_3d.model.meshes[0].name);
-                dbg!(&obj.matrix_world);
-            }
-        });
 
-        // if let Some(object_3d) = vlad.get_object_3d() {
-        //     for i in 0..object_3d.model.materials.len() {
-        //         let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        //         object_3d.model.materials[i] = material;
-        //     }
-        //     let instance = object_3d.request_instance(&device);
+        // let matrix_world_of_root_bone = scene.get_all_objects().iter().find(|obj| obj.name == Some("RootBone".to_string())).expect("find RootBone");
+
+    
+        // let sphere = Sphere::new(0.25, 16, 16);
+        // let mesh = sphere.to_mesh(&device, &transform_bind_group_layout, "A sphere".to_string());
+        // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
+        // let model = Model { 
+        //     meshes: vec![mesh], 
+        //     skeleton: None,
+        //     materials: vec![material] 
+        // };
+        // let mut object = Object::new();
+        // object.set_object_3d(Object3D::new(&device, model));
+
+        // for bone in &skeleton.bones {
+        //     let instance = object.get_object_3d().unwrap().request_instance(&device);
+        //     let matrix = cgmath::Matrix4::from(bone.bind_matrix) * cgmath::Matrix4::from_scale(0.01);
+        //     instance.add_xyz_position(matrix.w[0], matrix.w[1], matrix.w[2]);
         //     instance.take();
         // }
-        
-        // instance.add_y_position(3.0);
-        // scene.add(vlad);
+
+        // scene.add(object);
+
 
         Self {
             surface,
@@ -382,19 +434,20 @@ impl<'a> State<'a> {
             queue,
             config,
             size,
-            render_pipeline,
+            // render_pipeline,
+            new_render_pipeline,
             camera,
             projection,
             camera_controller,
             mouse_pressed: false, 
-            camera_buffer,
-            camera_bind_group,
-            camera_uniform,
+            // camera_buffer,
+            // camera_bind_group,
+            // camera_uniform,
             depth_texture,
-            light_buffer,
-            light_uniform,
-            light_bind_group,
-            transform_bind_group_layout,
+            // light_buffer,
+            // light_uniform,
+            // light_bind_group,
+            // transform_bind_group_layout,
             window,
             scene,
         }
@@ -445,22 +498,35 @@ impl<'a> State<'a> {
 
     pub fn update(&mut self, dt: instant::Duration) {
         self.camera_controller.update_camera(&mut self.camera, dt);
-        self.camera_uniform.update_view_proj(&self.camera, &self.projection);
+        self.new_render_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(
-            &self.camera_buffer,
+            &self.new_render_pipeline.buffers.camera,
             0,
-            bytemuck::cast_slice(&[self.camera_uniform]),
+            bytemuck::cast_slice(&[self.new_render_pipeline.uniforms.camera]),
         );
-        let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
-        self.light_uniform.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
-        self.queue.write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light_uniform]));
+
+        let old_position: cgmath::Vector3<_> = self.new_render_pipeline.uniforms.light.position.into();
+        self.new_render_pipeline.uniforms.light.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
+        self.queue.write_buffer(&self.new_render_pipeline.buffers.light, 0, bytemuck::cast_slice(&[self.new_render_pipeline.uniforms.light]));
+
+        // self.camera_uniform.update_view_proj(&self.camera, &self.projection);
+        // self.queue.write_buffer(
+        //     &self.camera_buffer,
+        //     0,
+        //     bytemuck::cast_slice(&[self.camera_uniform]),
+        // );
+        // let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
+        // self.light_uniform.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
+        // self.queue.write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light_uniform]));
+        
+        
         for object in self.scene.get_all_objects() {
             if let Some(object_3d) = object.get_object_3d() {
                 for (index, instance) in object_3d.get_instances().iter_mut().enumerate() {
-                    let rotation_speed = std::f32::consts::PI * 2.0; // 90 degrés par seconde
-                    let rotation_angle = rotation_speed * dt.as_secs_f32();
-                    let rotation = rotation_angle * index as f32 * 0.2;
-                    instance.add_xyz_rotation(rotation, rotation, rotation);
+                    // let rotation_speed = std::f32::consts::PI * 2.0; // 90 degrés par seconde
+                    // let rotation_angle = rotation_speed * dt.as_secs_f32();
+                    // let rotation = rotation_angle * index as f32 * 0.2;
+                    // instance.add_xyz_rotation(rotation, rotation, rotation);
                 }
             }
         }
@@ -510,12 +576,11 @@ impl<'a> State<'a> {
             });
 
             use scene::DrawScene;
-            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_pipeline(&self.new_render_pipeline.pipeline);
             render_pass.draw_scene(
                 &self.queue,
                 &mut self.scene, 
-                &self.camera_bind_group, 
-                &self.light_bind_group
+                &self.new_render_pipeline
             );
         }
 

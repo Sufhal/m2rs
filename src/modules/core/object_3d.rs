@@ -1,9 +1,9 @@
 use cgmath::{One, Quaternion, Rad, Rotation3, SquareMatrix};
 use wgpu::util::DeviceExt;
 
-use crate::modules::utils::id_gen::generate_unique_string;
+use crate::modules::{pipelines::render_pipeline::{self, RenderBindGroupLayouts, RenderPipeline}, utils::id_gen::generate_unique_string};
 
-use super::{instance::InstanceRaw, model::Model};
+use super::{instance::InstanceRaw, model::Model, skeleton, skinning::SkeletonInstance};
 
 type Mat4 = cgmath::Matrix4<f32>;
 type Vec3 = cgmath::Vector3<f32>;
@@ -17,11 +17,13 @@ pub struct Object3D {
     pub model: Model,
     instances: Vec<Object3DInstance>,
     instances_buffer: wgpu::Buffer,
+    // skeletons: Vec<SkeletonInstance>,
+    skeletons_bind_group: Option<wgpu::BindGroup>,
     skeletons_buffer: Option<wgpu::Buffer>
 }
 
 impl Object3D {
-    pub fn new(device: &wgpu::Device, model: Model) -> Self {
+    pub fn new(device: &wgpu::Device, bind_group_layouts: &RenderBindGroupLayouts, model: Model) -> Self {
         let instances = vec![
             Object3DInstance::new();
             INITIAL_INSTANCES_COUNT
@@ -31,19 +33,40 @@ impl Object3D {
             contents: bytemuck::cast_slice(&instances.iter().map(|i| i.to_instance_raw()).collect::<Vec<_>>()),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
-        // let skeletons_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //     label: Some("Skeletons Buffer"),
-        //     contents: bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]),
-        //     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        // });
+        let skeletons_buffer = if let Some(skeleton) = &model.skeleton {
+            let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Skeleton Buffer"),
+                contents: bytemuck::cast_slice(&skeleton.to_raw()),
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            });
+            Some(buffer)
+        } else {
+            None
+        };
+        // let skeletons_bind_group = if let Some(buffer) = &skeletons_buffer {
+        //     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        //         layout: &bind_group_layouts.mesh,
+        //         entries: &[wgpu::BindGroupEntry {
+        //             binding: 3,
+        //             resource: buffer.as_entire_binding(),
+        //         }],
+        //         label: None,
+        //     });
+        //     Some(bind_group)
+        // } else {
+        //     None
+        // };
+
         Self {
             id: generate_unique_string(),
             instances,
             instances_buffer,
-            skeletons_buffer: None,
+            skeletons_buffer,
+            skeletons_bind_group: None,
             model,
         }
     }
+
     pub fn request_instance(&mut self, device: &wgpu::Device) -> &mut Object3DInstance {
         if let Some(index) = self.find_available_instance() {
             return self.instances.get_mut(index).unwrap();

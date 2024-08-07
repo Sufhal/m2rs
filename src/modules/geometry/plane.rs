@@ -80,17 +80,8 @@ impl ToMesh for Plane {
             contents: bytemuck::cast_slice(&[TransformUniform::identity()]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-        let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &transform_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: transform_buffer.as_entire_binding(),
-            }],
-            label: None,
-        });
         Mesh {
             name,
-            transform_bind_group,
             transform_buffer,
             vertex_buffer,
             index_buffer,

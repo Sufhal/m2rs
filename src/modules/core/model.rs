@@ -1,6 +1,6 @@
 use cgmath::SquareMatrix;
 
-use crate::modules::core::texture;
+use crate::modules::{core::texture, pipelines::render_pipeline::RenderPipeline};
 use std::ops::Range;
 
 use super::skinning::Skeleton;
@@ -61,13 +61,47 @@ pub struct Model {
     pub meshes: Vec<Mesh>,
     pub skeleton: Option<Skeleton>,
     pub materials: Vec<Material>,
+    pub meshes_bind_groups: Vec<wgpu::BindGroup>,
+}
+
+impl Model {
+    /// Creates one BindGroup per Mesh
+    pub fn create_bind_groups(&mut self, device: &wgpu::Device, render_pipeline: &RenderPipeline) {
+        self.meshes_bind_groups.clear();
+        for mesh in &self.meshes {
+            self.meshes_bind_groups.push(
+                device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    layout: &render_pipeline.bind_group_layouts.mesh,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(
+                                &self.materials[mesh.material].diffuse_texture.view
+                            )
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource:  wgpu::BindingResource::Sampler(
+                                &self.materials[mesh.material].diffuse_texture.sampler
+                            )
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: mesh.transform_buffer.as_entire_binding(),
+                        }
+                    ],
+                    label: None,
+                })
+            )
+        }
+        
+    }
 }
 
 #[derive(Debug)]
 pub struct Material {
     pub name: String,
-    pub diffuse_texture: texture::Texture,
-    pub bind_group: wgpu::BindGroup,
+    pub diffuse_texture: texture::Texture
 }
 
 #[repr(C)]
@@ -92,7 +126,6 @@ impl TransformUniform {
 #[derive(Debug)]
 pub struct Mesh {
     pub name: String,
-    pub transform_bind_group: wgpu::BindGroup,
     pub transform_buffer: wgpu::Buffer,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -105,31 +138,27 @@ pub trait DrawModel<'a> {
     fn draw_mesh(
         &mut self,
         mesh: &'a Mesh,
-        material: &'a Material,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
+        mesh_bind_group: &'a wgpu::BindGroup,
+        render_pipeline: &'a RenderPipeline,
     );
     fn draw_mesh_instanced(
         &mut self,
         mesh: &'a Mesh,
-        material: &'a Material,
+        mesh_bind_group: &'a wgpu::BindGroup,
         instances: Range<u32>,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
+        render_pipeline: &'a RenderPipeline,
     );
 
     fn draw_model(
         &mut self,
         model: &'a Model,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
+        render_pipeline: &'a RenderPipeline,
     );
     fn draw_model_instanced(
         &mut self,
         model: &'a Model,
         instances: Range<u32>,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
+        render_pipeline: &'a RenderPipeline,
     );
 }
 
@@ -140,49 +169,45 @@ where
     fn draw_mesh(
         &mut self,
         mesh: &'b Mesh,
-        material: &'b Material,
-        camera_bind_group: &'b wgpu::BindGroup,
-        light_bind_group: &'b wgpu::BindGroup,
+        mesh_bind_group: &'b wgpu::BindGroup,
+        render_pipeline: &'a RenderPipeline,
     ) {
-        self.draw_mesh_instanced(mesh, material, 0..1, camera_bind_group, light_bind_group);
+        self.draw_mesh_instanced(mesh, mesh_bind_group, 0..1, render_pipeline);
     }
 
     fn draw_mesh_instanced(
         &mut self,
         mesh: &'b Mesh,
-        material: &'b Material,
+        mesh_bind_group: &'b wgpu::BindGroup,
         instances: Range<u32>,
-        camera_bind_group: &'b wgpu::BindGroup,
-        light_bind_group: &'b wgpu::BindGroup,
+        render_pipeline: &'a RenderPipeline,
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        self.set_bind_group(0, &material.bind_group, &[]);
-        self.set_bind_group(1, camera_bind_group, &[]);
-        self.set_bind_group(2, light_bind_group, &[]);
-        self.set_bind_group(3, &mesh.transform_bind_group, &[]);
+        self.set_bind_group(0, &render_pipeline.global_bind_group, &[]);
+        self.set_bind_group(1, &mesh_bind_group, &[]);
+        // self.set_bind_group(3, &mesh.transform_bind_group, &[]);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
 
     fn draw_model(
         &mut self,
         model: &'b Model,
-        camera_bind_group: &'b wgpu::BindGroup,
-        light_bind_group: &'b wgpu::BindGroup,
+        render_pipeline: &'a RenderPipeline,
     ) {
-        self.draw_model_instanced(model, 0..1, camera_bind_group, light_bind_group);
+        self.draw_model_instanced(model, 0..1, render_pipeline);
     }
 
     fn draw_model_instanced(
         &mut self,
         model: &'b Model,
         instances: Range<u32>,
-        camera_bind_group: &'b wgpu::BindGroup,
-        light_bind_group: &'b wgpu::BindGroup,
+        render_pipeline: &'a RenderPipeline,
     ) {
-        for mesh in &model.meshes {
-            let material = &model.materials[mesh.material];
-            self.draw_mesh_instanced(mesh, material, instances.clone(), camera_bind_group, light_bind_group);
+        for i in 0..model.meshes.len() {
+            let mesh = &model.meshes[i];
+            let mesh_bind_group = &model.meshes_bind_groups[i];
+            self.draw_mesh_instanced(mesh, mesh_bind_group, instances.clone(), render_pipeline);
         }
     }
 }

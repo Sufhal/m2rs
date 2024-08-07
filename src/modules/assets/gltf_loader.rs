@@ -1,15 +1,15 @@
 use std::{any::Any, collections::{HashMap, HashSet}, hash::Hash, io::{BufReader, Cursor}, ops::Deref};
+use cgmath::{Matrix4, SquareMatrix};
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skinning::{Bone, Skeleton}}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, camera::camera::OPENGL_TO_WGPU_MATRIX, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skinning::{Bone, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
 use super::assets::{load_binary, load_string};
 
 pub async fn load_model_glb(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    texture_bind_group_layout: &wgpu::BindGroupLayout,
-    transform_bind_group_layout: &wgpu::BindGroupLayout,
+    render_pipeline: &RenderPipeline,
 ) -> anyhow::Result<Vec<Object>> {
     let gltf_bin = load_binary(file_name).await?;
     let gltf_cursor = Cursor::new(gltf_bin);
@@ -17,10 +17,10 @@ pub async fn load_model_glb(
     let gltf = gltf::Gltf::from_reader(gltf_reader)?;
 
     let buffer_data = extract_buffer_data(&gltf).await?;
-    let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
+    let materials = extract_materials(device, queue, gltf.materials(), &buffer_data).await?;
     let mut objects = extract_objects(
         device, 
-        transform_bind_group_layout, 
+        &render_pipeline.bind_group_layouts, 
         file_name, 
         &gltf, 
         &buffer_data
@@ -43,6 +43,7 @@ pub async fn load_model_glb(
                     panic!("no more material")
                 }
             }
+            object_3d.model.create_bind_groups(device, render_pipeline);
         }
     });
 
@@ -50,28 +51,6 @@ pub async fn load_model_glb(
 
     Ok(objects)
 }
-
-// pub async fn load_model_gltf(
-//     file_name: &str,
-//     device: &wgpu::Device,
-//     queue: &wgpu::Queue,
-//     texture_bind_group_layout: &wgpu::BindGroupLayout,
-//     transform_bind_group_layout: &wgpu::BindGroupLayout,
-// ) -> anyhow::Result<Object> {
-//     let gltf_text = load_string(file_name).await?;
-//     let gltf_cursor = Cursor::new(gltf_text);
-//     let gltf_reader = BufReader::new(gltf_cursor);
-//     let gltf = gltf::Gltf::from_reader(gltf_reader)?;
-
-//     let buffer_data = extract_buffer_data(&gltf).await?;
-//     let materials = extract_materials(device, queue, texture_bind_group_layout, gltf.materials(), &buffer_data).await?;
-//     let meshes = extract_meshes(device, transform_bind_group_layout, file_name, gltf.scenes(), &buffer_data);
-
-//     let model = Model { meshes, materials };
-//     let mut object = Object::new();
-//     object.set_object_3d(Object3D::new(device, model));
-//     Ok(object)
-// }
 
 async fn extract_buffer_data(
     model: &gltf::Gltf
@@ -96,7 +75,7 @@ async fn extract_buffer_data(
 
 fn extract_objects(
     device: &wgpu::Device, 
-    transform_bind_group_layout: &wgpu::BindGroupLayout,
+    bind_group_layouts: &RenderBindGroupLayouts,
     file_name: &str, 
     model: &gltf::Gltf,
     buffer_data: &Vec<Vec<u8>>
@@ -111,6 +90,7 @@ fn extract_objects(
 
     // looking for bones
     for skin in model.skins() {
+        let root_object = Object::new();
         let mut nodes = Vec::new();
         for joint in skin.joints() {
             let index = joint.index();
@@ -124,10 +104,12 @@ fn extract_objects(
                     let parent_node = nodes.iter().find(|(_, _, childrens)| childrens.contains(index));
                     Bone::new(
                         parent_node.map_or(None, |(parent_index, _, _)| Some(*bones_map.get(parent_index).unwrap())), 
+                        // (OPENGL_TO_WGPU_MATRIX * cgmath::Matrix4::from(*matrix)).into()
                         *matrix
                     )
                 })
                 .collect::<Vec<_>>();
+
             let mut model_skeleton = Skeleton { bones };
             model_skeleton.compute_bind_matrices();
             skeleton = Some(model_skeleton);
@@ -138,7 +120,7 @@ fn extract_objects(
     fn extract_from_node(
         node: &gltf::Node<'_>, 
         device: &wgpu::Device, 
-        transform_bind_group_layout: &wgpu::BindGroupLayout, 
+        bind_group_layouts: &RenderBindGroupLayouts,
         objects: &mut Vec<Object>,
         bones_map: &HashMap<NodeIndex, ObjectIndex>,
         skeleton: &Option<Skeleton>,
@@ -156,7 +138,6 @@ fn extract_objects(
 
         if let Some(name) = node.name() {
             object.name = Some(name.to_string());
-            println!("obj name {file_name}: {name}");
         }
         object.matrix = node.transform().matrix();
         if let Some(mesh) = node.mesh() {
@@ -223,21 +204,10 @@ fn extract_objects(
                     contents: bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
-                let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    layout: &transform_bind_group_layout,
-                    entries: &[wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: transform_buffer.as_entire_binding(),
-                    }],
-                    label: None,
-                });
                 // dbg!(primitive.clone());
                 let material = primitive.material();
-                println!("{} have material {:?} at {:?}", file_name, material.name(), material.index());
-                // dbg!(m);
                 meshes.push(Mesh {
                     name: file_name.to_string(),
-                    transform_bind_group,
                     transform_buffer,
                     vertex_buffer,
                     index_buffer,
@@ -249,9 +219,10 @@ fn extract_objects(
                 let model = Model { 
                     meshes, 
                     skeleton: skeleton.clone(), 
-                    materials: Vec::new() 
+                    materials: Vec::new() ,
+                    meshes_bind_groups: Vec::new()
                 };
-                let object_3d = Object3D::new(device, model);
+                let object_3d = Object3D::new(device, bind_group_layouts, model);
                 object.set_object_3d(object_3d);
             }
         }
@@ -261,7 +232,7 @@ fn extract_objects(
     fn traverse(
         node: &gltf::Node<'_>,
         device: &wgpu::Device, 
-        transform_bind_group_layout: &wgpu::BindGroupLayout,
+        bind_group_layouts: &RenderBindGroupLayouts,
         parent_id: Option<String>,
         objects: &mut Vec<Object>,
         bones_map: &HashMap<NodeIndex, ObjectIndex>,
@@ -272,7 +243,7 @@ fn extract_objects(
         let object_id = extract_from_node(
             node, 
             device, 
-            transform_bind_group_layout, 
+            bind_group_layouts, 
             objects, 
             bones_map,
             skeleton,
@@ -298,15 +269,14 @@ fn extract_objects(
                 }
             }
             for children in node.children() {
-                traverse(&children, device, transform_bind_group_layout, Some(object_id.clone()), objects, bones_map, skeleton, buffer_data, file_name);
+                traverse(&children, device, bind_group_layouts, Some(object_id.clone()), objects, bones_map, skeleton, buffer_data, file_name);
             }
         }
     }
 
     for scene in model.scenes() {
         for node in scene.nodes() {
-            println!("node, but having {}", node.children().len());
-            traverse(&node, device, transform_bind_group_layout,  None, &mut objects, &bones_map, &skeleton, buffer_data, file_name);
+            traverse(&node, device, bind_group_layouts, None, &mut objects, &bones_map, &skeleton, buffer_data, file_name);
         }
     }
 
@@ -316,7 +286,6 @@ fn extract_objects(
 async fn extract_materials(
     device: &wgpu::Device, 
     queue: &wgpu::Queue,
-    layout: &wgpu::BindGroupLayout,
     materials: gltf::iter::Materials<'_>,
     buffer_data: &Vec<Vec<u8>>
  ) -> anyhow::Result<Vec<Material>> {
@@ -344,14 +313,13 @@ async fn extract_materials(
                     material.name().unwrap_or("Default Material"),
                     image_data,
                     device, 
-                    queue, 
-                    layout
+                    queue,
                 )?;
                 extracted_materials.push(material);
             }
             gltf::image::Source::Uri { uri, mime_type } => {
                 dbg!(mime_type);
-                let material = load_material(uri, device, queue, layout).await?;
+                let material = load_material(uri, device, queue).await?;
                 extracted_materials.push(material);
             }
         };

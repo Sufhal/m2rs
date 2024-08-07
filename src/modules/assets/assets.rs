@@ -4,7 +4,7 @@ use cfg_if::cfg_if;
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use crate::modules::core::{model::{self, TransformUniform}, object::Object, object_3d::Object3D, texture::{self, Texture}};
+use crate::modules::{core::{model::{self, TransformUniform}, object::Object, object_3d::Object3D, texture::{self, Texture}}, pipelines::render_pipeline::RenderBindGroupLayouts};
 
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> reqwest::Url {
@@ -71,8 +71,7 @@ pub async fn load_model(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    texture_bind_group_layout: &wgpu::BindGroupLayout,
-    transform_bind_group_layout: &wgpu::BindGroupLayout,
+    bind_group_layouts: &RenderBindGroupLayouts,
 ) -> anyhow::Result<Object> {
     let obj_text = load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
@@ -94,7 +93,7 @@ pub async fn load_model(
 
     let mut materials = Vec::new();
     for m in obj_materials? {
-        let material = load_material(&m.diffuse_texture, device, queue, texture_bind_group_layout).await?;
+        let material = load_material(&m.diffuse_texture, device, queue).await?;
         materials.push(material)
     }
 
@@ -150,18 +149,9 @@ pub async fn load_model(
                 contents: bytemuck::cast_slice(&[TransformUniform::identity()]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
-            let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &transform_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: transform_buffer.as_entire_binding(),
-                }],
-                label: None,
-            });
 
             model::Mesh {
                 name: file_name.to_string(),
-                transform_bind_group,
                 transform_buffer,
                 vertex_buffer,
                 index_buffer,
@@ -171,9 +161,9 @@ pub async fn load_model(
         })
         .collect::<Vec<_>>();
 
-    let model = model::Model { meshes, skeleton: None, materials };
+    let model = model::Model { meshes, skeleton: None, materials, meshes_bind_groups: Vec::new() };
     let mut object = Object::new();
-    object.set_object_3d(Object3D::new(device, model));
+    object.set_object_3d(Object3D::new(device, bind_group_layouts, model));
     Ok(object)
 }
 
@@ -182,19 +172,11 @@ pub async fn load_material(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    layout: &wgpu::BindGroupLayout,
 ) -> anyhow::Result<model::Material> {
     let diffuse_texture = load_texture(file_name, device, queue).await?;
-    let bind_group = create_bind_group(
-        device, 
-        layout, 
-        &diffuse_texture.view, 
-        &diffuse_texture.sampler
-    );
     Ok(model::Material {
         name: file_name.to_string(),
-        diffuse_texture,
-        bind_group,
+        diffuse_texture
     })
 }
 
@@ -203,40 +185,10 @@ pub fn load_material_from_bytes(
     bytes: &[u8],
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    layout: &wgpu::BindGroupLayout,
 ) -> anyhow::Result<model::Material> {
     let diffuse_texture = texture::Texture::from_bytes(device, queue, bytes, label)?;
-    let bind_group = create_bind_group(
-        device, 
-        layout, 
-        &diffuse_texture.view, 
-        &diffuse_texture.sampler
-    );
     Ok(model::Material {
         name: label.to_string(),
         diffuse_texture,
-        bind_group,
-    })
-}
-
-fn create_bind_group(
-    device: &wgpu::Device,
-    layout: &wgpu::BindGroupLayout,
-    view: &wgpu::TextureView,
-    sampler: &wgpu::Sampler
-) -> wgpu::BindGroup {
-    device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout,
-        entries: &[
-            wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(view),
-            },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(sampler),
-            },
-        ],
-        label: None,
     })
 }
