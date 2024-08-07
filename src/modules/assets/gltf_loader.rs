@@ -1,7 +1,7 @@
 use std::{any::Any, collections::{HashMap, HashSet}, hash::Hash, io::{BufReader, Cursor}, ops::Deref};
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skeleton::Skeleton}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skinning::{Bone, Skeleton}}};
 use super::assets::{load_binary, load_string};
 
 pub async fn load_model_glb(
@@ -31,7 +31,7 @@ pub async fn load_model_glb(
         acc
     });
 
-    dbg!(&materials_per_idx.iter().map(|(idx, material)| (idx, material.name.clone())).collect::<Vec<_>>());
+    // dbg!(&materials_per_idx.iter().map(|(idx, material)| (idx, material.name.clone())).collect::<Vec<_>>());
 
     objects.iter_mut().for_each(|object| {
         if let Some(object_3d) = &mut object.object_3d {
@@ -106,21 +106,34 @@ fn extract_objects(
     type ObjectIndex = usize;
 
     let mut objects = Vec::new();
+    let mut skeleton = None;
     let mut bones_map = HashMap::new();
-
 
     // looking for bones
     for skin in model.skins() {
+        let mut nodes = Vec::new();
         for joint in skin.joints() {
             let index = joint.index();
-            let object = Object::new();
-            bones_map.insert(index, objects.len());
-            objects.push(object);
+            bones_map.insert(index, nodes.len());
+            nodes.push((index, joint.transform().matrix(), joint.children().map(|children| children.index()).collect::<Vec<_>>()));
+        }
+        if nodes.len() > 0 {
+            let bones = nodes
+                .iter()
+                .map(|(index, matrix, _)| {
+                    let parent_node = nodes.iter().find(|(_, _, childrens)| childrens.contains(index));
+                    Bone::new(
+                        parent_node.map_or(None, |(parent_index, _, _)| Some(*bones_map.get(parent_index).unwrap())), 
+                        *matrix
+                    )
+                })
+                .collect::<Vec<_>>();
+            let mut model_skeleton = Skeleton { bones };
+            model_skeleton.compute_bind_matrices();
+            skeleton = Some(model_skeleton);
+            break;
         }
     }
-
-    dbg!(&bones_map);
-
 
     fn extract_from_node(
         node: &gltf::Node<'_>, 
@@ -128,44 +141,24 @@ fn extract_objects(
         transform_bind_group_layout: &wgpu::BindGroupLayout, 
         objects: &mut Vec<Object>,
         bones_map: &HashMap<NodeIndex, ObjectIndex>,
+        skeleton: &Option<Skeleton>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
-    ) -> String {
-        let position = if let Some(index) = bones_map.get(&node.index()) {
-            *index
-        } else {
-            let object = Object::new();
-            let index = objects.len();
-            objects.push(object);
-            index
-        };
+    ) -> Option<String> {
+        if let Some(_) = bones_map.get(&node.index()) {
+            return None;
+        }
+        let object = Object::new();
+        let position = objects.len();
+        objects.push(object);
         let object = objects.get_mut(position).unwrap();
         let object_id = object.id.clone();
-        object.metadata = Some(
-            Metadata { 
-                gltf_node_index: Some(node.index()) 
-            }
-        );
+
         if let Some(name) = node.name() {
             object.name = Some(name.to_string());
             println!("obj name {file_name}: {name}");
         }
         object.matrix = node.transform().matrix();
-        
-        if let Some(skin) = node.skin() {
-            println!("node {:?} have skin", node.name());
-            skin.joints().any(|joint| joint.index() == node.index());
-            skin.joints().for_each(|node| {
-                println!("skin joint is {:?}, with index {:?}", node.name(), node.index());
-            });
-
-            // skin.index()
-            
-        }
-        // node.
-        // if let Some(skin) = node.skin() {
-        //     dbg!(skin.inverse_bind_matrices().unwrap().);
-        // }
         if let Some(mesh) = node.mesh() {
             let mut meshes = Vec::<Mesh>::new();
             let primitives = mesh.primitives();
@@ -215,9 +208,6 @@ fn extract_objects(
                     indices.append(&mut indices_raw.into_u32().collect::<Vec<u32>>());
                 }
 
-                let report = &vertices.clone()[0..3];
-                dbg!(report);
-
                 let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("{:?} Vertex Buffer", file_name)),
                     contents: bytemuck::cast_slice(&vertices),
@@ -256,12 +246,16 @@ fn extract_objects(
                 });
             });
             if meshes.len() > 0 {
-                let model = Model { meshes, materials: Vec::new() };
+                let model = Model { 
+                    meshes, 
+                    skeleton: skeleton.clone(), 
+                    materials: Vec::new() 
+                };
                 let object_3d = Object3D::new(device, model);
                 object.set_object_3d(object_3d);
             }
         }
-        object_id
+        Some(object_id)
     }
 
     fn traverse(
@@ -271,6 +265,7 @@ fn extract_objects(
         parent_id: Option<String>,
         objects: &mut Vec<Object>,
         bones_map: &HashMap<NodeIndex, ObjectIndex>,
+        skeleton: &Option<Skeleton>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) {
@@ -280,35 +275,38 @@ fn extract_objects(
             transform_bind_group_layout, 
             objects, 
             bones_map,
+            skeleton,
             buffer_data, 
             file_name
         );
-        if let Some(parent_id) = parent_id {
-            let (current_object, parent_object) = objects.iter_mut().fold((None, None), |mut acc, object| {
-                if object.id == object_id {
-                    acc.0 = Some(object);
+        if let Some(object_id) = object_id {
+            if let Some(parent_id) = parent_id {
+                let (current_object, parent_object) = objects.iter_mut().fold((None, None), |mut acc, object| {
+                    if object.id == object_id {
+                        acc.0 = Some(object);
+                    }
+                    else if object.id == parent_id {
+                        acc.1 = Some(object);
+                    }
+                    acc
+                });
+                if let Some(current_object) = current_object {
+                    current_object.parent = Some(parent_id.clone());
                 }
-                else if object.id == parent_id {
-                    acc.1 = Some(object);
+                if let Some(parent_object) = parent_object {
+                    parent_object.childrens.push(object_id.clone());
                 }
-                acc
-            });
-            if let Some(current_object) = current_object {
-                current_object.parent = Some(parent_id.clone());
             }
-            if let Some(parent_object) = parent_object {
-                parent_object.childrens.push(object_id.clone());
+            for children in node.children() {
+                traverse(&children, device, transform_bind_group_layout, Some(object_id.clone()), objects, bones_map, skeleton, buffer_data, file_name);
             }
-        }
-        for children in node.children() {
-            traverse(&children, device, transform_bind_group_layout, Some(object_id.clone()), objects, bones_map, buffer_data, file_name);
         }
     }
 
     for scene in model.scenes() {
         for node in scene.nodes() {
             println!("node, but having {}", node.children().len());
-            traverse(&node, device, transform_bind_group_layout,  None, &mut objects, &bones_map, buffer_data, file_name);
+            traverse(&node, device, transform_bind_group_layout,  None, &mut objects, &bones_map, &skeleton, buffer_data, file_name);
         }
     }
 

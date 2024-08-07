@@ -3,6 +3,8 @@ use cgmath::SquareMatrix;
 use crate::modules::core::texture;
 use std::ops::Range;
 
+use super::skinning::Skeleton;
+
 pub trait Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
 }
@@ -57,6 +59,7 @@ impl Vertex for ModelVertex {
 #[derive(Debug)]
 pub struct Model {
     pub meshes: Vec<Mesh>,
+    pub skeleton: Option<Skeleton>,
     pub materials: Vec<Material>,
 }
 

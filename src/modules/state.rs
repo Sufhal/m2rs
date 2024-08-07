@@ -301,6 +301,7 @@ impl<'a> State<'a> {
         let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
         let model = Model { 
             meshes: vec![mesh], 
+            skeleton: None,
             materials: vec![material] 
         };
         let mut object = Object::new();
