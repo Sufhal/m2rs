@@ -52,7 +52,7 @@ impl Skeleton {
     }
     /// Returns each bones inversed bind matrix
     pub fn to_raw(&self) -> Vec<[[f32; 4]; 4]> {
-        self.bones.iter().map(|bone| bone.bind_matrix).collect::<Vec<_>>()
+        self.bones.iter().map(|bone| bone.inverse_bind_matrix).collect::<Vec<_>>()
     }
 }
 

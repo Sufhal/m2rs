@@ -174,7 +174,11 @@ fn extract_objects(
                     let normal = normals.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
                     let weight = weights.get(i).unwrap_or(&[0.0, 0.0, 0.0, 0.0]);
                     let joint = joints.get(i).unwrap_or(&[0, 1, 2, 3]);
+                    // let converted_joint: [u32; 4] = core::array::from_fn(|i| *(joints[i] as u32));
                     let converted_joint: [u32; 4] = core::array::from_fn(|i| (*(bones_map.get(&(joint[i] as usize))).unwrap_or(&0)) as u32);
+                    dbg!(&weight);
+                    dbg!(&joint);
+                    dbg!(&converted_joint);
                     vertices.push(ModelVertex {
                         position: *position,
                         tex_coords: *tex_coord,
@@ -183,6 +187,8 @@ fn extract_objects(
                         joint: converted_joint,
                     });
                 }
+
+                dbg!(&bones_map);
 
                 let mut indices = Vec::new();
                 if let Some(indices_raw) = reader.read_indices() {
