@@ -10,6 +10,7 @@ use winit::{
 };
 use crate::modules::core::object::{self, Object};
 use crate::modules::core::object_3d::{self, Object3D};
+use crate::modules::core::skinning::Keyframes;
 use crate::modules::core::{instance, light, model, texture};
 use crate::modules::assets::assets;
 use crate::modules::camera::camera;
@@ -544,19 +545,35 @@ impl<'a> State<'a> {
         
         
         for object in self.scene.get_all_objects() {
-            if let Some(object_3d) = object.get_object_3d() {
-                let model = &object_3d.model;
+            if let Some(object_3d) = &mut object.object_3d {
+                let model = &mut object_3d.model;
                 if let Some(animations) = &model.animations {
-                    fs::write(Path::new("trash/debug.txt"), format!("{:#?}", dbg!(&animations)));
-                    panic!()
+                    let _ = fs::write(Path::new("trash/debug.txt"), format!("{:#?}", &animations));
+                    if let Some(skeleton) = &mut model.skeleton {
+                        if let Some(animation) = animations.iter().find(|clip| &clip.name == "Run") {
+                            for bone_animation in &animation.animations {
+                                match &bone_animation.keyframes {
+                                    Keyframes::Translation(frames) => {
+                                        let frame = &frames[0];
+                                        skeleton.bones[bone_animation.bone].set_translation(&[frame[0], frame[1], frame[2]]);
+                                    },
+                                    Keyframes::Other => {},
+                                }
+                            }
+                        }
+                        skeleton.calculate_world_matrices();
+                        object_3d.update_skeleton(&self.queue);
+                        // skeleton.bones
+                    }
+                    // panic!()
                 }
 
-                for (index, instance) in object_3d.get_instances().iter_mut().enumerate() {
-                    // let rotation_speed = std::f32::consts::PI * 2.0; // 90 degrés par seconde
-                    // let rotation_angle = rotation_speed * dt.as_secs_f32();
-                    // let rotation = rotation_angle * index as f32 * 0.2;
-                    // instance.add_xyz_rotation(rotation, rotation, rotation);
-                }
+                // for (index, instance) in object_3d.get_instances().iter_mut().enumerate() {
+                //     // let rotation_speed = std::f32::consts::PI * 2.0; // 90 degrés par seconde
+                //     // let rotation_angle = rotation_speed * dt.as_secs_f32();
+                //     // let rotation = rotation_angle * index as f32 * 0.2;
+                //     // instance.add_xyz_rotation(rotation, rotation, rotation);
+                // }
             }
         }
         self.scene.compute_world_matrices();

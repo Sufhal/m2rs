@@ -2,7 +2,7 @@ use std::{any::Any, collections::{HashMap, HashSet}, hash::Hash, io::{BufReader,
 use cgmath::{Matrix4, SquareMatrix};
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, camera::camera::OPENGL_TO_WGPU_MATRIX, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skinning::{AnimationClip, Bone, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, camera::camera::OPENGL_TO_WGPU_MATRIX, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
 use super::assets::{load_binary, load_string};
 
 pub async fn load_model_glb(
@@ -118,7 +118,7 @@ fn extract_objects(
                 .collect::<Vec<_>>();
 
             let mut model_skeleton = Skeleton { bones };
-            model_skeleton.compute_bind_matrices();
+            model_skeleton.calculate_world_matrices();
             skeleton = Some(model_skeleton);
             break;
         }
@@ -126,14 +126,17 @@ fn extract_objects(
 
     // Load animations
     for animation in model.animations() {
+        
+        let name = animation.name().unwrap_or("Default").to_string();
+        let mut animations = Vec::new();
+
         for channel in animation.channels() {
+            let bone = *bones_map.get(&channel.target().node().index()).unwrap();
             let reader = channel.reader(|buffer| Some(&buffer_data[buffer.index()]));
             let timestamps = if let Some(inputs) = reader.read_inputs() {
                 match inputs {
                     gltf::accessor::Iter::Standard(times) => {
                         let times: Vec<f32> = times.collect();
-                        println!("Time: {}", times.len());
-                        dbg!(&times);
                         times
                     }
                     gltf::accessor::Iter::Sparse(_) => {
@@ -152,8 +155,6 @@ fn extract_objects(
                 match outputs {
                     gltf::animation::util::ReadOutputs::Translations(translation) => {
                         let translation_vec = translation.map(|tr| {
-                            // println!("Translation:");
-                            dbg!(&tr);
                             let vector: Vec<f32> = tr.into();
                             vector
                         }).collect();
@@ -174,12 +175,21 @@ fn extract_objects(
                 Keyframes::Other
             };
 
-            animation_clips.push(AnimationClip {
-                name: animation.name().unwrap_or("Default").to_string(),
-                keyframes,
-                timestamps,
-            })
+            animations.push(
+                BoneAnimation {
+                    bone,
+                    keyframes,
+                    timestamps,
+                }
+            );
         }
+
+        animation_clips.push(
+            AnimationClip {
+                name,
+                animations
+            }
+        );
     }
 
     fn extract_from_node(
@@ -277,8 +287,6 @@ fn extract_objects(
                     contents: bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
-                // dbg!(primitive.clone());
-                let material = primitive.material();
                 meshes.push(Mesh {
                     name: file_name.to_string(),
                     transform_buffer,

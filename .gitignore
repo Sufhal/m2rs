@@ -2,3 +2,5 @@ Cargo.lock
 target/
 trash/
 .DS_Store
+.fleet
+.vscode

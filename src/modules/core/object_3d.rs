@@ -116,6 +116,20 @@ impl Object3D {
             }
         }
     }
+    pub fn update_skeleton(&mut self, queue: &wgpu::Queue) {
+        if let Some(skeleton) = &self.model.skeleton {
+            queue.write_buffer(
+                &self.skeletons_buffer,
+                0,
+                bytemuck::cast_slice(&skeleton.to_raw_transform()),
+            );
+            queue.write_buffer(
+                &self.skeletons_bind_inverse_buffer,
+                0,
+                bytemuck::cast_slice(&skeleton.to_raw()),
+            );
+        }
+    }
     pub fn get_instance(&mut self, id: &str) -> Option<&mut Object3DInstance> {
         self.instances.iter_mut().find(|i| &i.id == id)
     }
