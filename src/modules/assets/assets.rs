@@ -161,7 +161,7 @@ pub async fn load_model(
         })
         .collect::<Vec<_>>();
 
-    let model = model::Model { meshes, skeleton: None, materials, meshes_bind_groups: Vec::new() };
+    let model = model::Model { meshes, skeleton: None, animations: None, materials, meshes_bind_groups: Vec::new() };
     let mut object = Object::new();
     object.set_object_3d(Object3D::new(device, bind_group_layouts, model));
     Ok(object)

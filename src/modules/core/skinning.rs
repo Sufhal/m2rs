@@ -74,11 +74,15 @@ impl SkeletonInstance {
     }
 }
 
-pub struct Animation {
-    pub keyframes: HashMap<String, Vec<Keyframe>>,
+#[derive(Clone, Debug)]
+pub enum Keyframes {
+    Translation(Vec<Vec<f32>>),
+    Other,
 }
 
-pub struct Keyframe {
-    pub timestamp: f32,
-    pub bones_transforms: HashMap<String, [[f32; 4]; 4]>,
+#[derive(Clone, Debug)]
+pub struct AnimationClip {
+    pub name: String,
+    pub keyframes: Keyframes,
+    pub timestamps: Vec<f32>,
 }

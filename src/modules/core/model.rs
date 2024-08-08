@@ -3,7 +3,7 @@ use cgmath::SquareMatrix;
 use crate::modules::{core::texture, pipelines::render_pipeline::RenderPipeline};
 use std::ops::Range;
 
-use super::skinning::Skeleton;
+use super::skinning::{AnimationClip, Skeleton};
 
 pub trait Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
@@ -60,6 +60,7 @@ impl Vertex for ModelVertex {
 pub struct Model {
     pub meshes: Vec<Mesh>,
     pub skeleton: Option<Skeleton>,
+    pub animations: Option<Vec<AnimationClip>>,
     pub materials: Vec<Material>,
     pub meshes_bind_groups: Vec<wgpu::BindGroup>,
 }

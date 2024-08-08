@@ -2,7 +2,7 @@ use std::{any::Any, collections::{HashMap, HashSet}, hash::Hash, io::{BufReader,
 use cgmath::{Matrix4, SquareMatrix};
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, camera::camera::OPENGL_TO_WGPU_MATRIX, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skinning::{Bone, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, camera::camera::OPENGL_TO_WGPU_MATRIX, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skinning::{AnimationClip, Bone, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
 use super::assets::{load_binary, load_string};
 
 pub async fn load_model_glb(
@@ -86,6 +86,7 @@ fn extract_objects(
 
     let mut objects = Vec::new();
     let mut skeleton = None;
+    let mut animation_clips = Vec::new();
     let mut bones_map = HashMap::new();
 
     // looking for bones
@@ -123,6 +124,64 @@ fn extract_objects(
         }
     }
 
+    // Load animations
+    for animation in model.animations() {
+        for channel in animation.channels() {
+            let reader = channel.reader(|buffer| Some(&buffer_data[buffer.index()]));
+            let timestamps = if let Some(inputs) = reader.read_inputs() {
+                match inputs {
+                    gltf::accessor::Iter::Standard(times) => {
+                        let times: Vec<f32> = times.collect();
+                        println!("Time: {}", times.len());
+                        dbg!(&times);
+                        times
+                    }
+                    gltf::accessor::Iter::Sparse(_) => {
+                        println!("Sparse keyframes not supported");
+                        let times: Vec<f32> = Vec::new();
+                        times
+                    }
+                }
+            } else {
+                println!("We got problems");
+                let times: Vec<f32> = Vec::new();
+                times
+            };
+
+            let keyframes = if let Some(outputs) = reader.read_outputs() {
+                match outputs {
+                    gltf::animation::util::ReadOutputs::Translations(translation) => {
+                        let translation_vec = translation.map(|tr| {
+                            // println!("Translation:");
+                            dbg!(&tr);
+                            let vector: Vec<f32> = tr.into();
+                            vector
+                        }).collect();
+                        Keyframes::Translation(translation_vec)
+                    },
+                    // gltf::animation::util::ReadOutputs::Rotations(rotation) => {
+                        
+                    // },
+                    other => {
+                        Keyframes::Other
+                    }
+                    // gltf::animation::util::ReadOutputs::Rotations(_) => todo!(),
+                    // gltf::animation::util::ReadOutputs::Scales(_) => todo!(),
+                    // gltf::animation::util::ReadOutputs::MorphTargetWeights(_) => todo!(),
+                }
+            } else {
+                println!("We got problems");
+                Keyframes::Other
+            };
+
+            animation_clips.push(AnimationClip {
+                name: animation.name().unwrap_or("Default").to_string(),
+                keyframes,
+                timestamps,
+            })
+        }
+    }
+
     fn extract_from_node(
         node: &gltf::Node<'_>, 
         device: &wgpu::Device, 
@@ -130,6 +189,7 @@ fn extract_objects(
         objects: &mut Vec<Object>,
         bones_map: &HashMap<NodeIndex, ObjectIndex>,
         skeleton: &Option<Skeleton>,
+        animation_clips: &Vec<AnimationClip>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) -> Option<String> {
@@ -232,6 +292,7 @@ fn extract_objects(
                 let model = Model { 
                     meshes, 
                     skeleton: skeleton.clone(), 
+                    animations: if animation_clips.len() > 0 { Some(animation_clips.clone()) } else { None },
                     materials: Vec::new() ,
                     meshes_bind_groups: Vec::new()
                 };
@@ -250,6 +311,7 @@ fn extract_objects(
         objects: &mut Vec<Object>,
         bones_map: &HashMap<NodeIndex, ObjectIndex>,
         skeleton: &Option<Skeleton>,
+        animation_clips: &Vec<AnimationClip>,
         buffer_data: &Vec<Vec<u8>>, 
         file_name: &str
     ) {
@@ -260,6 +322,7 @@ fn extract_objects(
             objects, 
             bones_map,
             skeleton,
+            animation_clips,
             buffer_data, 
             file_name
         );
@@ -282,14 +345,36 @@ fn extract_objects(
                 }
             }
             for children in node.children() {
-                traverse(&children, device, bind_group_layouts, Some(object_id.clone()), objects, bones_map, skeleton, buffer_data, file_name);
+                traverse(
+                    &children, 
+                    device, 
+                    bind_group_layouts, 
+                    Some(object_id.clone()), 
+                    objects, 
+                    bones_map, 
+                    skeleton, 
+                    animation_clips,
+                    buffer_data, 
+                    file_name
+                );
             }
         }
     }
 
     for scene in model.scenes() {
         for node in scene.nodes() {
-            traverse(&node, device, bind_group_layouts, None, &mut objects, &bones_map, &skeleton, buffer_data, file_name);
+            traverse(
+                &node, 
+                device, 
+                bind_group_layouts, 
+                None, 
+                &mut objects, 
+                &bones_map, 
+                &skeleton, 
+                &animation_clips,
+                buffer_data, 
+                file_name
+            );
         }
     }
 

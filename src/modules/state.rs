@@ -1,4 +1,5 @@
-use std::iter;
+use std::path::Path;
+use std::{fs, iter};
 use cgmath::Rotation3;
 use log::info;
 use wgpu::util::DeviceExt;
@@ -544,6 +545,12 @@ impl<'a> State<'a> {
         
         for object in self.scene.get_all_objects() {
             if let Some(object_3d) = object.get_object_3d() {
+                let model = &object_3d.model;
+                if let Some(animations) = &model.animations {
+                    fs::write(Path::new("trash/debug.txt"), format!("{:#?}", dbg!(&animations)));
+                    panic!()
+                }
+
                 for (index, instance) in object_3d.get_instances().iter_mut().enumerate() {
                     // let rotation_speed = std::f32::consts::PI * 2.0; // 90 degrés par seconde
                     // let rotation_angle = rotation_speed * dt.as_secs_f32();
