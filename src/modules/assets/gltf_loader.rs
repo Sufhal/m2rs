@@ -90,22 +90,28 @@ fn extract_objects(
 
     // looking for bones
     for skin in model.skins() {
-        let root_object = Object::new();
         let mut nodes = Vec::new();
         for joint in skin.joints() {
             let index = joint.index();
+            let name = joint.name().map_or(None, |str| Some(str.to_string()));
             bones_map.insert(index, nodes.len());
-            nodes.push((index, joint.transform().matrix(), joint.children().map(|children| children.index()).collect::<Vec<_>>()));
+            nodes.push((
+                index, 
+                name,
+                joint.transform().matrix(), 
+                joint.children().map(|children| children.index()).collect::<Vec<_>>()
+            ));
         }
         if nodes.len() > 0 {
             let bones = nodes
                 .iter()
-                .map(|(index, matrix, _)| {
-                    let parent_node = nodes.iter().find(|(_, _, childrens)| childrens.contains(index));
+                .map(|(index, name, matrix, _)| {
+                    let parent_node = nodes.iter().find(|(_, _, _, childrens)| childrens.contains(index));
                     Bone::new(
-                        parent_node.map_or(None, |(parent_index, _, _)| Some(*bones_map.get(parent_index).unwrap())), 
+                        parent_node.map_or(None, |(parent_index, _, _, _)| Some(*bones_map.get(parent_index).unwrap())), 
                         // (OPENGL_TO_WGPU_MATRIX * cgmath::Matrix4::from(*matrix)).into()
-                        *matrix
+                        *matrix,
+                        name.clone(),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -176,9 +182,9 @@ fn extract_objects(
                     let joint = joints.get(i).unwrap_or(&[0, 1, 2, 3]);
                     // let converted_joint: [u32; 4] = core::array::from_fn(|i| *(joints[i] as u32));
                     let converted_joint: [u32; 4] = core::array::from_fn(|i| (*(bones_map.get(&(joint[i] as usize))).unwrap_or(&0)) as u32);
-                    dbg!(&weight);
-                    dbg!(&joint);
-                    dbg!(&converted_joint);
+                    // dbg!(&weight);
+                    // dbg!(&joint);
+                    // dbg!(&converted_joint);
                     vertices.push(ModelVertex {
                         position: *position,
                         tex_coords: *tex_coord,
@@ -188,7 +194,8 @@ fn extract_objects(
                     });
                 }
 
-                dbg!(&bones_map);
+                // dbg!(&skeleton.as_ref().unwrap().bones[6].name);
+                // dbg!(&bones_map);
 
                 let mut indices = Vec::new();
                 if let Some(indices_raw) = reader.read_indices() {

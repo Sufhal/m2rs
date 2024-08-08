@@ -21,6 +21,7 @@ pub struct Object3D {
     // skeletons: Vec<SkeletonInstance>,
     // skeletons_bind_group: Option<wgpu::BindGroup>,
     skeletons_buffer: wgpu::Buffer,
+    skeletons_bind_inverse_buffer: wgpu::Buffer,
     // skeletons_bind_inverse_buffer: wgpu::Buffer,
 }
 
@@ -37,6 +38,18 @@ impl Object3D {
         });
         let skeletons_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Skeleton Buffer"),
+            contents: bytemuck::cast_slice(&
+                if let Some(skeleton) = &model.skeleton {
+                    skeleton.to_raw_transform()
+                } else {
+                    Vec::new()
+                }
+            ),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let skeletons_bind_inverse_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Skeleton Bind Inverse Buffer"),
             contents: bytemuck::cast_slice(&
                 if let Some(skeleton) = &model.skeleton {
                     skeleton.to_raw()
@@ -60,10 +73,16 @@ impl Object3D {
 
         let instances_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layouts.instances,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: skeletons_buffer.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: skeletons_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: skeletons_bind_inverse_buffer.as_entire_binding(),
+                }
+            ],
             label: None,
         });
 
@@ -72,6 +91,7 @@ impl Object3D {
             instances,
             instances_buffer,
             skeletons_buffer,
+            skeletons_bind_inverse_buffer,
             instances_bind_group,
             model,
         }

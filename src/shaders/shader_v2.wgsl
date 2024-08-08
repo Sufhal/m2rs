@@ -23,7 +23,8 @@ struct TransformUniform {
 };
 @group(1) @binding(2) var<uniform> transform: TransformUniform;
 // @group(2) @binding(0) var<storage, read> bones_matrices: array<mat4x4<f32>>;
-@group(2) @binding(0) var<storage, read> bones_inverse_bind_matrices: array<mat4x4<f32>>;
+@group(2) @binding(0) var<storage, read> bones_matrices: array<mat4x4<f32>>;
+@group(2) @binding(1) var<storage, read> bones_inverse_bind_matrices: array<mat4x4<f32>>;
 
 
 struct VertexInput {
@@ -63,15 +64,15 @@ fn vs_main(
     out.world_normal = normal_matrix * model.normal;
 
     // Compute joint_matrices * inverse_bind_matrices
-    let joint0 = bones_inverse_bind_matrices[model.joints[0]];
-    let joint1 = bones_inverse_bind_matrices[model.joints[1]];
-    let joint2 = bones_inverse_bind_matrices[model.joints[2]];
-    let joint3 = bones_inverse_bind_matrices[model.joints[3]];
+    // let joint0 = bones_inverse_bind_matrices[model.joints[0]];
+    // let joint1 = bones_inverse_bind_matrices[model.joints[1]];
+    // let joint2 = bones_inverse_bind_matrices[model.joints[2]];
+    // let joint3 = bones_inverse_bind_matrices[model.joints[3]];
 
-    // let joint0 = bones_matrices[model.joints[0]] * bones_inverse_bind_matrices[model.joints[0]];
-    // let joint1 = bones_matrices[model.joints[1]] * bones_inverse_bind_matrices[model.joints[1]];
-    // let joint2 = bones_matrices[model.joints[2]] * bones_inverse_bind_matrices[model.joints[2]];
-    // let joint3 = bones_matrices[model.joints[3]] * bones_inverse_bind_matrices[model.joints[3]];
+    let joint0 = bones_matrices[model.joints[0]] * bones_inverse_bind_matrices[model.joints[0]];
+    let joint1 = bones_matrices[model.joints[1]] * bones_inverse_bind_matrices[model.joints[1]];
+    let joint2 = bones_matrices[model.joints[2]] * bones_inverse_bind_matrices[model.joints[2]];
+    let joint3 = bones_matrices[model.joints[3]] * bones_inverse_bind_matrices[model.joints[3]];
     // Compute influence of joint based on weight
     let skin_matrix = 
         joint0 * model.weights[0] +

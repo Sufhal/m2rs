@@ -4,6 +4,7 @@ use cgmath::{Matrix4, SquareMatrix};
 
 #[derive(Clone, Debug)]
 pub struct Bone {
+    pub name: Option<String>,
     pub parent_index: Option<usize>,
     pub matrix: [[f32; 4]; 4],
     pub bind_matrix: [[f32; 4]; 4],
@@ -12,8 +13,9 @@ pub struct Bone {
 }
 
 impl Bone {
-    pub fn new(parent_index: Option<usize>, matrix: [[f32; 4]; 4]) -> Self {
+    pub fn new(parent_index: Option<usize>, matrix: [[f32; 4]; 4], name: Option<String>) -> Self {
         Self {
+            name,
             parent_index,
             matrix,
             transform_matrix: Matrix4::identity().into(),
@@ -53,6 +55,9 @@ impl Skeleton {
     /// Returns each bones inversed bind matrix
     pub fn to_raw(&self) -> Vec<[[f32; 4]; 4]> {
         self.bones.iter().map(|bone| bone.inverse_bind_matrix).collect::<Vec<_>>()
+    }
+    pub fn to_raw_transform(&self) -> Vec<[[f32; 4]; 4]> {
+        self.bones.iter().map(|bone| bone.bind_matrix).collect::<Vec<_>>()
     }
 }
 
