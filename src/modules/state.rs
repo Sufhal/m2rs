@@ -3,6 +3,7 @@ use std::{fs, iter};
 use cgmath::Rotation3;
 use log::info;
 use wgpu::util::DeviceExt;
+use winit::keyboard::KeyCode;
 use winit::{
     event::*,
     keyboard::PhysicalKey,
@@ -23,6 +24,7 @@ use super::core::object_3d::Transform;
 use super::core::scene;
 use super::geometry::plane::Plane;
 use super::pipelines::render_pipeline::RenderPipeline;
+use super::utils::performance_tracker::PerformanceTracker;
 
 pub struct State<'a> {
     surface: wgpu::Surface<'a>,
@@ -45,7 +47,8 @@ pub struct State<'a> {
     // light_bind_group: wgpu::BindGroup,
     // transform_bind_group_layout: wgpu::BindGroupLayout,
     pub window: &'a Window,
-    scene: scene::Scene
+    scene: scene::Scene,
+    performance_tracker: PerformanceTracker
 }
 
 impl<'a> State<'a> {
@@ -474,6 +477,7 @@ impl<'a> State<'a> {
             // transform_bind_group_layout,
             window,
             scene,
+            performance_tracker: PerformanceTracker::new()
         }
     }
 
@@ -503,7 +507,15 @@ impl<'a> State<'a> {
                         ..
                     },
                 ..
-            } => self.camera_controller.process_keyboard(*key, *state),
+            } => {
+                match key {
+                    KeyCode::KeyP => {
+                        dbg!(self.performance_tracker.get_report());
+                    },
+                    _ => {},
+                };
+                self.camera_controller.process_keyboard(*key, *state)
+            },
             WindowEvent::MouseWheel { delta, .. } => {
                 self.camera_controller.process_scroll(delta);
                 true
@@ -521,6 +533,9 @@ impl<'a> State<'a> {
     }
 
     pub fn update(&mut self, dt: instant::Duration) {
+        self.performance_tracker.call_start("update");
+
+        self.performance_tracker.call_start("update_camera");
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.new_render_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(
@@ -528,10 +543,13 @@ impl<'a> State<'a> {
             0,
             bytemuck::cast_slice(&[self.new_render_pipeline.uniforms.camera]),
         );
+        self.performance_tracker.call_end("update_camera");
 
+        self.performance_tracker.call_start("update_light");
         let old_position: cgmath::Vector3<_> = self.new_render_pipeline.uniforms.light.position.into();
         self.new_render_pipeline.uniforms.light.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
         self.queue.write_buffer(&self.new_render_pipeline.buffers.light, 0, bytemuck::cast_slice(&[self.new_render_pipeline.uniforms.light]));
+        self.performance_tracker.call_end("update_light");
 
         // self.camera_uniform.update_view_proj(&self.camera, &self.projection);
         // self.queue.write_buffer(
@@ -543,12 +561,12 @@ impl<'a> State<'a> {
         // self.light_uniform.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
         // self.queue.write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light_uniform]));
         
-        
+        self.performance_tracker.call_start("update_objects");
         for object in self.scene.get_all_objects() {
             if let Some(object_3d) = &mut object.object_3d {
                 let model = &mut object_3d.model;
                 if let Some(animations) = &model.animations {
-                    let _ = fs::write(Path::new("trash/debug.txt"), format!("{:#?}", &animations));
+                    // let _ = fs::write(Path::new("trash/debug.txt"), format!("{:#?}", &animations));
                     if let Some(skeleton) = &mut model.skeleton {
                         if let Some(animation) = animations.iter().find(|clip| &clip.name == "Run") {
                             for bone_animation in &animation.animations {
@@ -576,11 +594,18 @@ impl<'a> State<'a> {
                 // }
             }
         }
+        self.performance_tracker.call_end("update_objects");
+
+        self.performance_tracker.call_start("update_scene");
         self.scene.compute_world_matrices();
         self.scene.update_objects_buffers(&self.queue);
+        self.performance_tracker.call_end("update_scene");
+
+        self.performance_tracker.call_end("update");
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        self.performance_tracker.call_start("render");
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor {
             format: Some(self.config.format.add_srgb_suffix()),
@@ -623,16 +648,21 @@ impl<'a> State<'a> {
 
             use scene::DrawScene;
             render_pass.set_pipeline(&self.new_render_pipeline.pipeline);
+
+            self.performance_tracker.call_start("render_draw_scene");
             render_pass.draw_scene(
                 &self.queue,
                 &mut self.scene, 
                 &self.new_render_pipeline
             );
+            self.performance_tracker.call_end("render_draw_scene");
         }
 
         self.queue.submit(iter::once(encoder.finish()));
+        self.performance_tracker.call_start("render_present");
         output.present();
-
+        self.performance_tracker.call_end("render_present");
+        self.performance_tracker.call_end("render");
         Ok(())
     }
 }
