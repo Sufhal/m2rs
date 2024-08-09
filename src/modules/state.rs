@@ -32,23 +32,16 @@ pub struct State<'a> {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    // render_pipeline: wgpu::RenderPipeline,
     new_render_pipeline: RenderPipeline,
     camera: camera::Camera,
     projection: camera::Projection,
     pub camera_controller: camera::CameraController,
     pub mouse_pressed: bool,
-    // camera_uniform: camera::CameraUniform,
-    // camera_buffer: wgpu::Buffer,
-    // camera_bind_group: wgpu::BindGroup,
     depth_texture: texture::Texture,
-    // light_uniform: light::LightUniform,
-    // light_buffer: wgpu::Buffer,
-    // light_bind_group: wgpu::BindGroup,
-    // transform_bind_group_layout: wgpu::BindGroupLayout,
     pub window: &'a Window,
     scene: scene::Scene,
-    performance_tracker: PerformanceTracker
+    performance_tracker: PerformanceTracker,
+    time: std::time::Instant,
 }
 
 impl<'a> State<'a> {
@@ -116,29 +109,6 @@ impl<'a> State<'a> {
             desired_maximum_frame_latency: 2,
         };
 
-        // let texture_bind_group_layout =
-        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        //         entries: &[
-        //             wgpu::BindGroupLayoutEntry {
-        //                 binding: 0,
-        //                 visibility: wgpu::ShaderStages::FRAGMENT,
-        //                 ty: wgpu::BindingType::Texture {
-        //                     multisampled: false,
-        //                     view_dimension: wgpu::TextureViewDimension::D2,
-        //                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
-        //                 },
-        //                 count: None,
-        //             },
-        //             wgpu::BindGroupLayoutEntry {
-        //                 binding: 1,
-        //                 visibility: wgpu::ShaderStages::FRAGMENT,
-        //                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-        //                 count: None,
-        //             },
-        //         ],
-        //         label: Some("texture_bind_group_layout"),
-        //     });
-
         let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
         let camera_controller = camera::CameraController::new(4.0, 0.4);
@@ -146,144 +116,8 @@ impl<'a> State<'a> {
         let mut camera_uniform = camera::CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
 
-        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[camera_uniform]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        // let camera_bind_group_layout =
-        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        //         entries: &[wgpu::BindGroupLayoutEntry {
-        //             binding: 0,
-        //             visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-        //             ty: wgpu::BindingType::Buffer {
-        //                 ty: wgpu::BufferBindingType::Uniform,
-        //                 has_dynamic_offset: false,
-        //                 min_binding_size: None,
-        //             },
-        //             count: None,
-        //         }],
-        //         label: Some("camera_bind_group_layout"),
-        //     });
-
-        // let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        //     layout: &camera_bind_group_layout,
-        //     entries: &[wgpu::BindGroupEntry {
-        //         binding: 0,
-        //         resource: camera_buffer.as_entire_binding(),
-        //     }],
-        //     label: Some("camera_bind_group"),
-        // });
-
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
-
-        let light_uniform = light::LightUniform {
-            position: [2.0, 2.0, 2.0],
-            _padding: 0,
-            color: [1.0, 1.0, 1.0],
-            _padding2: 0,
-        };
         
-         // We'll want to update our lights position, so we use COPY_DST
-        let light_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Light VB"),
-                contents: bytemuck::cast_slice(&[light_uniform]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            }
-        );
-
-        // let light_bind_group_layout =
-        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        //         entries: &[wgpu::BindGroupLayoutEntry {
-        //             binding: 0,
-        //             visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-        //             ty: wgpu::BindingType::Buffer {
-        //                 ty: wgpu::BufferBindingType::Uniform,
-        //                 has_dynamic_offset: false,
-        //                 min_binding_size: None,
-        //             },
-        //             count: None,
-        //         }],
-        //         label: None,
-        //     });
-
-        // let light_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        //     layout: &light_bind_group_layout,
-        //     entries: &[wgpu::BindGroupEntry {
-        //         binding: 0,
-        //         resource: light_buffer.as_entire_binding(),
-        //     }],
-        //     label: None,
-        // });
-
-        // TRANSFORM
-
-        // let transform_bind_group_layout =
-        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        //         entries: &[wgpu::BindGroupLayoutEntry {
-        //             binding: 0,
-        //             visibility: wgpu::ShaderStages::VERTEX,
-        //             ty: wgpu::BindingType::Buffer {
-        //                 ty: wgpu::BufferBindingType::Uniform,
-        //                 has_dynamic_offset: false,
-        //                 min_binding_size: None,
-        //             },
-        //             count: None,
-        //         }],
-        //         label: Some("transform_bind_group_layout"),
-        //     });
-
-        //  SKINNING
-
-        // let bones_bind_group_layout =
-        //     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        //         entries: &[wgpu::BindGroupLayoutEntry {
-        //             binding: 0,
-        //             visibility: wgpu::ShaderStages::VERTEX,
-        //             ty: wgpu::BindingType::Buffer {
-        //                 ty: wgpu::BufferBindingType::Storage { read_only: true },
-        //                 has_dynamic_offset: false,
-        //                 min_binding_size: None,
-        //             },
-        //             count: None,
-        //         }],
-        //         label: Some("bones_bind_group_layout"),
-        //     });
-
-        // let render_pipeline_layout =
-        //     device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        //         label: Some("Render Pipeline Layout"),
-        //         bind_group_layouts: &[
-        //             &texture_bind_group_layout, 
-        //             &camera_bind_group_layout,
-        //             &light_bind_group_layout,
-        //             &transform_bind_group_layout,
-        //             // &bones_bind_group_layout,
-        //         ],
-        //         push_constant_ranges: &[],
-        //     });
-
-        // let render_pipeline = {
-        //     let shader = wgpu::ShaderModuleDescriptor {
-        //         label: Some("Normal Shader"),
-        //         source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/shader.wgsl").into()),
-        //     };
-        //     functions::create_render_pipeline(
-        //         &device,
-        //         &render_pipeline_layout,
-        //         config.format,
-        //         Some(texture::Texture::DEPTH_FORMAT),
-        //         &[
-        //             model::ModelVertex::desc(), 
-        //             instance::InstanceRaw::desc()
-        //         ],
-        //         shader,
-        //         &config
-        //     )
-        // };
-
         let new_render_pipeline = RenderPipeline::new(
             &device, 
             &config, 
@@ -291,83 +125,6 @@ impl<'a> State<'a> {
         );
 
         let mut scene = scene::Scene::new();
-
-        // let mut cube =
-        //     assets::load_model("cube.obj", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout)
-        //         .await
-        //         .unwrap();
-
-        // if let Some(object_3d) = cube.get_object_3d() {
-        //     for i in 2..11 {
-        //         let instance = object_3d.request_instance(&device);
-        //         instance.take();
-        //         instance.set_position(cgmath::Vector3 { x: (i * 3) as f32, y: 0.0, z: 0.0 });
-        //     }
-        // }
-        // scene.add(cube);
-
-        // let plane = Plane::new(10.0, 10.0, 1, 1);
-        // let mesh = plane.to_mesh(&device, &transform_bind_group_layout, "A plane".to_string());
-        // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        // let model = Model { 
-        //     meshes: vec![mesh], 
-        //     skeleton: None,
-        //     materials: vec![material] 
-        // };
-        // let mut object = Object::new();
-        // object.set_object_3d(Object3D::new(&device, model));
-        // let instance = object.get_object_3d().unwrap().request_instance(&device);
-        // instance.add_y_position(-1.0);
-        // instance.take();
-        // scene.add(object);
-
-        // let sphere = Sphere::new(2.0, 16, 16);
-        // let mesh = sphere.to_mesh(&device, &transform_bind_group_layout, "A sphere".to_string());
-        // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        // let model = Model { 
-        //     meshes: vec![mesh], 
-        //     skeleton: None,
-        //     materials: vec![material] 
-        // };
-        // let mut object = Object::new();
-        // object.set_object_3d(Object3D::new(&device, model));
-        // let instance = object.get_object_3d().unwrap().request_instance(&device);
-        // instance.add_y_position(1.0);
-        // instance.take();
-        // scene.add(object);
-        
-        // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        // let model_objects = load_model_glb("vladimir.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
-        // for mut object in model_objects {
-        //     let id = object.id.clone();
-        //     if let Some(object_3d) = &mut object.object_3d {
-        //         // dbg!(&object.matrix);
-        //         // println!("object {} have mesh", id);
-        //         let instance = object_3d.request_instance(&device);
-        //         instance.add_x_position(-1.0);
-        //         instance.take();
-        //         // if let Some(skeleton) = &object_3d.model.skeleton {
-        //         //     let sphere = Sphere::new(2.0, 16, 16);
-        //         //     let mesh = sphere.to_mesh(&device, &transform_bind_group_layout, "A sphere".to_string());
-        //         //     let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        //         //     let model = Model { 
-        //         //         meshes: vec![mesh], 
-        //         //         skeleton: None,
-        //         //         materials: vec![material] 
-        //         //     };
-        //         //     let mut object = Object::new();
-        //         //     object.set_object_3d(Object3D::new(&device, model));
-        //         //     for bone in &skeleton.bones {
-        //         //         let instance = object.get_object_3d().unwrap().request_instance(&device);
-        //         //         let matrix = cgmath::Matrix4::from(bone.transform_matrix);
-        //         //         instance.add_xyz_position(matrix.w[0], matrix.w[1], matrix.w[2]);
-        //         //         instance.take();
-        //         //     }
-        //         //     scene.add(object);
-        //         // }
-        //     }
-        //     scene.add(object);
-        // }
 
         let model_objects = load_model_glb(
             // "vladimir.glb", 
@@ -430,54 +187,22 @@ impl<'a> State<'a> {
         scene.compute_world_matrices();
         scene.update_objects_buffers(&queue);
 
-
-        // let matrix_world_of_root_bone = scene.get_all_objects().iter().find(|obj| obj.name == Some("RootBone".to_string())).expect("find RootBone");
-
-    
-        // let sphere = Sphere::new(0.25, 16, 16);
-        // let mesh = sphere.to_mesh(&device, &transform_bind_group_layout, "A sphere".to_string());
-        // let material = assets::load_material("test.png", &device, &queue, &texture_bind_group_layout).await.unwrap();
-        // let model = Model { 
-        //     meshes: vec![mesh], 
-        //     skeleton: None,
-        //     materials: vec![material] 
-        // };
-        // let mut object = Object::new();
-        // object.set_object_3d(Object3D::new(&device, model));
-
-        // for bone in &skeleton.bones {
-        //     let instance = object.get_object_3d().unwrap().request_instance(&device);
-        //     let matrix = cgmath::Matrix4::from(bone.bind_matrix) * cgmath::Matrix4::from_scale(0.01);
-        //     instance.add_xyz_position(matrix.w[0], matrix.w[1], matrix.w[2]);
-        //     instance.take();
-        // }
-
-        // scene.add(object);
-
-
         Self {
             surface,
             device,
             queue,
             config,
             size,
-            // render_pipeline,
             new_render_pipeline,
             camera,
             projection,
             camera_controller,
             mouse_pressed: false, 
-            // camera_buffer,
-            // camera_bind_group,
-            // camera_uniform,
             depth_texture,
-            // light_buffer,
-            // light_uniform,
-            // light_bind_group,
-            // transform_bind_group_layout,
             window,
             scene,
-            performance_tracker: PerformanceTracker::new()
+            performance_tracker: PerformanceTracker::new(),
+            time: std::time::Instant::now()
         }
     }
 
@@ -562,21 +287,37 @@ impl<'a> State<'a> {
         // self.queue.write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light_uniform]));
         
         self.performance_tracker.call_start("update_objects");
+
+        let elapsed = self.time.elapsed().as_secs_f64();
+
         for object in self.scene.get_all_objects() {
             if let Some(object_3d) = &mut object.object_3d {
                 let model = &mut object_3d.model;
                 if let Some(animations) = &model.animations {
                     // let _ = fs::write(Path::new("trash/debug.txt"), format!("{:#?}", &animations));
+                    // panic!();
                     if let Some(skeleton) = &mut model.skeleton {
                         if let Some(animation) = animations.iter().find(|clip| &clip.name == "Run") {
                             for bone_animation in &animation.animations {
                                 match &bone_animation.keyframes {
                                     Keyframes::Translation(frames) => {
+                                        if frames.len() == 0 {
+                                            return;
+                                        }
+                                        else if frames.len() == 1 {
+                                            let frame = &frames[0];
+                                            skeleton.bones[bone_animation.bone].set_translation(&[frame[0], frame[1], frame[2]]);
+                                        }
+                                        else {
+
+                                        }
                                         let frame = &frames[0];
-                                        skeleton.bones[bone_animation.bone].set_translation(&[frame[0], frame[1], frame[2]]);
+                                        // println!("{frame:?}");
+                                        skeleton.bones[bone_animation.bone].set_translation(&[frame[0] * 1000.0, frame[1] * 1000.0, frame[2] * 1000.0]);
+                                        // skeleton.bones[bone_animation.bone].set_translation(&[frame[0] * 1000.0, frame[1] * 1000.0, frame[2] * 1000.0]);
                                     },
                                     Keyframes::Other => {},
-                                }
+                                };
                             }
                         }
                         skeleton.calculate_world_matrices();

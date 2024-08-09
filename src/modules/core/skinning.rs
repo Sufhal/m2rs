@@ -68,6 +68,8 @@ impl Skeleton {
         let world_matrix = parent_world_matrix * local_matrix;
         bone.matrix_world = world_matrix.into();
 
+        dbg!(&bone.matrix_world);
+
         // Appliquer récursivement aux enfants
         for j in 0..self.bones.len() {
             if let Some(parent_index) = self.bones[j].parent_index {
@@ -102,6 +104,7 @@ impl SkeletonInstance {
 #[derive(Clone, Debug)]
 pub struct AnimationClip {
     pub name: String,
+    pub duration: f64,
     pub animations: Vec<BoneAnimation>
 }
 
