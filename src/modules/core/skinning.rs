@@ -8,6 +8,8 @@ pub struct Bone {
     pub name: Option<String>,
     pub parent_index: Option<usize>,
     pub translation: [f32; 3],
+    pub rotation: [f32; 4],
+    pub scale: [f32; 3],
     pub bind_matrix: [[f32; 4]; 4],
     pub bind_matrix_world: [[f32; 4]; 4],
     pub inverse_bind_matrix_world: [[f32; 4]; 4],
@@ -20,6 +22,8 @@ impl Bone {
             name,
             parent_index,
             translation: [0.0, 0.0, 0.0],
+            rotation: [0.0, 0.0, 0.0, 0.0],
+            scale: [0.0, 0.0, 0.0],
             bind_matrix,
             bind_matrix_world: Matrix4::identity().into(),
             inverse_bind_matrix_world: Matrix4::identity().into(),
@@ -27,9 +31,13 @@ impl Bone {
         }
     }
     pub fn set_translation(&mut self, translation: &[f32; 3]) {
-        for i in 0..3usize {
-            self.translation[i] = translation[i];
-        }
+        self.translation = translation.clone();
+    }
+    pub fn set_rotation(&mut self, rotation: &[f32; 4]) {
+        self.rotation = rotation.clone();
+    }
+    pub fn set_scale(&mut self, scale: &[f32; 3]) {
+        self.scale = scale.clone();
     }
 }
 
@@ -68,7 +76,7 @@ impl Skeleton {
         let world_matrix = parent_world_matrix * local_matrix;
         bone.matrix_world = world_matrix.into();
 
-        dbg!(&bone.matrix_world);
+        // dbg!(&bone.matrix_world);
 
         // Appliquer récursivement aux enfants
         for j in 0..self.bones.len() {
@@ -104,7 +112,7 @@ impl SkeletonInstance {
 #[derive(Clone, Debug)]
 pub struct AnimationClip {
     pub name: String,
-    pub duration: f64,
+    pub duration: f32,
     pub animations: Vec<BoneAnimation>
 }
 
@@ -117,6 +125,8 @@ pub struct BoneAnimation {
 
 #[derive(Clone, Debug)]
 pub enum Keyframes {
-    Translation(Vec<Vec<f32>>),
+    Translation(Vec<[f32; 3]>),
+    Rotation(Vec<[f32; 4]>),
+    Scale(Vec<[f32; 3]>),
     Other,
 }

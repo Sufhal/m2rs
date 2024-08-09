@@ -128,6 +128,7 @@ fn extract_objects(
     for animation in model.animations() {
         
         let name = animation.name().unwrap_or("Default").to_string();
+        let mut duration = 0.0;
         let mut animations = Vec::new();
 
         for channel in animation.channels() {
@@ -137,6 +138,11 @@ fn extract_objects(
                 match inputs {
                     gltf::accessor::Iter::Standard(times) => {
                         let times: Vec<f32> = times.collect();
+                        if let Some(time) = times.last() {
+                            if *time > duration {
+                                duration = *time;
+                            }
+                        }
                         times
                     }
                     gltf::accessor::Iter::Sparse(_) => {
@@ -154,16 +160,15 @@ fn extract_objects(
             let keyframes = if let Some(outputs) = reader.read_outputs() {
                 match outputs {
                     gltf::animation::util::ReadOutputs::Translations(translation) => {
-                        let translation_vec = translation.map(|tr| {
-                            let vector: Vec<f32> = tr.into();
-                            vector
-                        }).collect();
-                        Keyframes::Translation(translation_vec)
+                        Keyframes::Translation(translation.collect())
                     },
-                    // gltf::animation::util::ReadOutputs::Rotations(rotation) => {
-                        
-                    // },
-                    other => {
+                    gltf::animation::util::ReadOutputs::Rotations(rotation) => {
+                        Keyframes::Rotation(rotation.into_f32().collect())
+                    },
+                    gltf::animation::util::ReadOutputs::Scales(scale) => {
+                        Keyframes::Scale(scale.collect())
+                    }
+                    _other => {
                         Keyframes::Other
                     }
                     // gltf::animation::util::ReadOutputs::Rotations(_) => todo!(),
@@ -187,6 +192,7 @@ fn extract_objects(
         animation_clips.push(
             AnimationClip {
                 name,
+                duration,
                 animations
             }
         );

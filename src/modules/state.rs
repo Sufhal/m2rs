@@ -288,7 +288,7 @@ impl<'a> State<'a> {
         
         self.performance_tracker.call_start("update_objects");
 
-        let elapsed = self.time.elapsed().as_secs_f64();
+        let elapsed = self.time.elapsed().as_secs_f32();
 
         for object in self.scene.get_all_objects() {
             if let Some(object_3d) = &mut object.object_3d {
@@ -298,25 +298,36 @@ impl<'a> State<'a> {
                     // panic!();
                     if let Some(skeleton) = &mut model.skeleton {
                         if let Some(animation) = animations.iter().find(|clip| &clip.name == "Run") {
+                            if elapsed >= animation.duration {
+                                self.time = std::time::Instant::now();
+                            }
                             for bone_animation in &animation.animations {
+                                if bone_animation.timestamps.len() == 0 { return; }
+                                let timestamp_index = match bone_animation.timestamps.len() {
+                                    1 => 0,
+                                    _ => {
+                                        bone_animation.timestamps
+                                            .iter()
+                                            .enumerate()
+                                            .fold(0, |mut acc, (idx, t)| {
+                                                if (elapsed - t).abs() <= (elapsed - bone_animation.timestamps[acc]).abs() {
+                                                    acc = idx;
+                                                }
+                                                acc
+                                            })
+                                    }
+                                };
                                 match &bone_animation.keyframes {
                                     Keyframes::Translation(frames) => {
-                                        if frames.len() == 0 {
-                                            return;
-                                        }
-                                        else if frames.len() == 1 {
-                                            let frame = &frames[0];
-                                            skeleton.bones[bone_animation.bone].set_translation(&[frame[0], frame[1], frame[2]]);
-                                        }
-                                        else {
-
-                                        }
-                                        let frame = &frames[0];
-                                        // println!("{frame:?}");
-                                        skeleton.bones[bone_animation.bone].set_translation(&[frame[0] * 1000.0, frame[1] * 1000.0, frame[2] * 1000.0]);
-                                        // skeleton.bones[bone_animation.bone].set_translation(&[frame[0] * 1000.0, frame[1] * 1000.0, frame[2] * 1000.0]);
+                                        skeleton.bones[bone_animation.bone].set_translation(&frames[timestamp_index]);
                                     },
-                                    Keyframes::Other => {},
+                                    Keyframes::Rotation(frames) => {
+                                        skeleton.bones[bone_animation.bone].set_rotation(&frames[timestamp_index]);
+                                    },
+                                    Keyframes::Scale(frames) => {
+                                        skeleton.bones[bone_animation.bone].set_scale(&frames[timestamp_index]);
+                                    },
+                                    _ => {},
                                 };
                             }
                         }
