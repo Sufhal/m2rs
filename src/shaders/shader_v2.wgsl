@@ -55,6 +55,7 @@ struct VertexOutput {
 fn vs_main(
     model: VertexInput,
     instance: InstanceInput,
+    @builtin(instance_index) instance_index: u32,
 ) -> VertexOutput {
     let model_matrix = mat4x4<f32>(
         instance.model_matrix_0,
@@ -71,27 +72,17 @@ fn vs_main(
     out.tex_coords = model.tex_coords;
     out.world_normal = normal_matrix * model.normal;
 
-    // Compute joint_matrices * inverse_bind_matrices
-    // let joint0 = bones_matrices[model.joints[0]];
-    // let joint1 = bones_matrices[model.joints[1]];
-    // let joint2 = bones_matrices[model.joints[2]];
-    // let joint3 = bones_matrices[model.joints[3]];
-
     let joint0 = bones_matrices[model.joints[0]].data * bones_inverse_bind_matrices[model.joints[0]].data;
     let joint1 = bones_matrices[model.joints[1]].data * bones_inverse_bind_matrices[model.joints[1]].data;
     let joint2 = bones_matrices[model.joints[2]].data * bones_inverse_bind_matrices[model.joints[2]].data;
     let joint3 = bones_matrices[model.joints[3]].data * bones_inverse_bind_matrices[model.joints[3]].data;
-    // Compute influence of joint based on weight
     let skin_matrix = 
-        // joint0 * model.weights[0] ;
         joint0 * model.weights[0] +
         joint1 * model.weights[1] +
         joint2 * model.weights[2] +
         joint3 * model.weights[3];
     
-    // var transformed_model_matrix = model_matrix * transform.transform;
     var transformed_model_matrix = model_matrix * transform.transform * skin_matrix;
-    // var transformed_model_matrix = skin_matrix * model_matrix * transform.transform * skin_matrix;
 
     var world_position: vec4<f32> = transformed_model_matrix * vec4<f32>(model.position, 1.0);
     out.world_position = world_position.xyz;

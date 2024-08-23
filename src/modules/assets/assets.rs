@@ -1,10 +1,9 @@
 use std::io::{BufReader, Cursor};
 
 use cfg_if::cfg_if;
-use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use crate::modules::{core::{model::{self, TransformUniform}, object::Object, object_3d::Object3D, texture::{self, Texture}}, pipelines::render_pipeline::RenderBindGroupLayouts};
+use crate::modules::{core::{model::{self, TransformUniform}, object::Object, object_3d::Object3D, texture::{self}}, pipelines::render_pipeline::RenderBindGroupLayouts};
 
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> reqwest::Url {
@@ -161,7 +160,7 @@ pub async fn load_model(
         })
         .collect::<Vec<_>>();
 
-    let model = model::Model { meshes, skeleton: None, animations: None, materials, meshes_bind_groups: Vec::new() };
+    let model = model::Model { meshes, skeleton: todo!(), animations: todo!(), materials, meshes_bind_groups: Vec::new() };
     let mut object = Object::new();
     object.set_object_3d(Object3D::new(device, bind_group_layouts, model));
     Ok(object)

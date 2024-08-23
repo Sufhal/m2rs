@@ -1,10 +1,9 @@
-use core::panic;
-use std::{any::Any, collections::{HashMap, HashSet}, hash::Hash, io::{BufReader, Cursor}, ops::Deref, thread::panicking};
-use cgmath::{Matrix4, Quaternion, SquareMatrix};
+use std::{collections::HashMap, io::{BufReader, Cursor}};
+use cgmath::Matrix4;
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, camera::camera::OPENGL_TO_WGPU_MATRIX, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}, utils::functions::debug_using_trash_file};
-use super::assets::{load_binary, load_string};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::Object, object_3d::Object3D, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
+use super::assets::load_binary;
 
 pub async fn load_animations(
     file_name: &str,
@@ -119,8 +118,6 @@ pub async fn load_model_glb(
         }
     });
 
-    println!("model have {} objects", objects.len());
-
     Ok(objects)
 }
 
@@ -187,7 +184,6 @@ fn extract_skeleton(
                 .collect::<Vec<_>>();
 
             let mut model_skeleton = Skeleton { bones };
-            model_skeleton.calculate_world_matrices();
             skeleton = Some(model_skeleton);
             break;
         }
@@ -200,7 +196,7 @@ fn extract_animations(
     model: &gltf::Gltf,
     buffer_data: &Vec<Vec<u8>>,
     bones_map: &HashMap<usize, usize>,
-    skin_joints_map: &HashMap<usize, usize>,
+    _skin_joints_map: &HashMap<usize, usize>,
 ) -> Vec<AnimationClip> {
 
     let mut animation_clips = Vec::new();
@@ -271,7 +267,7 @@ fn extract_animations(
                 );
             }
             else {
-                dbg!("target_node name {:?}", target_node.name());
+                // dbg!("target_node name {:?}", target_node.name());
                 // panic!();
             }
         }
@@ -390,23 +386,10 @@ fn extract_objects(
                                 *index as u32
                             },
                             None => {
-                                // dbg!(format!("on model {file_name} original bone index {} was not found in the bones_map", joint[i]));
-                                // 0
-                                // dbg!(&bones_map);
                                 panic!()
                             }
                         }
                     });
-                    if weight[1] > 0.0 {
-                        dbg!(weight);
-                        dbg!(joint);
-                        dbg!(&converted_joint);
-                    }
-                    // TODO: a bone is missing here
-                    // let converted_joint: [u32; 4] = core::array::from_fn(|i| (*(bones_map.get(&(joint[i] as usize))).unwrap_or(&0)) as u32);
-                    // dbg!(&weight);
-                    // dbg!(&joint);
-                    // dbg!(&converted_joint);
                     vertices.push(ModelVertex::new(
                         *position,
                         *tex_coord,
@@ -451,8 +434,8 @@ fn extract_objects(
             if meshes.len() > 0 {
                 let model = Model { 
                     meshes, 
-                    skeleton: skeleton.clone(), 
-                    animations: if animation_clips.len() > 0 { Some(animation_clips.clone()) } else { None },
+                    skeleton: skeleton.clone().unwrap(), 
+                    animations: animation_clips.clone(),
                     materials: Vec::new() ,
                     meshes_bind_groups: Vec::new()
                 };
@@ -555,7 +538,6 @@ async fn extract_materials(
     let mut extracted_materials = Vec::<Material>::new();
 
     for material in materials {
-        println!("Looping thru materials {:#?}", material.name());
         let pbr = material.pbr_metallic_roughness();
         let texture_source = &pbr
             .base_color_texture()
@@ -566,7 +548,7 @@ async fn extract_materials(
             .expect("texture");
 
         match texture_source {
-            gltf::image::Source::View { view, mime_type } => {
+            gltf::image::Source::View { view, mime_type: _ } => {
                 let buffer = &buffer_data[view.buffer().index()];
                 let start = view.offset();
                 let end = start + view.length();
@@ -586,8 +568,5 @@ async fn extract_materials(
             }
         };
     }
-    let report = extracted_materials.iter().enumerate().map(|(idx, m)| (idx, m.name.clone())).collect::<Vec<_>>();
-    dbg!(report);
-    // println!("extracted materials {:#?}", Vec::clone(&extracted_materials).iter().map(|m, idx| (m.name)));
     Ok(extracted_materials)
 }

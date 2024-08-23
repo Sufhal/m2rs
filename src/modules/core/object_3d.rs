@@ -1,9 +1,11 @@
+use std::rc::Rc;
+
 use cgmath::{One, Quaternion, Rad, Rotation3, SquareMatrix};
 use wgpu::util::DeviceExt;
 
 use crate::modules::{pipelines::render_pipeline::{self, RenderBindGroupLayouts, RenderPipeline}, utils::id_gen::generate_unique_string};
 
-use super::{instance::InstanceRaw, model::Model, skinning::SkeletonInstance};
+use super::{instance::InstanceRaw, model::Model, skinning::{AnimationClip, AnimationMixer, Mat4x4, Skeleton, SkeletonInstance}};
 
 type Mat4 = cgmath::Matrix4<f32>;
 type Vec3 = cgmath::Vector3<f32>;
@@ -16,6 +18,8 @@ pub struct Object3D {
     pub id: String,
     pub model: Model,
     pub instances_bind_group: wgpu::BindGroup,
+    animation_clips: Rc<Vec<AnimationClip>>,
+    skeleton: Rc<Skeleton>,
     instances: Vec<Object3DInstance>,
     instances_buffer: wgpu::Buffer,
     // skeletons: Vec<SkeletonInstance>,
@@ -27,8 +31,10 @@ pub struct Object3D {
 
 impl Object3D {
     pub fn new(device: &wgpu::Device, bind_group_layouts: &RenderBindGroupLayouts, model: Model) -> Self {
+        let animation_clips = Rc::new(model.animations.clone());
+        let skeleton = Rc::new(model.skeleton.clone());
         let instances = vec![
-            Object3DInstance::new();
+            Object3DInstance::new(skeleton.clone(), animation_clips.clone());
             INITIAL_INSTANCES_COUNT
         ];
         let instances_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -38,25 +44,19 @@ impl Object3D {
         });
         let skeletons_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Skeleton Buffer"),
-            contents: bytemuck::cast_slice(&
-                if let Some(skeleton) = &model.skeleton {
-                    skeleton.to_raw_transform()
-                } else {
-                    Vec::new()
-                }
+            contents: bytemuck::cast_slice(
+                &instances
+                    .iter()
+                    .fold(Vec::<Mat4x4>::new(), |mut acc, i| {
+                        acc.extend(i.to_skeleton_raw().iter());
+                        acc
+                    })
             ),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
-
         let skeletons_bind_inverse_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Skeleton Bind Inverse Buffer"),
-            contents: bytemuck::cast_slice(&
-                if let Some(skeleton) = &model.skeleton {
-                    skeleton.to_raw()
-                } else {
-                    Vec::new()
-                }
-            ),
+            contents: bytemuck::cast_slice(&model.skeleton.to_raw()),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
         // let skeletons_bind_inverse_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -88,6 +88,8 @@ impl Object3D {
 
         Self {
             id: generate_unique_string(),
+            skeleton,
+            animation_clips,
             instances,
             instances_buffer,
             skeletons_buffer,
@@ -117,18 +119,21 @@ impl Object3D {
         }
     }
     pub fn update_skeleton(&mut self, queue: &wgpu::Queue) {
-        if let Some(skeleton) = &self.model.skeleton {
-            queue.write_buffer(
-                &self.skeletons_buffer,
-                0,
-                bytemuck::cast_slice(&skeleton.to_raw_transform()),
-            );
-            queue.write_buffer(
-                &self.skeletons_bind_inverse_buffer,
-                0,
-                bytemuck::cast_slice(&skeleton.to_raw()),
-            );
+        let size = std::mem::size_of::<Mat4x4>();
+        for (idx, instance) in self.instances.iter().enumerate() {
+            if instance.busy {
+                queue.write_buffer(
+                    &self.skeletons_buffer,
+                    (idx * size * instance.skeleton.bones.len()) as wgpu::BufferAddress,
+                    bytemuck::cast_slice(&instance.skeleton.to_raw_transform()),
+                );
+            }
         }
+        queue.write_buffer(
+            &self.skeletons_bind_inverse_buffer,
+            0,
+            bytemuck::cast_slice(&self.model.skeleton.to_raw()),
+        );
     }
     pub fn get_instance(&mut self, id: &str) -> Option<&mut Object3DInstance> {
         self.instances.iter_mut().find(|i| &i.id == id)
@@ -145,7 +150,7 @@ impl Object3D {
         println!("new capacity is {new_capacity}");
         self.instances.reserve(new_capacity - self.instances.capacity());
         for _ in 0..current_capacity {
-            self.instances.push(Object3DInstance::new());
+            self.instances.push(Object3DInstance::new(self.skeleton.clone(), self.animation_clips.clone()));
         }
         self.instances_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Instance Buffer"),
@@ -166,6 +171,8 @@ impl Object3D {
 #[derive(Clone, Debug)]
 pub struct Object3DInstance {
     pub id: String,
+    mixer: AnimationMixer,
+    skeleton: SkeletonInstance,
     position: Vec3,
     rotation: Quat,
     scale: Vec3,
@@ -174,15 +181,22 @@ pub struct Object3DInstance {
 }
 
 impl Object3DInstance {
-    pub fn new() -> Object3DInstance {
+    pub fn new(skeleton: Rc<Skeleton>, animation_clips: Rc<Vec<AnimationClip>>) -> Object3DInstance {
         Object3DInstance {
             id: generate_unique_string(),
+            mixer: AnimationMixer::new(animation_clips, true),
+            skeleton: skeleton.create_instance(),
             position: cgmath::Vector3::new(0.0, 0.0, 0.0),
             rotation: cgmath::Quaternion::one(),
             scale: cgmath::Vector3::new(1.0, 1.0, 1.0),
             needs_update: false,
             busy: false
         }
+    }
+    pub fn update(&mut self, delta_ms: f64) {
+        if !self.busy { return }
+        self.mixer.update(delta_ms);
+        self.mixer.apply_on_skeleton(&mut self.skeleton);
     }
     pub fn take(&mut self) {
         self.busy = true;
@@ -202,13 +216,9 @@ impl Object3DInstance {
     pub fn to_instance_raw(&self) -> InstanceRaw {
         InstanceRaw::new(self.position, self.rotation, self.scale)
     }
-    pub fn dispose(&mut self) {
-        let default = Self::new();
-        self.rotation = default.rotation;
-        self.position = default.position;
-        self.busy = false;
-        self.needs_update = false;
-    } 
+    pub fn to_skeleton_raw(&self) -> Vec<Mat4x4> {
+        self.skeleton.to_raw_transform()
+    }
 }
 
 pub trait Transform {

@@ -133,8 +133,8 @@ impl Vertex for ModelVertex {
 #[derive(Debug)]
 pub struct Model {
     pub meshes: Vec<Mesh>,
-    pub skeleton: Option<Skeleton>,
-    pub animations: Option<Vec<AnimationClip>>,
+    pub skeleton: Skeleton,
+    pub animations: Vec<AnimationClip>,
     pub materials: Vec<Material>,
     pub meshes_bind_groups: Vec<wgpu::BindGroup>,
 }

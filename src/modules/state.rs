@@ -35,7 +35,8 @@ pub struct State<'a> {
     scene: scene::Scene,
     // performance_tracker: PerformanceTracker,
     // time: std::time::Instant,
-    instant: Instant
+    instant: Instant,
+    time_factory: TimeFactory,
 }
 
 impl<'a> State<'a> {
@@ -129,25 +130,23 @@ impl<'a> State<'a> {
             &queue, 
             &new_render_pipeline
         ).await.expect("unable to load");
-        dbg!(model_objects.len());
         // dbg!(model_objects.iter().map(|o| &o.name).collect::<Vec<_>>());
         for mut object in model_objects {
             let id = object.id.clone();
             if let Some(object_3d) = &mut object.object_3d {
                 // object_3d.model.skeleton = Some(shaman_skeleton.clone());
                 // object_3d.model.animations = Some(shaman_animations.clone());
-                if let Some(skeleton) = &mut object_3d.model.skeleton {
-                    let clips = load_animations(
-                        "shaman_cheonryun.glb", 
-                        // "fox.glb", 
-                        &skeleton
-                    ).await.unwrap();
-                    object_3d.model.animations = Some(clips);
-                }
+                let clips = load_animations(
+                    "shaman_cheonryun.glb", 
+                    // "fox.glb", 
+                    &object_3d.model.skeleton
+                ).await.unwrap();
+                object_3d.model.animations = clips;
+                
   
                 // dbg!(&object.matrix);
                 // println!("object {} have mesh", id);
-                for i in 0..100 {
+                for i in 0..1 {
                     let instance = object_3d.request_instance(&device);
                     instance.add_x_position(1.0 + i as f32);
                     instance.take();
@@ -194,7 +193,8 @@ impl<'a> State<'a> {
             window,
             scene,
             // performance_tracker: PerformanceTracker::new(),
-            instant: Instant::now()
+            instant: Instant::now(),
+            time_factory: TimeFactory::new()
         }
     }
 
@@ -250,6 +250,7 @@ impl<'a> State<'a> {
     }
 
     pub fn update(&mut self, dt: instant::Duration) {
+        self.time_factory.tick();
         // self.performance_tracker.call_start("update");
         // self.performance_tracker.call_start("update_camera");
         self.camera_controller.update_camera(&mut self.camera, dt);
@@ -283,68 +284,15 @@ impl<'a> State<'a> {
 
         // self.performance_tracker.call_start("update_objects");
 
-        let elapsed = self.instant.duration() / 1000.0;
+        let delta_ms = self.time_factory.get_delta();
+        // println!("delta {delta_ms}");
 
         for object in self.scene.get_all_objects() {
             if let Some(object_3d) = &mut object.object_3d {
-                let model = &mut object_3d.model;
-                if let Some(animations) = &model.animations {
-                    // let _ = fs::write(Path::new("trash/debug.txt"), format!("{:#?}", &animations));
-                    // panic!();
-                    if let Some(skeleton) = &mut model.skeleton {
-                        if let Some(animation) = animations.iter().find(|clip| &clip.name == "Run").or(animations.get(0)) {
-                            if elapsed >= animation.duration.into() {
-                                self.instant = Instant::now();
-                            }
-                            for bone_animation in &animation.animations {
-                                // continue;
-                                // if bone_animation.bone != 43 { continue; }
-
-                                let bone = &mut skeleton.bones[bone_animation.bone];
-                                if bone_animation.timestamps.len() == 0 { return; }
-                                let timestamp_index = match bone_animation.timestamps.len() {
-                                    1 => 0,
-                                    _ => {
-                                        bone_animation.timestamps
-                                            .iter()
-                                            .enumerate()
-                                            .fold(0, |mut acc, (idx, t)| {
-                                                if (elapsed - *t as f64).abs() <= (elapsed - bone_animation.timestamps[acc] as f64).abs() {
-                                                    acc = idx;
-                                                }
-                                                acc
-                                            })
-                                    }
-                                };
-                                // println!("timestamp_index, {timestamp_index}");
-                                // let timestamp_index = 10usize;
-                                match &bone_animation.keyframes {
-                                    Keyframes::Translation(frames) => {
-                                        bone.set_translation(&frames[timestamp_index]);
-                                    },
-                                    Keyframes::Rotation(frames) => {
-                                        bone.set_rotation(&frames[timestamp_index]);
-                                    },
-                                    Keyframes::Scale(frames) => {
-                                        bone.set_scale(&frames[timestamp_index]);
-                                    },
-                                    _ => {},
-                                };
-                            }
-                        }
-                        skeleton.calculate_world_matrices();
-                        object_3d.update_skeleton(&self.queue);
-                        // skeleton.bones
-                    }
-                    // panic!()
+                for instance in object_3d.get_instances() {
+                    instance.update(delta_ms);
                 }
-
-                // for (index, instance) in object_3d.get_instances().iter_mut().enumerate() {
-                //     // let rotation_speed = std::f32::consts::PI * 2.0; // 90 degrés par seconde
-                //     // let rotation_angle = rotation_speed * dt.as_secs_f32();
-                //     // let rotation = rotation_angle * index as f32 * 0.2;
-                //     // instance.add_xyz_rotation(rotation, rotation, rotation);
-                // }
+                object_3d.update_skeleton(&self.queue);
             }
         }
         // self.performance_tracker.call_end("update_objects");
