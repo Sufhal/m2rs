@@ -1,8 +1,7 @@
 use std::collections::HashMap;
-use std::time;
 
 pub struct PerformanceTracker {
-    tracking: HashMap<&'static str, (Option<time::Instant>, LimitedVec<u128>)>
+    tracking: HashMap<&'static str, (Option<std::time::Instant>, LimitedVec<u128>)>
 }
 
 impl PerformanceTracker {
@@ -12,7 +11,8 @@ impl PerformanceTracker {
     }
 
     pub fn call_start(&mut self, tracking_name: &'static str) {
-        let now = Some(time::Instant::now());
+        if is_browser() { return }
+        let now = Some(std::time::Instant::now());
         if let Some((instant_option, _elapsed_times)) = self.tracking.get_mut(tracking_name) {
             *instant_option = now;
         } else {
@@ -21,6 +21,7 @@ impl PerformanceTracker {
     }
 
     pub fn call_end(&mut self, tracking_name: &'static str) {
+        if is_browser() { return }
         if let Some((instant_option, elapsed_times)) = self.tracking.get_mut(tracking_name) {
             if let Some(instant) = instant_option {
                 elapsed_times.push(instant.elapsed().as_nanos());
@@ -30,6 +31,7 @@ impl PerformanceTracker {
     }
 
     pub fn get_report(&mut self) -> Report {
+        if is_browser() { return Report::empty() }
         let report = Report {
             calls: self.tracking
                 .iter()
@@ -59,8 +61,13 @@ impl PerformanceTracker {
 pub struct Report {
     calls: Vec<(&'static str, f64)>
 }
+impl Report {
+    fn empty() -> Self { Self { calls: Vec::new() } }
+}
 
 use std::collections::VecDeque;
+
+use super::functions::is_browser;
 
 struct LimitedVec<T> {
     deque: VecDeque<T>,

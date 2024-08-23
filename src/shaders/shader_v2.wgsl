@@ -1,13 +1,13 @@
 // Vertex shader
 
 struct InstanceInput {
-    @location(5) model_matrix_0: vec4<f32>,
-    @location(6) model_matrix_1: vec4<f32>,
-    @location(7) model_matrix_2: vec4<f32>,
-    @location(8) model_matrix_3: vec4<f32>,
-    @location(9) normal_matrix_0: vec3<f32>,
-    @location(10) normal_matrix_1: vec3<f32>,
-    @location(11) normal_matrix_2: vec3<f32>,
+    @location(8) model_matrix_0: vec4<f32>,
+    @location(9) model_matrix_1: vec4<f32>,
+    @location(10) model_matrix_2: vec4<f32>,
+    @location(11) model_matrix_3: vec4<f32>,
+    @location(12) normal_matrix_0: vec3<f32>,
+    @location(13) normal_matrix_1: vec3<f32>,
+    @location(14) normal_matrix_2: vec3<f32>,
 };
 
 
@@ -23,16 +23,23 @@ struct TransformUniform {
 };
 @group(1) @binding(2) var<uniform> transform: TransformUniform;
 // @group(2) @binding(0) var<storage, read> bones_matrices: array<mat4x4<f32>>;
-@group(2) @binding(0) var<storage, read> bones_matrices: array<mat4x4<f32>>;
-@group(2) @binding(1) var<storage, read> bones_inverse_bind_matrices: array<mat4x4<f32>>;
+
+struct Mat4x4 {
+    data: mat4x4<f32>,
+}
+@group(2) @binding(0) var<storage, read> bones_matrices: array<Mat4x4>;
+@group(2) @binding(1) var<storage, read> bones_inverse_bind_matrices: array<Mat4x4>;
 
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
-    @location(1) tex_coords: vec2<f32>,
-    @location(2) normal: vec3<f32>,
-    @location(3) weights: vec4<f32>,
-    @location(4) joints: vec4<u32>,
+    @location(1) _pad1: f32,
+    @location(2) tex_coords: vec2<f32>,
+    @location(3) _pad2: vec2<f32>,
+    @location(4) normal: vec3<f32>,
+    @location(5) _pad3: f32,
+    @location(6) weights: vec4<f32>,
+    @location(7) joints: vec4<u32>,
 }
 
 struct VertexOutput {
@@ -41,6 +48,7 @@ struct VertexOutput {
     @location(1) world_normal: vec3<f32>,
     @location(2) world_position: vec3<f32>,
     @location(3) position: vec3<f32>,
+    @location(4) color: vec4<f32>,
 }
 
 @vertex
@@ -69,12 +77,13 @@ fn vs_main(
     // let joint2 = bones_matrices[model.joints[2]];
     // let joint3 = bones_matrices[model.joints[3]];
 
-    let joint0 = bones_matrices[model.joints[0]] * bones_inverse_bind_matrices[model.joints[0]];
-    let joint1 = bones_matrices[model.joints[1]] * bones_inverse_bind_matrices[model.joints[1]];
-    let joint2 = bones_matrices[model.joints[2]] * bones_inverse_bind_matrices[model.joints[2]];
-    let joint3 = bones_matrices[model.joints[3]] * bones_inverse_bind_matrices[model.joints[3]];
+    let joint0 = bones_matrices[model.joints[0]].data * bones_inverse_bind_matrices[model.joints[0]].data;
+    let joint1 = bones_matrices[model.joints[1]].data * bones_inverse_bind_matrices[model.joints[1]].data;
+    let joint2 = bones_matrices[model.joints[2]].data * bones_inverse_bind_matrices[model.joints[2]].data;
+    let joint3 = bones_matrices[model.joints[3]].data * bones_inverse_bind_matrices[model.joints[3]].data;
     // Compute influence of joint based on weight
     let skin_matrix = 
+        // joint0 * model.weights[0] ;
         joint0 * model.weights[0] +
         joint1 * model.weights[1] +
         joint2 * model.weights[2] +
@@ -82,11 +91,20 @@ fn vs_main(
     
     // var transformed_model_matrix = model_matrix * transform.transform;
     var transformed_model_matrix = model_matrix * transform.transform * skin_matrix;
+    // var transformed_model_matrix = skin_matrix * model_matrix * transform.transform * skin_matrix;
 
     var world_position: vec4<f32> = transformed_model_matrix * vec4<f32>(model.position, 1.0);
     out.world_position = world_position.xyz;
-    out.clip_position = camera.view_proj  * world_position;
+    out.clip_position = camera.view_proj * world_position;
     out.position = model.position;
+
+    let second_joint_used = model.weights[2] > 0.0;
+    if second_joint_used {
+        // Applying a color if joint 34 influences the vertex
+        out.color = vec4<f32>(1.0, 0.0, 0.0, 1.0); // Red color
+    } else {
+        out.color = vec4<f32>(1.0, 1.0, 1.0, 1.0); // Default white color
+    }
     return out;
 }
 
@@ -117,7 +135,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let object_color: vec4<f32> = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     
     // We don't need (or want) much ambient light, so 0.1 is fine
-    let ambient_strength = 0.1;
+    let ambient_strength = 1.0;
+    // let ambient_strength = 0.1;
     let ambient_color = light.color * ambient_strength;
 
     let light_dir = normalize(light.position - in.world_position);

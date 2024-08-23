@@ -1,9 +1,81 @@
-use std::{any::Any, collections::{HashMap, HashSet}, hash::Hash, io::{BufReader, Cursor}, ops::Deref};
-use cgmath::{Matrix4, SquareMatrix};
+use core::panic;
+use std::{any::Any, collections::{HashMap, HashSet}, hash::Hash, io::{BufReader, Cursor}, ops::Deref, thread::panicking};
+use cgmath::{Matrix4, Quaternion, SquareMatrix};
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, camera::camera::OPENGL_TO_WGPU_MATRIX, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, camera::camera::OPENGL_TO_WGPU_MATRIX, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::{self, Metadata, Object}, object_3d::{self, Object3D}, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}, utils::functions::debug_using_trash_file};
 use super::assets::{load_binary, load_string};
+
+pub async fn load_animations(
+    file_name: &str,
+    skeleton: &Skeleton
+) -> anyhow::Result<Vec<AnimationClip>> {
+    let gltf_bin = load_binary(file_name).await?;
+    let gltf_cursor = Cursor::new(gltf_bin);
+    let gltf_reader = BufReader::new(gltf_cursor);
+    let model = gltf::Gltf::from_reader(gltf_reader)?;
+    let buffer_data = extract_buffer_data(&model).await?;
+    let (attached_skeleton, bones_map, skin_joints_map) = extract_skeleton(&model, &buffer_data);
+    let mut animations_clips = extract_animations(&model, &buffer_data, &bones_map, &skin_joints_map);
+
+    let _ = std::fs::write(
+        std::path::Path::new(&format!("trash/skeleton_original_{file_name}.txt")), 
+        format!("{:#?}", skeleton)
+    );
+
+    let _ = std::fs::write(
+        std::path::Path::new(&format!("trash/skeleton_from_animation_{file_name}.txt")), 
+        format!("{:#?}", &attached_skeleton.clone().unwrap())
+    );
+
+    if let Some(attached_skeleton) = attached_skeleton {
+
+        let mut map_attached_to_current = HashMap::new();
+        for (index, bone) in skeleton.bones.iter().enumerate() {
+            match attached_skeleton.bones.iter().position(|v| v.name == bone.name) {
+                Some(position) => {
+                    // println!("Bone name is '{:?}' at position {index}, in attached skeleton, found at position {position}", attached_skeleton.bones[position].name);
+                    map_attached_to_current.insert(position, index);
+                },
+                None => {}
+            };
+        }
+
+        let _ = std::fs::write(
+            std::path::Path::new(&format!("trash/clips_original_{file_name}.txt")), 
+            format!("{:#?}", &animations_clips)
+        );
+    
+        for clip in &mut animations_clips {
+            for animation in &mut clip.animations {
+                let index = *map_attached_to_current.get(&animation.bone).unwrap();
+                // println!("for animation of bone {}, the index {index} will be used using map_attached_to_current", animation.bone);
+                animation.bone = index;
+            }
+        }
+
+        // dbg!(&map_attached_to_current);
+
+        let _ = std::fs::write(
+            std::path::Path::new(&format!("trash/clips_modified_{file_name}.txt")), 
+            format!("{:#?}", &animations_clips)
+        );
+
+    }
+    
+
+    let _ = std::fs::write(
+        std::path::Path::new(&format!("trash/animations_{file_name}.txt")), 
+        format!("{:#?}", &animations_clips)
+    );
+
+    let _ = std::fs::write(
+        std::path::Path::new(&format!("trash/skeleton_{file_name}.txt")), 
+        format!("{:#?}", &skeleton)
+    );
+
+    Ok(animations_clips)
+} 
 
 pub async fn load_model_glb(
     file_name: &str,
@@ -52,6 +124,170 @@ pub async fn load_model_glb(
     Ok(objects)
 }
 
+fn extract_skeleton(
+    model: &gltf::Gltf,
+    buffer_data: &Vec<Vec<u8>>
+) -> (Option<Skeleton>, HashMap<usize, usize>, HashMap<usize, usize>) {
+    let mut skeleton = None;
+    let mut bones_map = HashMap::new();
+    let mut skin_joints_map = HashMap::new();
+
+    // looking for bones
+    for skin in model.skins() {
+
+        let mut nodes = Vec::new();
+
+        let reader = skin.reader(|buffer| Some(&buffer_data[buffer.index()]));
+        let inverse_bind_matrices: Vec<Matrix4<f32>> = reader
+            .read_inverse_bind_matrices()
+            .expect("No inverse bind matrices")
+            .map(|m| Matrix4::from(m))
+            .collect();
+
+        // Create a mapping from joint index to its inverse bind matrix
+        let joint_map: std::collections::HashMap<usize, [[f32; 4]; 4]> = skin
+            .joints()
+            .enumerate()
+            .map(|(i, joint)| (joint.index(), inverse_bind_matrices[i].into()))
+            .collect();
+
+        // let _ = std::fs::write(std::path::Path::new(&format!("trash/inverse_bind_matrices_{file_name}.txt")), format!("{:#?}", &joint_map));
+        
+        for (joint_idx, joint) in skin.joints().enumerate() {
+            let index = joint.index();
+            let name = joint.name().map_or(None, |str| Some(str.to_string()));
+            bones_map.insert(index, nodes.len());
+            skin_joints_map.insert(joint_idx, nodes.len());
+            let (translation, rotation, scale) = joint.transform().decomposed();
+            nodes.push((
+                index, 
+                name,
+                *joint_map.get(&index).unwrap(),
+                translation,
+                rotation,
+                scale,
+                joint.children().map(|children| children.index()).collect::<Vec<_>>()
+            ));
+        }
+        if nodes.len() > 0 {
+            let bones = nodes
+                .iter()
+                .map(|(index, name, inverse_bind_matrix, translation, rotation, scale, _)| {
+                    let parent_node = nodes.iter().find(|(_, _, _, _, _, _, childrens)| childrens.contains(index));
+                    Bone::new(
+                        parent_node.map_or(None, |(parent_index, _, _, _, _, _, _)| Some(*bones_map.get(parent_index).unwrap())), 
+                        // (OPENGL_TO_WGPU_MATRIX * cgmath::Matrix4::from(*matrix)).into()
+                        name.clone(),
+                        *inverse_bind_matrix,
+                        translation,
+                        rotation,
+                        scale
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            let mut model_skeleton = Skeleton { bones };
+            model_skeleton.calculate_world_matrices();
+            skeleton = Some(model_skeleton);
+            break;
+        }
+    }
+
+    (skeleton, bones_map, skin_joints_map)
+}
+
+fn extract_animations(
+    model: &gltf::Gltf,
+    buffer_data: &Vec<Vec<u8>>,
+    bones_map: &HashMap<usize, usize>,
+    skin_joints_map: &HashMap<usize, usize>,
+) -> Vec<AnimationClip> {
+
+    let mut animation_clips = Vec::new();
+
+    for animation in model.animations() {
+        
+        let name = animation.name().unwrap_or("Default").to_string();
+        let mut duration = 0.0;
+        let mut animations = Vec::new();
+
+        for channel in animation.channels() {
+            // dbg!(&bones_map);
+            // println!("looking for bone original index {}", channel.target().node().index());
+
+            let target_node = channel.target().node();
+
+            if let Some(bone) = bones_map.get(&target_node.index()) {
+                let reader = channel.reader(|buffer| Some(&buffer_data[buffer.index()]));
+                let timestamps = if let Some(inputs) = reader.read_inputs() {
+                    match inputs {
+                        gltf::accessor::Iter::Standard(times) => {
+                            let times: Vec<f32> = times.collect();
+                            if let Some(time) = times.last() {
+                                if *time > duration {
+                                    duration = *time;
+                                }
+                            }
+                            times
+                        }
+                        gltf::accessor::Iter::Sparse(_) => {
+                            println!("Sparse keyframes not supported");
+                            let times: Vec<f32> = Vec::new();
+                            times
+                        }
+                    }
+                } else {
+                    println!("We got problems");
+                    let times: Vec<f32> = Vec::new();
+                    times
+                };
+
+                let keyframes = if let Some(outputs) = reader.read_outputs() {
+                    match outputs {
+                        gltf::animation::util::ReadOutputs::Translations(translation) => {
+                            Keyframes::Translation(translation.collect())
+                        },
+                        gltf::animation::util::ReadOutputs::Rotations(rotation) => {
+                            Keyframes::Rotation(rotation.into_f32().collect())
+                        },
+                        gltf::animation::util::ReadOutputs::Scales(scale) => {
+                            Keyframes::Scale(scale.collect())
+                        }
+                        _other => {
+                            Keyframes::Other
+                        }
+                    }
+                } else {
+                    println!("We got problems");
+                    Keyframes::Other
+                };
+
+                animations.push(
+                    BoneAnimation {
+                        bone: *bone,
+                        keyframes,
+                        timestamps,
+                    }
+                );
+            }
+            else {
+                dbg!("target_node name {:?}", target_node.name());
+                // panic!();
+            }
+        }
+
+        animation_clips.push(
+            AnimationClip {
+                name,
+                duration,
+                animations
+            }
+        );
+    }
+
+    animation_clips
+}
+
 async fn extract_buffer_data(
     model: &gltf::Gltf
 ) -> anyhow::Result<Vec<Vec<u8>>> {
@@ -81,129 +317,17 @@ fn extract_objects(
     buffer_data: &Vec<Vec<u8>>
 ) -> Vec<Object> {
 
-    type NodeIndex = usize;
-    type ObjectIndex = usize;
-
     let mut objects = Vec::new();
-    let mut skeleton = None;
-    let mut animation_clips = Vec::new();
-    let mut bones_map = HashMap::new();
-
-    // looking for bones
-    for skin in model.skins() {
-        let mut nodes = Vec::new();
-        for joint in skin.joints() {
-            let index = joint.index();
-            let name = joint.name().map_or(None, |str| Some(str.to_string()));
-            bones_map.insert(index, nodes.len());
-            nodes.push((
-                index, 
-                name,
-                joint.transform().matrix(), 
-                joint.children().map(|children| children.index()).collect::<Vec<_>>()
-            ));
-        }
-        if nodes.len() > 0 {
-            let bones = nodes
-                .iter()
-                .map(|(index, name, matrix, _)| {
-                    let parent_node = nodes.iter().find(|(_, _, _, childrens)| childrens.contains(index));
-                    Bone::new(
-                        parent_node.map_or(None, |(parent_index, _, _, _)| Some(*bones_map.get(parent_index).unwrap())), 
-                        // (OPENGL_TO_WGPU_MATRIX * cgmath::Matrix4::from(*matrix)).into()
-                        *matrix,
-                        name.clone(),
-                    )
-                })
-                .collect::<Vec<_>>();
-
-            let mut model_skeleton = Skeleton { bones };
-            model_skeleton.calculate_world_matrices();
-            skeleton = Some(model_skeleton);
-            break;
-        }
-    }
-
-    // Load animations
-    for animation in model.animations() {
-        
-        let name = animation.name().unwrap_or("Default").to_string();
-        let mut duration = 0.0;
-        let mut animations = Vec::new();
-
-        for channel in animation.channels() {
-            let bone = *bones_map.get(&channel.target().node().index()).unwrap();
-            let reader = channel.reader(|buffer| Some(&buffer_data[buffer.index()]));
-            let timestamps = if let Some(inputs) = reader.read_inputs() {
-                match inputs {
-                    gltf::accessor::Iter::Standard(times) => {
-                        let times: Vec<f32> = times.collect();
-                        if let Some(time) = times.last() {
-                            if *time > duration {
-                                duration = *time;
-                            }
-                        }
-                        times
-                    }
-                    gltf::accessor::Iter::Sparse(_) => {
-                        println!("Sparse keyframes not supported");
-                        let times: Vec<f32> = Vec::new();
-                        times
-                    }
-                }
-            } else {
-                println!("We got problems");
-                let times: Vec<f32> = Vec::new();
-                times
-            };
-
-            let keyframes = if let Some(outputs) = reader.read_outputs() {
-                match outputs {
-                    gltf::animation::util::ReadOutputs::Translations(translation) => {
-                        Keyframes::Translation(translation.collect())
-                    },
-                    gltf::animation::util::ReadOutputs::Rotations(rotation) => {
-                        Keyframes::Rotation(rotation.into_f32().collect())
-                    },
-                    gltf::animation::util::ReadOutputs::Scales(scale) => {
-                        Keyframes::Scale(scale.collect())
-                    }
-                    _other => {
-                        Keyframes::Other
-                    }
-                    // gltf::animation::util::ReadOutputs::Rotations(_) => todo!(),
-                    // gltf::animation::util::ReadOutputs::Scales(_) => todo!(),
-                    // gltf::animation::util::ReadOutputs::MorphTargetWeights(_) => todo!(),
-                }
-            } else {
-                println!("We got problems");
-                Keyframes::Other
-            };
-
-            animations.push(
-                BoneAnimation {
-                    bone,
-                    keyframes,
-                    timestamps,
-                }
-            );
-        }
-
-        animation_clips.push(
-            AnimationClip {
-                name,
-                duration,
-                animations
-            }
-        );
-    }
+    let (skeleton, bones_map, skin_joints_map) = extract_skeleton(&model, &buffer_data);
+    let animations_clips = extract_animations(&model, &buffer_data, &bones_map, &skin_joints_map);
 
     fn extract_from_node(
         node: &gltf::Node<'_>, 
         device: &wgpu::Device, 
         bind_group_layouts: &RenderBindGroupLayouts,
         objects: &mut Vec<Object>,
-        bones_map: &HashMap<NodeIndex, ObjectIndex>,
+        bones_map: &HashMap<usize, usize>,
+        skin_joints_map: &HashMap<usize, usize>,
         skeleton: &Option<Skeleton>,
         animation_clips: &Vec<AnimationClip>,
         buffer_data: &Vec<Vec<u8>>, 
@@ -221,9 +345,11 @@ fn extract_objects(
         if let Some(name) = node.name() {
             object.name = Some(name.to_string());
         }
+        // let (translation, rotation, scale) = node.transform().decomposed();
+        // object.matrix = (Matrix4::from_translation(translation.into()) * Matrix4::from(Quaternion::from([rotation[3], rotation[0], rotation[1], rotation[2]])) * Matrix4::from_nonuniform_scale(scale[0], scale[1], scale[2])).into();
         object.matrix = node.transform().matrix();
         if let Some(mesh) = node.mesh() {
-            let mut meshes = Vec::<Mesh>::new();
+            let mut meshes = Vec::new();
             let primitives = mesh.primitives();
             primitives.for_each(|primitive| {
                 let reader = primitive.reader(|buffer| Some(&buffer_data[buffer.index()]));
@@ -249,6 +375,7 @@ fn extract_objects(
                     .map(|joints| joints.into_u16().collect())
                     .unwrap_or_default();
                     
+                
 
                 for i in 0..positions.len() {
                     let position = positions.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
@@ -257,17 +384,36 @@ fn extract_objects(
                     let weight = weights.get(i).unwrap_or(&[0.0, 0.0, 0.0, 0.0]);
                     let joint = joints.get(i).unwrap_or(&[0, 1, 2, 3]);
                     // let converted_joint: [u32; 4] = core::array::from_fn(|i| *(joints[i] as u32));
-                    let converted_joint: [u32; 4] = core::array::from_fn(|i| (*(bones_map.get(&(joint[i] as usize))).unwrap_or(&0)) as u32);
+                    let converted_joint: [u32; 4] = core::array::from_fn(|i| {
+                        match skin_joints_map.get(&(joint[i] as usize)) {
+                            Some(index) => {
+                                *index as u32
+                            },
+                            None => {
+                                // dbg!(format!("on model {file_name} original bone index {} was not found in the bones_map", joint[i]));
+                                // 0
+                                // dbg!(&bones_map);
+                                panic!()
+                            }
+                        }
+                    });
+                    if weight[1] > 0.0 {
+                        dbg!(weight);
+                        dbg!(joint);
+                        dbg!(&converted_joint);
+                    }
+                    // TODO: a bone is missing here
+                    // let converted_joint: [u32; 4] = core::array::from_fn(|i| (*(bones_map.get(&(joint[i] as usize))).unwrap_or(&0)) as u32);
                     // dbg!(&weight);
                     // dbg!(&joint);
                     // dbg!(&converted_joint);
-                    vertices.push(ModelVertex {
-                        position: *position,
-                        tex_coords: *tex_coord,
-                        normal: *normal,
-                        weight: *weight,
-                        joint: converted_joint,
-                    });
+                    vertices.push(ModelVertex::new(
+                        *position,
+                        *tex_coord,
+                        *normal,
+                        converted_joint,
+                        *weight
+                    ));
                 }
 
                 // dbg!(&skeleton.as_ref().unwrap().bones[6].name);
@@ -323,7 +469,8 @@ fn extract_objects(
         bind_group_layouts: &RenderBindGroupLayouts,
         parent_id: Option<String>,
         objects: &mut Vec<Object>,
-        bones_map: &HashMap<NodeIndex, ObjectIndex>,
+        bones_map: &HashMap<usize, usize>,
+        skin_joints_map: &HashMap<usize, usize>,
         skeleton: &Option<Skeleton>,
         animation_clips: &Vec<AnimationClip>,
         buffer_data: &Vec<Vec<u8>>, 
@@ -335,6 +482,7 @@ fn extract_objects(
             bind_group_layouts, 
             objects, 
             bones_map,
+            skin_joints_map,
             skeleton,
             animation_clips,
             buffer_data, 
@@ -366,6 +514,7 @@ fn extract_objects(
                     Some(object_id.clone()), 
                     objects, 
                     bones_map, 
+                    skin_joints_map,
                     skeleton, 
                     animation_clips,
                     buffer_data, 
@@ -384,8 +533,9 @@ fn extract_objects(
                 None, 
                 &mut objects, 
                 &bones_map, 
+                &skin_joints_map,
                 &skeleton, 
-                &animation_clips,
+                &animations_clips,
                 buffer_data, 
                 file_name
             );

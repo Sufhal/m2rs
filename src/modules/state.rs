@@ -2,29 +2,22 @@ use std::path::Path;
 use std::{fs, iter};
 use cgmath::Rotation3;
 use log::info;
-use wgpu::util::DeviceExt;
 use winit::keyboard::KeyCode;
 use winit::{
     event::*,
     keyboard::PhysicalKey,
     window::Window,
 };
-use crate::modules::core::object::{self, Object};
-use crate::modules::core::object_3d::{self, Object3D};
+use crate::modules::assets::gltf_loader::load_animations;
 use crate::modules::core::skinning::Keyframes;
-use crate::modules::core::{instance, light, model, texture};
-use crate::modules::assets::assets;
+use crate::modules::core::texture;
 use crate::modules::camera::camera;
-use crate::modules::geometry::sphere::Sphere;
-use crate::modules::geometry::buffer::ToMesh;
-use model::Vertex;
 use super::assets::gltf_loader::load_model_glb;
-use super::core::model::Model;
 use super::core::object_3d::Transform;
 use super::core::scene;
-use super::geometry::plane::Plane;
 use super::pipelines::render_pipeline::RenderPipeline;
-use super::utils::performance_tracker::PerformanceTracker;
+use super::utils::time_factory::{Instant, TimeFactory};
+// use super::utils::performance_tracker::PerformanceTracker;
 
 pub struct State<'a> {
     surface: wgpu::Surface<'a>,
@@ -40,8 +33,9 @@ pub struct State<'a> {
     depth_texture: texture::Texture,
     pub window: &'a Window,
     scene: scene::Scene,
-    performance_tracker: PerformanceTracker,
-    time: std::time::Instant,
+    // performance_tracker: PerformanceTracker,
+    // time: std::time::Instant,
+    instant: Instant
 }
 
 impl<'a> State<'a> {
@@ -126,9 +120,11 @@ impl<'a> State<'a> {
 
         let mut scene = scene::Scene::new();
 
+        // dbg!(&shaman_animations);
+
         let model_objects = load_model_glb(
-            // "vladimir.glb", 
-            "shaman.glb", 
+            "shaman_cheonryun.glb", 
+            // "fox.glb", 
             &device, 
             &queue, 
             &new_render_pipeline
@@ -138,37 +134,31 @@ impl<'a> State<'a> {
         for mut object in model_objects {
             let id = object.id.clone();
             if let Some(object_3d) = &mut object.object_3d {
+                // object_3d.model.skeleton = Some(shaman_skeleton.clone());
+                // object_3d.model.animations = Some(shaman_animations.clone());
+                if let Some(skeleton) = &mut object_3d.model.skeleton {
+                    let clips = load_animations(
+                        "shaman_cheonryun.glb", 
+                        // "fox.glb", 
+                        &skeleton
+                    ).await.unwrap();
+                    object_3d.model.animations = Some(clips);
+                }
+  
                 // dbg!(&object.matrix);
                 // println!("object {} have mesh", id);
-                let instance = object_3d.request_instance(&device);
-                instance.add_x_position(1.0);
-                instance.take();
+                for i in 0..100 {
+                    let instance = object_3d.request_instance(&device);
+                    instance.add_x_position(1.0 + i as f32);
+                    instance.take();
+                }
                 
             }
             scene.add(object);
         }
 
-        let model_objects = load_model_glb(
-            "vladimir.glb", 
-            // "shaman.glb", 
-            &device, 
-            &queue, 
-            &new_render_pipeline
-        ).await.expect("unable to load");
-        dbg!(model_objects.len());
-        // dbg!(model_objects.iter().map(|o| &o.name).collect::<Vec<_>>());
-        for mut object in model_objects {
-            let id = object.id.clone();
-            if let Some(object_3d) = &mut object.object_3d {
-                // dbg!(&object.matrix);
-                // println!("object {} have mesh", id);
-                let instance = object_3d.request_instance(&device);
-                instance.add_x_position(-1.0);
-                instance.take();
-                
-            }
-            scene.add(object);
-        }
+        // let shaman_animations = load_animations("run.glb").await.unwrap();
+        // dbg!(&shaman_animations);
 
 
         // let model_objects = load_model_glb("official_gltf/gltf_binary/2CylinderEngine.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
@@ -187,6 +177,8 @@ impl<'a> State<'a> {
         scene.compute_world_matrices();
         scene.update_objects_buffers(&queue);
 
+        let _ = fs::write(Path::new("trash/scene_objects.txt"), format!("{:#?}", &&scene.get_all_objects().iter().map(|object| (object.name.clone(), object.matrix)).collect::<Vec<_>>()));
+
         Self {
             surface,
             device,
@@ -201,8 +193,8 @@ impl<'a> State<'a> {
             depth_texture,
             window,
             scene,
-            performance_tracker: PerformanceTracker::new(),
-            time: std::time::Instant::now()
+            // performance_tracker: PerformanceTracker::new(),
+            instant: Instant::now()
         }
     }
 
@@ -235,7 +227,7 @@ impl<'a> State<'a> {
             } => {
                 match key {
                     KeyCode::KeyP => {
-                        dbg!(self.performance_tracker.get_report());
+                        // dbg!(self.performance_tracker.get_report());
                     },
                     _ => {},
                 };
@@ -258,9 +250,8 @@ impl<'a> State<'a> {
     }
 
     pub fn update(&mut self, dt: instant::Duration) {
-        self.performance_tracker.call_start("update");
-
-        self.performance_tracker.call_start("update_camera");
+        // self.performance_tracker.call_start("update");
+        // self.performance_tracker.call_start("update_camera");
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.new_render_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(
@@ -268,13 +259,12 @@ impl<'a> State<'a> {
             0,
             bytemuck::cast_slice(&[self.new_render_pipeline.uniforms.camera]),
         );
-        self.performance_tracker.call_end("update_camera");
-
-        self.performance_tracker.call_start("update_light");
+        // self.performance_tracker.call_end("update_camera");
+        // self.performance_tracker.call_start("update_light");
         let old_position: cgmath::Vector3<_> = self.new_render_pipeline.uniforms.light.position.into();
         self.new_render_pipeline.uniforms.light.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
         self.queue.write_buffer(&self.new_render_pipeline.buffers.light, 0, bytemuck::cast_slice(&[self.new_render_pipeline.uniforms.light]));
-        self.performance_tracker.call_end("update_light");
+        // self.performance_tracker.call_end("update_light");
 
         // self.camera_uniform.update_view_proj(&self.camera, &self.projection);
         // self.queue.write_buffer(
@@ -286,9 +276,14 @@ impl<'a> State<'a> {
         // self.light_uniform.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
         // self.queue.write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light_uniform]));
         
-        self.performance_tracker.call_start("update_objects");
+        // self.performance_tracker.call_start("update_scene");
+        self.scene.compute_world_matrices();
+        self.scene.update_objects_buffers(&self.queue);
+        // self.performance_tracker.call_end("update_scene");
 
-        let elapsed = self.time.elapsed().as_secs_f32();
+        // self.performance_tracker.call_start("update_objects");
+
+        let elapsed = self.instant.duration() / 1000.0;
 
         for object in self.scene.get_all_objects() {
             if let Some(object_3d) = &mut object.object_3d {
@@ -297,11 +292,15 @@ impl<'a> State<'a> {
                     // let _ = fs::write(Path::new("trash/debug.txt"), format!("{:#?}", &animations));
                     // panic!();
                     if let Some(skeleton) = &mut model.skeleton {
-                        if let Some(animation) = animations.iter().find(|clip| &clip.name == "Run") {
-                            if elapsed >= animation.duration {
-                                self.time = std::time::Instant::now();
+                        if let Some(animation) = animations.iter().find(|clip| &clip.name == "Run").or(animations.get(0)) {
+                            if elapsed >= animation.duration.into() {
+                                self.instant = Instant::now();
                             }
                             for bone_animation in &animation.animations {
+                                // continue;
+                                // if bone_animation.bone != 43 { continue; }
+
+                                let bone = &mut skeleton.bones[bone_animation.bone];
                                 if bone_animation.timestamps.len() == 0 { return; }
                                 let timestamp_index = match bone_animation.timestamps.len() {
                                     1 => 0,
@@ -310,22 +309,24 @@ impl<'a> State<'a> {
                                             .iter()
                                             .enumerate()
                                             .fold(0, |mut acc, (idx, t)| {
-                                                if (elapsed - t).abs() <= (elapsed - bone_animation.timestamps[acc]).abs() {
+                                                if (elapsed - *t as f64).abs() <= (elapsed - bone_animation.timestamps[acc] as f64).abs() {
                                                     acc = idx;
                                                 }
                                                 acc
                                             })
                                     }
                                 };
+                                // println!("timestamp_index, {timestamp_index}");
+                                // let timestamp_index = 10usize;
                                 match &bone_animation.keyframes {
                                     Keyframes::Translation(frames) => {
-                                        skeleton.bones[bone_animation.bone].set_translation(&frames[timestamp_index]);
+                                        bone.set_translation(&frames[timestamp_index]);
                                     },
                                     Keyframes::Rotation(frames) => {
-                                        skeleton.bones[bone_animation.bone].set_rotation(&frames[timestamp_index]);
+                                        bone.set_rotation(&frames[timestamp_index]);
                                     },
                                     Keyframes::Scale(frames) => {
-                                        skeleton.bones[bone_animation.bone].set_scale(&frames[timestamp_index]);
+                                        bone.set_scale(&frames[timestamp_index]);
                                     },
                                     _ => {},
                                 };
@@ -346,18 +347,12 @@ impl<'a> State<'a> {
                 // }
             }
         }
-        self.performance_tracker.call_end("update_objects");
-
-        self.performance_tracker.call_start("update_scene");
-        self.scene.compute_world_matrices();
-        self.scene.update_objects_buffers(&self.queue);
-        self.performance_tracker.call_end("update_scene");
-
-        self.performance_tracker.call_end("update");
+        // self.performance_tracker.call_end("update_objects");
+        // self.performance_tracker.call_end("update");
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.performance_tracker.call_start("render");
+        // self.performance_tracker.call_start("render");
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor {
             format: Some(self.config.format.add_srgb_suffix()),
@@ -401,20 +396,20 @@ impl<'a> State<'a> {
             use scene::DrawScene;
             render_pass.set_pipeline(&self.new_render_pipeline.pipeline);
 
-            self.performance_tracker.call_start("render_draw_scene");
+            // self.performance_tracker.call_start("render_draw_scene");
             render_pass.draw_scene(
                 &self.queue,
                 &mut self.scene, 
                 &self.new_render_pipeline
             );
-            self.performance_tracker.call_end("render_draw_scene");
+            // self.performance_tracker.call_end("render_draw_scene");
         }
 
         self.queue.submit(iter::once(encoder.finish()));
-        self.performance_tracker.call_start("render_present");
+        // self.performance_tracker.call_start("render_present");
         output.present();
-        self.performance_tracker.call_end("render_present");
-        self.performance_tracker.call_end("render");
+        // self.performance_tracker.call_end("render_present");
+        // self.performance_tracker.call_end("render");
         Ok(())
     }
 }

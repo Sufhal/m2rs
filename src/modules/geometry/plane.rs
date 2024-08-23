@@ -31,13 +31,13 @@ impl Plane {
                     y as f32 / segments_y as f32,
                 ];
 
-                vertices.push(ModelVertex {
+                vertices.push(ModelVertex::new(
                     position,
                     tex_coords,
                     normal,
-                    weight: [0.0, 0.0, 0.0, 0.0],
-                    joint: [0,0,0,0]
-                });
+                    [0,0,0,0],
+                    [0.0, 0.0, 0.0, 0.0],
+                ));
             }
         }
         for y in 0..segments_y {
@@ -64,7 +64,7 @@ impl Plane {
 }
 
 impl ToMesh for Plane {
-    fn to_mesh(&self, device: &wgpu::Device, transform_bind_group_layout: &wgpu::BindGroupLayout, name: String) -> Mesh {
+    fn to_mesh(&self, device: &wgpu::Device, name: String) -> Mesh {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Plane Vertex Buffer"),
             contents: bytemuck::cast_slice(&self.vertices),

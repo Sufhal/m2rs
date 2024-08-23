@@ -3,7 +3,7 @@ use wgpu::util::DeviceExt;
 
 use crate::modules::{pipelines::render_pipeline::{self, RenderBindGroupLayouts, RenderPipeline}, utils::id_gen::generate_unique_string};
 
-use super::{instance::InstanceRaw, model::Model, skeleton, skinning::SkeletonInstance};
+use super::{instance::InstanceRaw, model::Model, skinning::SkeletonInstance};
 
 type Mat4 = cgmath::Matrix4<f32>;
 type Vec3 = cgmath::Vector3<f32>;
@@ -166,8 +166,9 @@ impl Object3D {
 #[derive(Clone, Debug)]
 pub struct Object3DInstance {
     pub id: String,
-    rotation: Quat,
     position: Vec3,
+    rotation: Quat,
+    scale: Vec3,
     needs_update: bool,
     busy: bool
 }
@@ -176,8 +177,9 @@ impl Object3DInstance {
     pub fn new() -> Object3DInstance {
         Object3DInstance {
             id: generate_unique_string(),
-            rotation: cgmath::Quaternion::one(),
             position: cgmath::Vector3::new(0.0, 0.0, 0.0),
+            rotation: cgmath::Quaternion::one(),
+            scale: cgmath::Vector3::new(1.0, 1.0, 1.0),
             needs_update: false,
             busy: false
         }
@@ -193,8 +195,12 @@ impl Object3DInstance {
         self.position = position;
         self.needs_update = true;
     }
+    pub fn set_scale(&mut self, scale: Vec3) {
+        self.scale = scale;
+        self.needs_update = true;   
+    }
     pub fn to_instance_raw(&self) -> InstanceRaw {
-        InstanceRaw::new(self.position, self.rotation)
+        InstanceRaw::new(self.position, self.rotation, self.scale)
     }
     pub fn dispose(&mut self) {
         let default = Self::new();
@@ -214,6 +220,10 @@ pub trait Transform {
     fn add_y_position(&mut self, value: f32);
     fn add_z_position(&mut self, value: f32);
     fn add_xyz_position(&mut self, x: f32, y: f32, z: f32);
+    fn add_x_scale(&mut self, value: f32);
+    fn add_y_scale(&mut self, value: f32);
+    fn add_z_scale(&mut self, value: f32);
+    fn add_xyz_scale(&mut self, x: f32, y: f32, z: f32);
 }
 
 impl Transform for Object3DInstance {
@@ -247,5 +257,17 @@ impl Transform for Object3DInstance {
     }
     fn add_xyz_position(&mut self, x: f32, y: f32, z: f32) {
         self.set_position(self.position + cgmath::Vector3 { x, y, z });
+    }
+    fn add_x_scale(&mut self, value: f32) {
+        self.set_scale(self.scale + cgmath::Vector3 { x: value, y: 0.0, z: 0.0 });
+    }
+    fn add_y_scale(&mut self, value: f32) {
+        self.set_scale(self.scale + cgmath::Vector3 { x: 0.0, y: value, z: 0.0 });
+    }
+    fn add_z_scale(&mut self, value: f32) {
+        self.set_scale(self.scale + cgmath::Vector3 { x: 0.0, y: 0.0, z: value });
+    }
+    fn add_xyz_scale(&mut self, x: f32, y: f32, z: f32) {
+        self.set_scale(self.scale + cgmath::Vector3 { x, y, z });
     }
 }
