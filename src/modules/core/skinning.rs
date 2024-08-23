@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 use cgmath::{Decomposed, InnerSpace, Matrix4, Quaternion, SquareMatrix};
 
 #[repr(C, align(16))]
@@ -157,7 +157,7 @@ impl Skeleton {
     }
 }
 
-
+#[derive(Clone, Debug)]
 /// Used by instances
 pub struct SkeletonInstance {
     pub bones: Vec<Bone>,
@@ -193,8 +193,65 @@ pub enum Keyframes {
     Other,
 }
 
-pub struct AnimationMixer {
-    clips: Vec<AnimationClip>,
+const DEFAULT_CLIP_TRANSITION_DURATION_MS: f64 = 800.0;
+
+#[derive(Clone, Debug)]
+struct PlayState {
+    animation: usize,
     elapsed_time: f64
 }
+#[derive(Clone, Debug)]
+struct TransitionState {
+    elapsed_time: f64,
+    animation_in: usize,
+    animation_out: usize
+}
+#[derive(Clone, Debug)]
+enum MixerState {
+    None,
+    Play(PlayState),
+    Transition(TransitionState)
+}
 
+#[derive(Clone, Debug)]
+pub struct AnimationMixer {
+    clips: Rc<Vec<AnimationClip>>,
+    state: MixerState,
+}
+
+impl AnimationMixer {
+    pub fn new(clips: Rc<Vec<AnimationClip>>) -> Self {
+        Self {
+            clips,
+            state: MixerState::None
+        }
+    }
+    pub fn update(&mut self, delta_ms: f64) {
+        match &mut self.state {
+            MixerState::Play(state) => {
+                if state.elapsed_time + delta_ms > self.clips[state.animation].duration as f64 {
+                    state.elapsed_time = 0.0; // loop
+                } else {
+                    state.elapsed_time += delta_ms;
+                }
+            },
+            _ => ()
+        };
+    }
+    pub fn play(&mut self, clip_name: &str) {
+        if let Some(clip) = self.find_animation(clip_name) {
+            match &mut self.state {
+                MixerState::None => {
+                    self.state = MixerState::Play(PlayState { animation: clip, elapsed_time: 0.0 });
+                },
+                MixerState::Play(state) => {
+                    *state = PlayState { animation: clip, elapsed_time: 0.0 };
+                },
+                _ => ()
+            };
+        }
+    }
+    fn find_animation(&self, clip_name: &str) -> Option<usize> {
+        self.clips.iter().position(|c| c.name == clip_name)
+    }
+}
