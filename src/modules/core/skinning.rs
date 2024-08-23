@@ -89,6 +89,7 @@ impl SkeletonInstance {
             }
         }
     }
+    // TODO: optimization required
     fn calculate_world_matrix(&mut self, bone_index: usize, parent_world_matrix: &Matrix4<f32>) {
         let bone = &mut self.bones[bone_index];
         let transformation_matrix = 
@@ -113,7 +114,7 @@ impl SkeletonInstance {
 #[derive(Clone, Debug)]
 pub struct AnimationClip {
     pub name: String,
-    pub duration: f32,
+    pub duration: f64,
     pub animations: Vec<BoneAnimation>
 }
 
@@ -122,7 +123,7 @@ pub struct BoneAnimation {
     pub bone: usize,
     // pub name: String,
     pub keyframes: Keyframes,
-    pub timestamps: Vec<f32>,
+    pub timestamps: Vec<f64>,
 }
 
 #[derive(Clone, Debug)]
@@ -200,24 +201,21 @@ impl AnimationMixer {
     pub fn apply_on_skeleton(&self, skeleton: &mut SkeletonInstance) {
         match &self.state {
             MixerState::Play(state) => {
+                let elapsed_secs = state.elapsed_time / 1000.0;
                 let clip = &self.clips[state.animation];
+                let timestamps = &clip.animations[0].timestamps;
+                let timestamp_index = timestamps
+                    .iter()
+                    .enumerate()
+                    .fold(0, |mut acc, (idx, t)| {
+                        if (elapsed_secs - *t).abs() <= (elapsed_secs - timestamps[acc]).abs() {
+                            acc = idx;
+                        }
+                        acc
+                    });
                 for bone_animation in &clip.animations {
                     let bone = &mut skeleton.bones[bone_animation.bone];
                     if bone_animation.timestamps.len() == 0 { return; }
-                    let timestamp_index = match bone_animation.timestamps.len() {
-                        1 => 0,
-                        _ => {
-                            bone_animation.timestamps
-                                .iter()
-                                .enumerate()
-                                .fold(0, |mut acc, (idx, t)| {
-                                    if (state.elapsed_time - (*t * 1000.0) as f64).abs() <= (state.elapsed_time - (bone_animation.timestamps[acc] * 1000.0) as f64).abs() {
-                                        acc = idx;
-                                    }
-                                    acc
-                                })
-                        }
-                    };
                     match &bone_animation.keyframes {
                         Keyframes::Translation(frames) => {
                             bone.set_translation(&frames[timestamp_index]);

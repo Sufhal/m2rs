@@ -130,12 +130,8 @@ impl<'a> State<'a> {
             &queue, 
             &new_render_pipeline
         ).await.expect("unable to load");
-        // dbg!(model_objects.iter().map(|o| &o.name).collect::<Vec<_>>());
         for mut object in model_objects {
-            let id = object.id.clone();
             if let Some(object_3d) = &mut object.object_3d {
-                // object_3d.model.skeleton = Some(shaman_skeleton.clone());
-                // object_3d.model.animations = Some(shaman_animations.clone());
                 let clips = load_animations(
                     "shaman_cheonryun.glb", 
                     // "fox.glb", 
@@ -146,7 +142,7 @@ impl<'a> State<'a> {
   
                 // dbg!(&object.matrix);
                 // println!("object {} have mesh", id);
-                for i in 0..1 {
+                for i in 0..100 {
                     let instance = object_3d.request_instance(&device);
                     instance.add_x_position(1.0 + i as f32);
                     instance.take();
@@ -285,7 +281,7 @@ impl<'a> State<'a> {
         // self.performance_tracker.call_start("update_objects");
 
         let delta_ms = self.time_factory.get_delta();
-        // println!("delta {delta_ms}");
+        println!("delta {delta_ms}");
 
         for object in self.scene.get_all_objects() {
             if let Some(object_3d) = &mut object.object_3d {

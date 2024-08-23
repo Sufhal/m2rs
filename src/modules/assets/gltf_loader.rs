@@ -219,6 +219,7 @@ fn extract_animations(
                     match inputs {
                         gltf::accessor::Iter::Standard(times) => {
                             let times: Vec<f32> = times.collect();
+                            let times = times.iter().map(|v| *v as f64).collect::<Vec<_>>();
                             if let Some(time) = times.last() {
                                 if *time > duration {
                                     duration = *time;
@@ -228,13 +229,13 @@ fn extract_animations(
                         }
                         gltf::accessor::Iter::Sparse(_) => {
                             println!("Sparse keyframes not supported");
-                            let times: Vec<f32> = Vec::new();
+                            let times: Vec<f64> = Vec::new();
                             times
                         }
                     }
                 } else {
                     println!("We got problems");
-                    let times: Vec<f32> = Vec::new();
+                    let times: Vec<f64> = Vec::new();
                     times
                 };
 
