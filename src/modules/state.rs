@@ -142,7 +142,7 @@ impl<'a> State<'a> {
   
                 // dbg!(&object.matrix);
                 // println!("object {} have mesh", id);
-                for i in 0..100 {
+                for i in 0..2 {
                     let instance = object_3d.request_instance(&device);
                     instance.add_x_position(1.0 + i as f32);
                     instance.take();

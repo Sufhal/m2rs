@@ -21,6 +21,7 @@ tobj = { version = "3.2.1", features = [ "async" ] }
 instant = "0.1"
 uuid = { version = "1.10.0", features = [ "v4", "fast-rng" ] }
 gltf = "1.4.1"
+web-time = "1.1.0"
 
 [dependencies.image]
 version = "0.24"

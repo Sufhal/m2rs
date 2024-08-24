@@ -1,5 +1,6 @@
 use std::{collections::HashMap, rc::Rc};
 use cgmath::{Decomposed, InnerSpace, Matrix4, Quaternion, SquareMatrix};
+use crate::modules::utils::functions::{denormalize_f32, denormalize_f32x3, denormalize_f32x4, normalize_f64};
 
 #[repr(C, align(16))]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
@@ -204,32 +205,50 @@ impl AnimationMixer {
                 let elapsed_secs = state.elapsed_time / 1000.0;
                 let clip = &self.clips[state.animation];
                 let timestamps = &clip.animations[0].timestamps;
-                let timestamp_index = timestamps
-                    .iter()
-                    .enumerate()
-                    .fold(0, |mut acc, (idx, t)| {
-                        if (elapsed_secs - *t).abs() <= (elapsed_secs - timestamps[acc]).abs() {
-                            acc = idx;
+                if let Some(next) = timestamps.iter().position(|t| *t > elapsed_secs) {
+                    let previous = next - 1;
+                    let factor = normalize_f64(elapsed_secs, timestamps[previous], timestamps[next]);
+                    println!("elapsed {elapsed_secs}, timestamps[previous] {}, timestamps[next] {}, factor {factor}", timestamps[previous], timestamps[next]);
+                    for bone_animation in &clip.animations {
+                        let bone = &mut skeleton.bones[bone_animation.bone];
+                        if bone_animation.timestamps.len() == 0 { return; }
+                        if next == 0 {
+                            match &bone_animation.keyframes {
+                                Keyframes::Translation(frames) => {
+                                    bone.set_translation(&frames[next]);
+                                },
+                                Keyframes::Rotation(frames) => {
+                                    bone.set_rotation(&frames[next]);
+                                },
+                                Keyframes::Scale(frames) => {
+                                    bone.set_scale(&frames[next]);
+                                },
+                                _ => {},
+                            };
+                        } else {
+
+                            match &bone_animation.keyframes {
+                                Keyframes::Translation(frames) => {
+                                    let previous_frame = &frames[previous];
+                                    let next_frame = &frames[previous];
+                                    bone.set_translation(&denormalize_f32x3(factor as f32, previous_frame, next_frame));
+                                },
+                                Keyframes::Rotation(frames) => {
+                                    let previous_frame = &frames[previous];
+                                    let next_frame = &frames[previous];
+                                    bone.set_rotation(&denormalize_f32x4(factor as f32, previous_frame, next_frame));
+                                },
+                                Keyframes::Scale(frames) => {
+                                    let previous_frame = &frames[previous];
+                                    let next_frame = &frames[previous];
+                                    bone.set_scale(&denormalize_f32x3(factor as f32, previous_frame, next_frame));
+                                },
+                                _ => {},
+                            };
                         }
-                        acc
-                    });
-                for bone_animation in &clip.animations {
-                    let bone = &mut skeleton.bones[bone_animation.bone];
-                    if bone_animation.timestamps.len() == 0 { return; }
-                    match &bone_animation.keyframes {
-                        Keyframes::Translation(frames) => {
-                            bone.set_translation(&frames[timestamp_index]);
-                        },
-                        Keyframes::Rotation(frames) => {
-                            bone.set_rotation(&frames[timestamp_index]);
-                        },
-                        Keyframes::Scale(frames) => {
-                            bone.set_scale(&frames[timestamp_index]);
-                        },
-                        _ => {},
-                    };
+                    }
+                    skeleton.calculate_world_matrices();
                 }
-                skeleton.calculate_world_matrices();
             },
             _ => ()
         };

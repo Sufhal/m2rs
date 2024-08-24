@@ -1,15 +1,11 @@
 pub struct TimeFactory {
-    last_tick: f64,
+    last_instant: web_time::Instant,
     delta: f64
 }
 
 impl TimeFactory {
     pub fn new() -> Self {
-        Self { last_tick: Self::from_epoch_to_now(), delta: 0.0 }
-    }
-    /// Serves the last tick registered
-    pub fn now(&self) -> f64 {
-        self.last_tick
+        Self { last_instant: web_time::Instant::now(), delta: 0.0 }
     }
     /// Returns the milliseconds elapsed sice UNIX_EPOCH
     pub fn from_epoch_to_now() -> f64 {
@@ -21,11 +17,10 @@ impl TimeFactory {
             }
         }
     }
-    /// Save the current timestamp and compute the delta between two last ticks
     pub fn tick(&mut self) {
-        let tick = Self::from_epoch_to_now();
-        self.delta = tick - self.last_tick;
-        self.last_tick = tick;
+        let instant = web_time::Instant::now();
+        self.delta = instant.duration_since(self.last_instant).as_nanos() as f64 / 1000000.0;
+        self.last_instant = instant;
     }
     /// Get the delta between two last ticks
     pub fn get_delta(&self) -> f64 {
