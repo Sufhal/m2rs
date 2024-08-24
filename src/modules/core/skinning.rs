@@ -226,22 +226,24 @@ impl AnimationMixer {
                                 _ => {},
                             };
                         } else {
-
                             match &bone_animation.keyframes {
                                 Keyframes::Translation(frames) => {
                                     let previous_frame = &frames[previous];
-                                    let next_frame = &frames[previous];
-                                    bone.set_translation(&denormalize_f32x3(factor as f32, previous_frame, next_frame));
+                                    let next_frame = &frames[next];
+                                    let interpolated = denormalize_f32x3(factor as f32, previous_frame, next_frame);
+                                    bone.set_translation(&interpolated);
                                 },
                                 Keyframes::Rotation(frames) => {
                                     let previous_frame = &frames[previous];
-                                    let next_frame = &frames[previous];
-                                    bone.set_rotation(&denormalize_f32x4(factor as f32, previous_frame, next_frame));
+                                    let next_frame = &frames[next];
+                                    let interpolated = denormalize_f32x4(factor as f32, previous_frame, next_frame);
+                                    bone.set_rotation(&interpolated);
                                 },
                                 Keyframes::Scale(frames) => {
                                     let previous_frame = &frames[previous];
-                                    let next_frame = &frames[previous];
-                                    bone.set_scale(&denormalize_f32x3(factor as f32, previous_frame, next_frame));
+                                    let next_frame = &frames[next];
+                                    let interpolated = denormalize_f32x3(factor as f32, previous_frame, next_frame);
+                                    bone.set_scale(&interpolated);
                                 },
                                 _ => {},
                             };
