@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{borrow::Borrow, cell::RefCell, collections::HashMap, rc::Rc};
 use cgmath::{Decomposed, InnerSpace, Matrix4, Quaternion, SquareMatrix};
 use crate::modules::utils::functions::{denormalize_f32, denormalize_f32x3, denormalize_f32x4, normalize_f64};
 
@@ -157,12 +157,12 @@ enum MixerState {
 
 #[derive(Clone, Debug)]
 pub struct AnimationMixer {
-    clips: Rc<Vec<AnimationClip>>,
+    clips: Rc<RefCell<Vec<AnimationClip>>>,
     state: MixerState,
 }
 
 impl AnimationMixer {
-    pub fn new(clips: Rc<Vec<AnimationClip>>, autoplay: bool) -> Self {
+    pub fn new(clips: Rc<RefCell<Vec<AnimationClip>>>, autoplay: bool) -> Self {
         Self {
             clips,
             state: match autoplay {
@@ -172,12 +172,14 @@ impl AnimationMixer {
         }
     }
     fn find_animation(&self, clip_name: &str) -> Option<usize> {
-        self.clips.iter().position(|c| c.name == clip_name)
+        let clips = RefCell::borrow(&self.clips);
+        clips.iter().position(|c| c.name == clip_name)
     }
     pub fn update(&mut self, delta_ms: f64) {
+        let clips = RefCell::borrow(&self.clips);
         match &mut self.state {
             MixerState::Play(state) => {
-                if state.elapsed_time + delta_ms > (self.clips[state.animation].duration * 1000.0) as f64 {
+                if state.elapsed_time + delta_ms > (clips[state.animation].duration * 1000.0) as f64 {
                     state.elapsed_time = 0.0; // loop
                 } else {
                     state.elapsed_time += delta_ms;
@@ -200,10 +202,11 @@ impl AnimationMixer {
         }
     }
     pub fn apply_on_skeleton(&self, skeleton: &mut SkeletonInstance) {
+        let clips = RefCell::borrow(&self.clips);
         match &self.state {
             MixerState::Play(state) => {
                 let elapsed_secs = state.elapsed_time / 1000.0;
-                let clip = &self.clips[state.animation];
+                let clip = &clips[state.animation];
                 let timestamps = &clip.animations[0].timestamps;
                 if let Some(next) = timestamps.iter().position(|t| *t > elapsed_secs) {
                     let previous = next - 1;

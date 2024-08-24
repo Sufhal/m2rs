@@ -133,18 +133,20 @@ impl<'a> State<'a> {
         for mut object in model_objects {
             if let Some(object_3d) = &mut object.object_3d {
                 let clips = load_animations(
-                    "shaman_cheonryun.glb", 
+                    "shaman_wait.glb", 
+                    // "shaman_cheonryun.glb", 
                     // "fox.glb", 
                     &object_3d.model.skeleton
                 ).await.unwrap();
-                object_3d.model.animations = clips;
+                object_3d.set_animations(clips);
+                // object_3d.model.animations = clips;
                 
   
                 // dbg!(&object.matrix);
                 // println!("object {} have mesh", id);
-                for i in 0..2 {
+                for i in 0..10 {
                     let instance = object_3d.request_instance(&device);
-                    instance.add_x_position(1.0 + i as f32);
+                    instance.add_x_position(0.5 + (i as f32 / 2.0));
                     instance.take();
                 }
                 

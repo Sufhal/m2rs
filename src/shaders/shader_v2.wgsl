@@ -22,7 +22,6 @@ struct TransformUniform {
     transform: mat4x4<f32>,
 };
 @group(1) @binding(2) var<uniform> transform: TransformUniform;
-// @group(2) @binding(0) var<storage, read> bones_matrices: array<mat4x4<f32>>;
 
 struct Mat4x4 {
     data: mat4x4<f32>,
@@ -88,14 +87,6 @@ fn vs_main(
     out.world_position = world_position.xyz;
     out.clip_position = camera.view_proj * world_position;
     out.position = model.position;
-
-    let second_joint_used = model.weights[2] > 0.0;
-    if second_joint_used {
-        // Applying a color if joint 34 influences the vertex
-        out.color = vec4<f32>(1.0, 0.0, 0.0, 1.0); // Red color
-    } else {
-        out.color = vec4<f32>(1.0, 1.0, 1.0, 1.0); // Default white color
-    }
     return out;
 }
 
@@ -126,8 +117,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let object_color: vec4<f32> = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     
     // We don't need (or want) much ambient light, so 0.1 is fine
-    let ambient_strength = 1.0;
-    // let ambient_strength = 0.1;
+    // let ambient_strength = 1.0;
+    let ambient_strength = 0.1;
     let ambient_color = light.color * ambient_strength;
 
     let light_dir = normalize(light.position - in.world_position);

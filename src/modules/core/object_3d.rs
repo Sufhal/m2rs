@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{borrow::BorrowMut, cell::{RefCell, RefMut}, rc::Rc};
 
 use cgmath::{One, Quaternion, Rad, Rotation3, SquareMatrix};
 use wgpu::util::DeviceExt;
@@ -18,7 +18,7 @@ pub struct Object3D {
     pub id: String,
     pub model: Model,
     pub instances_bind_group: wgpu::BindGroup,
-    animation_clips: Rc<Vec<AnimationClip>>,
+    animation_clips: Rc<RefCell<Vec<AnimationClip>>>,
     skeleton: Rc<Skeleton>,
     instances: Vec<Object3DInstance>,
     instances_buffer: wgpu::Buffer,
@@ -31,7 +31,7 @@ pub struct Object3D {
 
 impl Object3D {
     pub fn new(device: &wgpu::Device, bind_group_layouts: &RenderBindGroupLayouts, model: Model) -> Self {
-        let animation_clips = Rc::new(model.animations.clone());
+        let animation_clips = Rc::new(RefCell::new(model.animations.clone()));
         let skeleton = Rc::new(model.skeleton.clone());
         let instances = vec![
             Object3DInstance::new(skeleton.clone(), animation_clips.clone());
@@ -135,6 +135,11 @@ impl Object3D {
             bytemuck::cast_slice(&self.model.skeleton.to_raw()),
         );
     }
+    pub fn set_animations(&mut self, clips: Vec<AnimationClip>) {
+        let mut animation_clips = RefCell::borrow_mut(&self.animation_clips);
+        animation_clips.clear();
+        animation_clips.extend(clips);
+    }
     pub fn get_instance(&mut self, id: &str) -> Option<&mut Object3DInstance> {
         self.instances.iter_mut().find(|i| &i.id == id)
     }
@@ -181,7 +186,7 @@ pub struct Object3DInstance {
 }
 
 impl Object3DInstance {
-    pub fn new(skeleton: Rc<Skeleton>, animation_clips: Rc<Vec<AnimationClip>>) -> Object3DInstance {
+    pub fn new(skeleton: Rc<Skeleton>, animation_clips: Rc<RefCell<Vec<AnimationClip>>>) -> Object3DInstance {
         Object3DInstance {
             id: generate_unique_string(),
             mixer: AnimationMixer::new(animation_clips, true),

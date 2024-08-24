@@ -22,10 +22,10 @@ pub async fn load_animations(
         format!("{:#?}", skeleton)
     );
 
-    let _ = std::fs::write(
-        std::path::Path::new(&format!("trash/skeleton_from_animation_{file_name}.txt")), 
-        format!("{:#?}", &attached_skeleton.clone().unwrap())
-    );
+    // let _ = std::fs::write(
+    //     std::path::Path::new(&format!("trash/skeleton_from_animation_{file_name}.txt")), 
+    //     format!("{:#?}", &attached_skeleton.clone().unwrap())
+    // );
 
     if let Some(attached_skeleton) = attached_skeleton {
 
