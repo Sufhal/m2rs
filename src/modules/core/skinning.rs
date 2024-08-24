@@ -208,46 +208,29 @@ impl AnimationMixer {
                 if let Some(next) = timestamps.iter().position(|t| *t > elapsed_secs) {
                     let previous = next - 1;
                     let factor = normalize_f64(elapsed_secs, timestamps[previous], timestamps[next]);
-                    println!("elapsed {elapsed_secs}, timestamps[previous] {}, timestamps[next] {}, factor {factor}", timestamps[previous], timestamps[next]);
                     for bone_animation in &clip.animations {
                         let bone = &mut skeleton.bones[bone_animation.bone];
-                        if bone_animation.timestamps.len() == 0 { return; }
-                        if next == 0 {
-                            match &bone_animation.keyframes {
-                                Keyframes::Translation(frames) => {
-                                    bone.set_translation(&frames[next]);
-                                },
-                                Keyframes::Rotation(frames) => {
-                                    bone.set_rotation(&frames[next]);
-                                },
-                                Keyframes::Scale(frames) => {
-                                    bone.set_scale(&frames[next]);
-                                },
-                                _ => {},
-                            };
-                        } else {
-                            match &bone_animation.keyframes {
-                                Keyframes::Translation(frames) => {
-                                    let previous_frame = &frames[previous];
-                                    let next_frame = &frames[next];
-                                    let interpolated = denormalize_f32x3(factor as f32, previous_frame, next_frame);
-                                    bone.set_translation(&interpolated);
-                                },
-                                Keyframes::Rotation(frames) => {
-                                    let previous_frame = &frames[previous];
-                                    let next_frame = &frames[next];
-                                    let interpolated = denormalize_f32x4(factor as f32, previous_frame, next_frame);
-                                    bone.set_rotation(&interpolated);
-                                },
-                                Keyframes::Scale(frames) => {
-                                    let previous_frame = &frames[previous];
-                                    let next_frame = &frames[next];
-                                    let interpolated = denormalize_f32x3(factor as f32, previous_frame, next_frame);
-                                    bone.set_scale(&interpolated);
-                                },
-                                _ => {},
-                            };
-                        }
+                        match &bone_animation.keyframes {
+                            Keyframes::Translation(frames) => {
+                                let previous_frame = &frames[previous];
+                                let next_frame = &frames[next];
+                                let interpolated = denormalize_f32x3(factor as f32, previous_frame, next_frame);
+                                bone.set_translation(&interpolated);
+                            },
+                            Keyframes::Rotation(frames) => {
+                                let previous_frame = &frames[previous];
+                                let next_frame = &frames[next];
+                                let interpolated = denormalize_f32x4(factor as f32, previous_frame, next_frame);
+                                bone.set_rotation(&interpolated);
+                            },
+                            Keyframes::Scale(frames) => {
+                                let previous_frame = &frames[previous];
+                                let next_frame = &frames[next];
+                                let interpolated = denormalize_f32x3(factor as f32, previous_frame, next_frame);
+                                bone.set_scale(&interpolated);
+                            },
+                            _ => {},
+                        };
                     }
                     skeleton.calculate_world_matrices();
                 }
