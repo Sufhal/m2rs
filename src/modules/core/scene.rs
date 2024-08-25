@@ -49,17 +49,13 @@ impl Scene {
             .map(|(_, object)| object)
             .collect::<Vec<_>>()
     }
-    pub fn get_childrens_of(&mut self, object_name: &str) -> Option<Vec<&mut Object>> {
+    pub fn get_childrens_of(&mut self, object_name: &str) -> Option<Vec<String>> {
         let object = self.objects
             .iter()
-            .filter(|(id, object)| object.name.is_some())
-            .find(|(id, object)| object.name.as_ref().unwrap().as_str() == object_name);
-        if let Some((id, object)) = &object {
-            let mut childrens = Vec::new();
-            for children in &object.childrens {
-                childrens.push(self.objects.get_mut(children)?);
-            }
-            Some(childrens)
+            .filter(|(_, object)| object.name.is_some())
+            .find(|(_, object)| object.name.as_ref().unwrap().as_str() == object_name);
+        if let Some((_, object)) = &object {
+            Some(object.childrens.clone())
         } else {
             None
         }

@@ -1,11 +1,11 @@
-use std::{borrow::BorrowMut, cell::{RefCell, RefMut}, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
-use cgmath::{One, Quaternion, Rad, Rotation3, SquareMatrix};
+use cgmath::{One, Quaternion, Rad, Rotation3};
 use wgpu::util::DeviceExt;
 
-use crate::modules::{pipelines::render_pipeline::{self, RenderBindGroupLayouts, RenderPipeline}, utils::id_gen::generate_unique_string};
+use crate::modules::{pipelines::render_pipeline::RenderBindGroupLayouts, utils::id_gen::generate_unique_string};
 
-use super::{instance::InstanceRaw, model::Model, skinning::{AnimationClip, AnimationMixer, Mat4x4, Skeleton, SkeletonInstance}};
+use super::{instance::InstanceRaw, model::Model, scene::Scene, skinning::{AnimationClip, AnimationMixer, Mat4x4, Skeleton, SkeletonInstance}};
 
 type Mat4 = cgmath::Matrix4<f32>;
 type Vec3 = cgmath::Vector3<f32>;
@@ -33,10 +33,10 @@ impl Object3D {
     pub fn new(device: &wgpu::Device, bind_group_layouts: &RenderBindGroupLayouts, model: Model) -> Self {
         let animation_clips = Rc::new(RefCell::new(model.animations.clone()));
         let skeleton = Rc::new(model.skeleton.clone());
-        let instances = vec![
-            Object3DInstance::new(skeleton.clone(), animation_clips.clone());
-            INITIAL_INSTANCES_COUNT
-        ];
+        let mut instances = Vec::new();
+        for _ in 0..INITIAL_INSTANCES_COUNT {
+            instances.push(Object3DInstance::new(skeleton.clone(), animation_clips.clone()));
+        }
         let instances_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instances.iter().map(|i| i.to_instance_raw()).collect::<Vec<_>>()),
@@ -140,6 +140,12 @@ impl Object3D {
         animation_clips.clear();
         animation_clips.extend(clips);
     }
+    pub fn add_animation(&mut self, clip: AnimationClip) {
+        let mut animation_clips = RefCell::borrow_mut(&self.animation_clips);
+        if animation_clips.iter().find(|c| c.name == clip.name).is_none() {
+            animation_clips.push(clip);
+        }
+    }
     pub fn get_instance(&mut self, id: &str) -> Option<&mut Object3DInstance> {
         self.instances.iter_mut().find(|i| &i.id == id)
     }
@@ -176,7 +182,7 @@ impl Object3D {
 #[derive(Clone, Debug)]
 pub struct Object3DInstance {
     pub id: String,
-    mixer: AnimationMixer,
+    pub mixer: AnimationMixer,
     skeleton: SkeletonInstance,
     position: Vec3,
     rotation: Quat,
@@ -223,6 +229,32 @@ impl Object3DInstance {
     }
     pub fn to_skeleton_raw(&self) -> Vec<Mat4x4> {
         self.skeleton.to_raw_transform()
+    }
+}
+
+pub trait TranslateWithScene {
+    fn translate(&mut self, x: f32, y: f32, z: f32, scene: &mut Scene);
+}
+
+pub trait Translate {
+    fn translate(&mut self, value: &[f32; 3]);
+}
+
+pub trait Rotate {
+    fn rotate(&mut self, value: &[f32; 4]);
+}
+
+pub trait Scale {
+    fn scale(&mut self, value: &[f32; 3]);
+}
+
+impl Translate for Object3DInstance {
+    fn translate(&mut self, value: &[f32; 3]) {
+        self.set_position(self.position + cgmath::Vector3 { 
+            x: value[0], 
+            y: value[1], 
+            z: value[2] 
+        });
     }
 }
 

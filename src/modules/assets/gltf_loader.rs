@@ -5,6 +5,19 @@ use wgpu::util::DeviceExt;
 use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, ModelVertex, TransformUniform}, object::Object, object_3d::Object3D, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
 use super::assets::load_binary;
 
+pub async fn load_animation(path: &str, name: &str) -> anyhow::Result<AnimationClip> {
+    let gltf_bin = load_binary(path).await?;
+    let gltf_cursor = Cursor::new(gltf_bin);
+    let gltf_reader = BufReader::new(gltf_cursor);
+    let model = gltf::Gltf::from_reader(gltf_reader)?;
+    let buffer_data = extract_buffer_data(&model).await?;
+    let (_, bones_map, skin_joints_map) = extract_skeleton(&model, &buffer_data);
+    let mut animations_clips = extract_animations(&model, &buffer_data, &bones_map, &skin_joints_map);
+    let mut clip = animations_clips.swap_remove(0);
+    clip.name = name.to_string();
+    Ok(clip)
+}
+
 pub async fn load_animations(
     file_name: &str,
     skeleton: &Skeleton
@@ -22,10 +35,10 @@ pub async fn load_animations(
         format!("{:#?}", skeleton)
     );
 
-    // let _ = std::fs::write(
-    //     std::path::Path::new(&format!("trash/skeleton_from_animation_{file_name}.txt")), 
-    //     format!("{:#?}", &attached_skeleton.clone().unwrap())
-    // );
+    let _ = std::fs::write(
+        std::path::Path::new(&format!("trash/skeleton_from_animation_{file_name}.txt")), 
+        format!("{:#?}", &attached_skeleton.clone())
+    );
 
     if let Some(attached_skeleton) = attached_skeleton {
 
@@ -281,6 +294,11 @@ fn extract_animations(
             }
         );
     }
+
+    let _ = std::fs::write(
+        std::path::Path::new("trash/last_animation_clips_loaded.txt"), 
+        format!("{:#?}", animation_clips)
+    );
 
     animation_clips
 }

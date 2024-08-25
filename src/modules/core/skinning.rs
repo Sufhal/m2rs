@@ -1,6 +1,6 @@
-use std::{borrow::Borrow, cell::RefCell, collections::HashMap, rc::Rc};
-use cgmath::{Decomposed, InnerSpace, Matrix4, Quaternion, SquareMatrix};
-use crate::modules::utils::functions::{denormalize_f32, denormalize_f32x3, denormalize_f32x4, normalize_f64};
+use std::{cell::RefCell, rc::Rc};
+use cgmath::{InnerSpace, Matrix4, Quaternion, SquareMatrix};
+use crate::modules::utils::functions::{clamp_f64, denormalize_f32x3, denormalize_f32x4, normalize_f64};
 
 #[repr(C, align(16))]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
@@ -149,7 +149,7 @@ struct TransitionState {
     animation_out: usize
 }
 #[derive(Clone, Debug)]
-enum MixerState {
+pub enum MixerState {
     None,
     Play(PlayState),
     Transition(TransitionState)
@@ -158,7 +158,7 @@ enum MixerState {
 #[derive(Clone, Debug)]
 pub struct AnimationMixer {
     clips: Rc<RefCell<Vec<AnimationClip>>>,
-    state: MixerState,
+    pub state: MixerState,
 }
 
 impl AnimationMixer {
@@ -179,11 +179,12 @@ impl AnimationMixer {
         let clips = RefCell::borrow(&self.clips);
         match &mut self.state {
             MixerState::Play(state) => {
-                if state.elapsed_time + delta_ms > (clips[state.animation].duration * 1000.0) as f64 {
-                    state.elapsed_time = 0.0; // loop
-                } else {
-                    state.elapsed_time += delta_ms;
-                }
+                state.elapsed_time += delta_ms;
+                // if state.elapsed_time + delta_ms > (clips[state.animation].duration * 1000.0) as f64 {
+                //     state.elapsed_time = 0.0; // loop
+                // } else {
+                //     state.elapsed_time += delta_ms;
+                // }
             },
             _ => ()
         };
@@ -201,7 +202,7 @@ impl AnimationMixer {
             };
         }
     }
-    pub fn apply_on_skeleton(&self, skeleton: &mut SkeletonInstance) {
+    pub fn apply_on_skeleton(&mut self, skeleton: &mut SkeletonInstance) {
         let clips = RefCell::borrow(&self.clips);
         match &self.state {
             MixerState::Play(state) => {
@@ -211,6 +212,7 @@ impl AnimationMixer {
                 if let Some(next) = timestamps.iter().position(|t| *t > elapsed_secs) {
                     let previous = next - 1;
                     let factor = normalize_f64(elapsed_secs, timestamps[previous], timestamps[next]);
+                    let factor = clamp_f64(factor, 0.0, 1.0);
                     for bone_animation in &clip.animations {
                         let bone = &mut skeleton.bones[bone_animation.bone];
                         match &bone_animation.keyframes {
@@ -237,6 +239,14 @@ impl AnimationMixer {
                     }
                     skeleton.calculate_world_matrices();
                 }
+                else {
+                    self.state = MixerState::None;
+                    // dbg!(&state.elapsed_time);
+                    // dbg!((clips[state.animation].duration * 1000.0) as f64);
+                }
+                // if state.elapsed_time > (clips[state.animation].duration * 1000.0) as f64 {
+                //     self.state = MixerState::None;
+                // }
             },
             _ => ()
         };

@@ -14,7 +14,8 @@ use crate::modules::core::texture;
 use crate::modules::camera::camera;
 use crate::modules::core::object::Object;
 use super::assets::gltf_loader::load_model_glb;
-use super::core::object_3d::Transform;
+use super::character::character::{Character, CharacterKind, NPCType};
+use super::core::object_3d::{Transform, TranslateWithScene};
 use super::core::scene;
 use super::pipelines::render_pipeline::RenderPipeline;
 use super::utils::time_factory::{Instant, TimeFactory};
@@ -38,6 +39,7 @@ pub struct State<'a> {
     // time: std::time::Instant,
     instant: Instant,
     time_factory: TimeFactory,
+    pub characters: Vec<Character>,
 }
 
 impl<'a> State<'a> {
@@ -149,6 +151,7 @@ impl<'a> State<'a> {
                     let instance = object_3d.request_instance(&device);
                     instance.add_x_position(0.5 + (i as f32 / 2.0));
                     instance.take();
+                    // dbg!(&instance.id);
                 }
                 
             }
@@ -177,7 +180,7 @@ impl<'a> State<'a> {
 
         let _ = fs::write(Path::new("trash/scene_objects.txt"), format!("{:#?}", &&scene.get_all_objects().iter().map(|object| (object.name.clone(), object.matrix)).collect::<Vec<_>>()));
 
-        Self {
+        let mut state = Self {
             surface,
             device,
             queue,
@@ -193,8 +196,21 @@ impl<'a> State<'a> {
             scene,
             // performance_tracker: PerformanceTracker::new(),
             instant: Instant::now(),
-            time_factory: TimeFactory::new()
-        }
+            time_factory: TimeFactory::new(),
+            characters: Vec::new()
+        };
+
+        let character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        // character.translate(0.0, -0.5, 0.0, &mut state.scene);
+        // dbg!(&character.objects);
+        state.characters.push(character);
+        let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        // dbg!(&character.objects);
+        // panic!();
+        character.translate(0.0, -0.5, 0.0, &mut state.scene);
+        state.characters.push(character);
+
+        state
     }
 
     pub fn window(&self) -> &Window {
@@ -285,6 +301,11 @@ impl<'a> State<'a> {
 
         let delta_ms = self.time_factory.get_delta();
         println!("delta {delta_ms}");
+
+        for character in &self.characters {
+            println!("update char");
+            character.update(&mut self.scene);
+        }
 
         for object in self.scene.get_all_objects() {
             if let Some(object_3d) = &mut object.object_3d {

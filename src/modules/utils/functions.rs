@@ -1,3 +1,5 @@
+use super::time_factory::TimeFactory;
+
 pub fn debug_using_trash_file(
     name: &str,
     content: String,
@@ -62,4 +64,15 @@ pub fn median_f64(data: &Vec<f64>) -> f64 {
     } else {
         data[data.len() / 2]
     }
+}
+
+/// Generates a random f64 based on timestamp.
+/// If you need different number on the same tick, this function wont help you.
+pub fn random_f64_timestamp(max: f64) -> f64 {
+    let timestamp = TimeFactory::from_epoch_to_now();
+    timestamp % max
+}
+
+pub fn random_u8(max: u8) -> u8 {
+    fastrand::u8(0..max)
 }
