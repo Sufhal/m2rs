@@ -1,0 +1,19 @@
+[
+  {
+    "name": "WAIT",
+    "motions": [
+      {
+        "file": "00",
+        "probability": 65
+      },
+      {
+        "file": "00_1",
+        "probability": 25
+      },
+      {
+        "file": "00_2",
+        "probability": 10
+      }
+    ]
+  }
+]

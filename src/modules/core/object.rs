@@ -42,9 +42,9 @@ impl Object {
     pub fn get_object_3d(&mut self) -> Option<&mut Object3D> {
         self.object_3d.as_mut()
     }
-    pub fn add_child(&mut self, mut child: Object) {
+    pub fn add_child(&mut self, child: &mut Object) {
         child.parent = Some(self.id.clone());
-        self.childrens.push(child.id);
+        self.childrens.push(child.id.clone());
     }
     pub fn compute_matrix_world(&mut self, parent_matrix: Option<[[f32; 4]; 4]>) {
         if let Some(parent_matrix) = parent_matrix {
@@ -55,4 +55,5 @@ impl Object {
             self.matrix_world = self.matrix;
         }
     }
+
 }

@@ -12,6 +12,7 @@ use crate::modules::assets::gltf_loader::load_animations;
 use crate::modules::core::skinning::Keyframes;
 use crate::modules::core::texture;
 use crate::modules::camera::camera;
+use crate::modules::core::object::Object;
 use super::assets::gltf_loader::load_model_glb;
 use super::core::object_3d::Transform;
 use super::core::scene;
@@ -21,18 +22,18 @@ use super::utils::time_factory::{Instant, TimeFactory};
 
 pub struct State<'a> {
     surface: wgpu::Surface<'a>,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+    pub device: wgpu::Device,
+    pub(crate) queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    new_render_pipeline: RenderPipeline,
+    pub(crate) new_render_pipeline: RenderPipeline,
     camera: camera::Camera,
     projection: camera::Projection,
     pub camera_controller: camera::CameraController,
     pub mouse_pressed: bool,
     depth_texture: texture::Texture,
     pub window: &'a Window,
-    scene: scene::Scene,
+    pub scene: scene::Scene,
     // performance_tracker: PerformanceTracker,
     // time: std::time::Instant,
     instant: Instant,
