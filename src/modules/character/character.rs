@@ -176,7 +176,6 @@ impl Character {
             if let Some(object) = scene.get_mut(object_id) {
                 if let Some(object3d) = &mut object.object_3d {
                     if let Some(instance) = object3d.get_instance(&instance_id) {
-                        println!("update mixer of instance {}", &instance.id);
                         self.motions.update_mixer(&mut instance.mixer);
                     }
                 }

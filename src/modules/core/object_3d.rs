@@ -56,20 +56,14 @@ impl Object3D {
         });
         let skeletons_bind_inverse_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Skeleton Bind Inverse Buffer"),
-            contents: bytemuck::cast_slice(&model.skeleton.to_raw()),
+            contents: bytemuck::cast_slice(&model.skeleton.to_raw_inverse_bind_matrices()),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
-        // let skeletons_bind_inverse_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //     label: Some("Skeleton Buffer"),
-        //     contents: bytemuck::cast_slice(&
-        //         if let Some(skeleton) = &model.skeleton {
-        //             skeleton.to_raw()
-        //         } else {
-        //             Vec::new()
-        //         }
-        //     ),
-        //     usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        // });
+        let skinning_informations_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Skinning Informations Buffer"),
+            contents: bytemuck::cast_slice(&[model.skeleton.to_raw_skinning_informations()]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
 
         let instances_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layouts.instances,
@@ -81,7 +75,11 @@ impl Object3D {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: skeletons_bind_inverse_buffer.as_entire_binding(),
-                }
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: skinning_informations_buffer.as_entire_binding(),
+                },
             ],
             label: None,
         });
@@ -132,7 +130,7 @@ impl Object3D {
         queue.write_buffer(
             &self.skeletons_bind_inverse_buffer,
             0,
-            bytemuck::cast_slice(&self.model.skeleton.to_raw()),
+            bytemuck::cast_slice(&self.model.skeleton.to_raw_inverse_bind_matrices()),
         );
     }
     pub fn set_animations(&mut self, clips: Vec<AnimationClip>) {
@@ -195,7 +193,7 @@ impl Object3DInstance {
     pub fn new(skeleton: Rc<Skeleton>, animation_clips: Rc<RefCell<Vec<AnimationClip>>>) -> Object3DInstance {
         Object3DInstance {
             id: generate_unique_string(),
-            mixer: AnimationMixer::new(animation_clips, true),
+            mixer: AnimationMixer::new(animation_clips, false),
             skeleton: skeleton.create_instance(),
             position: cgmath::Vector3::new(0.0, 0.0, 0.0),
             rotation: cgmath::Quaternion::one(),

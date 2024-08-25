@@ -29,6 +29,11 @@ struct Mat4x4 {
 @group(2) @binding(0) var<storage, read> bones_matrices: array<Mat4x4>;
 @group(2) @binding(1) var<storage, read> bones_inverse_bind_matrices: array<Mat4x4>;
 
+struct SkinningInformations {
+    bones_count: u32
+}
+@group(2) @binding(2) var<uniform> skinning_informations: SkinningInformations;
+
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -71,10 +76,10 @@ fn vs_main(
     out.tex_coords = model.tex_coords;
     out.world_normal = normal_matrix * model.normal;
 
-    let joint0 = bones_matrices[model.joints[0]].data * bones_inverse_bind_matrices[model.joints[0]].data;
-    let joint1 = bones_matrices[model.joints[1]].data * bones_inverse_bind_matrices[model.joints[1]].data;
-    let joint2 = bones_matrices[model.joints[2]].data * bones_inverse_bind_matrices[model.joints[2]].data;
-    let joint3 = bones_matrices[model.joints[3]].data * bones_inverse_bind_matrices[model.joints[3]].data;
+    let joint0 = bones_matrices[(instance_index * skinning_informations.bones_count) + model.joints[0]].data * bones_inverse_bind_matrices[model.joints[0]].data;
+    let joint1 = bones_matrices[(instance_index * skinning_informations.bones_count) + model.joints[1]].data * bones_inverse_bind_matrices[model.joints[1]].data;
+    let joint2 = bones_matrices[(instance_index * skinning_informations.bones_count) + model.joints[2]].data * bones_inverse_bind_matrices[model.joints[2]].data;
+    let joint3 = bones_matrices[(instance_index * skinning_informations.bones_count) + model.joints[3]].data * bones_inverse_bind_matrices[model.joints[3]].data;
     let skin_matrix = 
         joint0 * model.weights[0] +
         joint1 * model.weights[1] +
@@ -87,6 +92,7 @@ fn vs_main(
     out.world_position = world_position.xyz;
     out.clip_position = camera.view_proj * world_position;
     out.position = model.position;
+    out.color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
     return out;
 }
 
@@ -141,6 +147,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         return mix(final_color, vec4<f32>(1.0, 0.0, 0.0, 1.0), wireframe);
     }
 
-    return vec4<f32>(result, object_color.a);
+    return vec4<f32>(result * in.color.xyz, object_color.a);
 }
  

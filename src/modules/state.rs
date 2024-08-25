@@ -127,7 +127,7 @@ impl<'a> State<'a> {
         // dbg!(&shaman_animations);
 
         let model_objects = load_model_glb(
-            "shaman_cheonryun.glb", 
+            "pack/pc/shaman_m/shaman_cheonryun.glb", 
             // "fox.glb", 
             &device, 
             &queue, 
@@ -303,7 +303,6 @@ impl<'a> State<'a> {
         println!("delta {delta_ms}");
 
         for character in &self.characters {
-            println!("update char");
             character.update(&mut self.scene);
         }
 

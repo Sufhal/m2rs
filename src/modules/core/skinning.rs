@@ -6,6 +6,12 @@ use crate::modules::utils::functions::{clamp_f64, denormalize_f32x3, denormalize
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
 pub struct Mat4x4([[f32; 4]; 4]);
 
+#[repr(C)]
+#[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
+pub struct SkinningInformations {
+    bones_count: u32,
+}
+
 /// ### /!\ World matrices in Bones are in the Skeleton context, not in the Scene context
 #[derive(Clone, Debug)]
 pub struct Bone {
@@ -69,8 +75,14 @@ impl Skeleton {
     }
 
     /// Returns each bones inversed bind matrix
-    pub fn to_raw(&self) -> Vec<Mat4x4> {
+    pub fn to_raw_inverse_bind_matrices(&self) -> Vec<Mat4x4> {
         self.bones.iter().map(|bone| Mat4x4(bone.inverse_bind_matrix)).collect::<Vec<_>>()
+    }
+
+    pub fn to_raw_skinning_informations(&self) -> SkinningInformations {
+        SkinningInformations {
+            bones_count: self.bones.len() as u32
+        }
     }
 
 }

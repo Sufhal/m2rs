@@ -27,9 +27,7 @@ impl MotionsGroups {
         Ok(motions_group)
     }
     pub fn update_mixer(&self, mixer: &mut AnimationMixer) {
-        dbg!(&mixer.state);
         if let MixerState::None = mixer.state {
-            // println!("picking motion");
             let motion = self.groups[0].pick_motion();
             mixer.play(&motion.file);
         }
@@ -40,11 +38,9 @@ impl MotionsGroup {
     fn pick_motion(&self) -> &Motion {
         let mut cumulative_probability = 0u8;
         let random = random_u8(100);
-        dbg!(&random);
         for motion in &self.motions {
             cumulative_probability += motion.probability;
             if random < cumulative_probability {
-                println!("selected motion is {}", motion.file);
                 return motion;
             }
         }
