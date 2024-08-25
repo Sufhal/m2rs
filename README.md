@@ -19,9 +19,9 @@ M2RS is an experimental projet which targets to entierly rewrite the game [Metin
   - [x] animation clip
 - `AnimationMixer`
   - [x] frames interpolation
-  - [ ] blend two clips when playing a new clip
+  - [x] blend two clips when playing a new clip
 - `Character`
-  - [ ] allow characters to control it's own animation mixer (pc/npc basically have more than one "wait" animation, we must play them randomly)
+  - [x] allow characters to control it's own animation mixer (pc/npc basically have more than one "wait" animation, we must play them randomly)
   - [ ] dynamic `Object3DInstance` loading using (main) character position
   - [ ] create character controller
   - [ ] basic collisions (using 2d algorithms for performance reasons)
