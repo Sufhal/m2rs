@@ -36,14 +36,19 @@ struct SkinningInformations {
 
 
 struct VertexInput {
+    // @location(0) position: vec3<f32>,
+    // @location(1) _pad1: f32,
+    // @location(2) tex_coords: vec2<f32>,
+    // @location(3) _pad2: vec2<f32>,
+    // @location(4) normal: vec3<f32>,
+    // @location(5) _pad3: f32,
+    // @location(6) weights: vec4<f32>,
+    // @location(7) joints: vec4<u32>,
     @location(0) position: vec3<f32>,
-    @location(1) _pad1: f32,
-    @location(2) tex_coords: vec2<f32>,
-    @location(3) _pad2: vec2<f32>,
-    @location(4) normal: vec3<f32>,
-    @location(5) _pad3: f32,
-    @location(6) weights: vec4<f32>,
-    @location(7) joints: vec4<u32>,
+    @location(1) tex_coords: vec2<f32>,
+    @location(2) normal: vec3<f32>,
+    @location(3) weights: vec4<f32>,
+    @location(4) joints: vec4<u32>,
 }
 
 struct VertexOutput {

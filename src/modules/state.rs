@@ -211,7 +211,7 @@ impl<'a> State<'a> {
         character.translate(0.0, -0.5, 0.0, &mut state.scene);
         state.characters.push(character);
 
-        let terrain = Terrain::load("c1").await;
+        let terrain = Terrain::load("c1", &state).await;
         // panic!();
         state
     }

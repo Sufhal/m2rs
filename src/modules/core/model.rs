@@ -13,11 +13,8 @@ pub trait Vertex {
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ModelVertex {
     pub position: [f32; 3],     // 12 octets
-    pub _pad1: f32,             // 4 octets de padding pour alignement
     pub tex_coords: [f32; 2],   // 8 octets
-    pub _pad2: [f32; 2],        // 8 octets de padding pour alignement
     pub normal: [f32; 3],       // 12 octets
-    pub _pad3: f32,             // 4 octets de padding pour alignement
     pub weights: [f32; 4],      // 16 octets
     pub joints: [u32; 4],       // 16 octets
 }
@@ -32,11 +29,8 @@ impl ModelVertex {
     ) -> Self {
         ModelVertex {
             position,
-            _pad1: 0.0,
             tex_coords,
-            _pad2: [0.0, 0.0],
             normal,
-            _pad3: 0.0,
             weights,
             joints,
         }
@@ -50,81 +44,81 @@ impl Vertex for ModelVertex {
             array_stride: mem::size_of::<ModelVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
-                // position
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                 // pad1
-                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32,
-                },
-                // tex_coords
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
-                    shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x2,
-                },
-                // pad2
-                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
-                    shader_location: 3,
-                    format: wgpu::VertexFormat::Float32x2,
-                },
-                // normal
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
-                    shader_location: 4,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                // pad3
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 11]>() as wgpu::BufferAddress,
-                    shader_location: 5,
-                    format: wgpu::VertexFormat::Float32,
-                },
-                // weights
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
-                    shader_location: 6,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                // joints
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
-                    shader_location: 7,
-                    format: wgpu::VertexFormat::Uint32x4,
-                },
-
-               
+                // // position
                 // wgpu::VertexAttribute {
                 //     offset: 0,
                 //     shader_location: 0,
                 //     format: wgpu::VertexFormat::Float32x3,
                 // },
-                // wgpu::VertexAttribute {
+                //  // pad1
+                //  wgpu::VertexAttribute {
                 //     offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                 //     shader_location: 1,
+                //     format: wgpu::VertexFormat::Float32,
+                // },
+                // // tex_coords
+                // wgpu::VertexAttribute {
+                //     offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                //     shader_location: 2,
                 //     format: wgpu::VertexFormat::Float32x2,
                 // },
-                // wgpu::VertexAttribute {
-                //     offset: mem::size_of::<[f32; 5]>() as wgpu::BufferAddress,
-                //     shader_location: 2,
-                //     format: wgpu::VertexFormat::Float32x3,
+                // // pad2
+                //  wgpu::VertexAttribute {
+                //     offset: mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                //     shader_location: 3,
+                //     format: wgpu::VertexFormat::Float32x2,
                 // },
+                // // normal
                 // wgpu::VertexAttribute {
                 //     offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
-                //     shader_location: 3,
-                //     format: wgpu::VertexFormat::Float32x4,
+                //     shader_location: 4,
+                //     format: wgpu::VertexFormat::Float32x3,
                 // },
+                // // pad3
+                // wgpu::VertexAttribute {
+                //     offset: mem::size_of::<[f32; 11]>() as wgpu::BufferAddress,
+                //     shader_location: 5,
+                //     format: wgpu::VertexFormat::Float32,
+                // },
+                // // weights
                 // wgpu::VertexAttribute {
                 //     offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
-                //     shader_location: 4,
-                //     format: wgpu::VertexFormat::Uint32x2,
+                //     shader_location: 6,
+                //     format: wgpu::VertexFormat::Float32x4,
                 // },
+                // // joints
+                // wgpu::VertexAttribute {
+                //     offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
+                //     shader_location: 7,
+                //     format: wgpu::VertexFormat::Uint32x4,
+                // },
+
+               
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 5]>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+                    shader_location: 3,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
+                    shader_location: 4,
+                    format: wgpu::VertexFormat::Uint32x4,
+                },
             ],
         }
     }

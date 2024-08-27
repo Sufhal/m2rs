@@ -1,4 +1,4 @@
-use crate::modules::{assets::assets::load_binary, geometry::plane::Plane};
+use crate::modules::{assets::assets::{load_binary, load_material}, core::model::Model, geometry::{buffer::ToMesh, plane::Plane}, state::State};
 
 use super::setting::Setting;
 
@@ -8,7 +8,12 @@ pub struct Chunk {
 
 impl Chunk {
     /// name is something like "000000", "003004"
-    pub async fn new(terrain_path: &str, name: &str, setting: &Setting) -> anyhow::Result<Self> {
+    pub async fn new(
+        terrain_path: &str, 
+        name: &str, 
+        setting: &Setting,
+        state: &State<'_>
+    ) -> anyhow::Result<Self> {
         let height = load_binary(&format!("{terrain_path}/{name}/height.raw")).await?;
         let u16_height_raw = height
             .chunks_exact(2)
@@ -30,6 +35,7 @@ impl Chunk {
         let size = segments as f32 * 2.0;
         let mut geometry = Plane::new(size, size, segments, segments);
         geometry.set_vertices_height(vertices_height);
+        let mesh = geometry.to_mesh(&state.device, name.to_string());
         Ok(Self {
 
         })
