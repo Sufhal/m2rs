@@ -102,7 +102,7 @@ pub async fn load_model(
                 let vertices = (0..m.mesh.positions.len() / 3)
                 .map(|i| {
                     if m.mesh.normals.is_empty(){
-                        model::ModelVertex::new(
+                        model::SkinnedVertex::new(
                             [
                                 m.mesh.positions[i * 3],
                                 m.mesh.positions[i * 3 + 1],
@@ -114,7 +114,7 @@ pub async fn load_model(
                             [0.0, 0.0, 0.0, 0.0],
                         )
                     }else{
-                        model::ModelVertex::new(
+                        model::SkinnedVertex::new(
                             [
                                 m.mesh.positions[i * 3],
                                 m.mesh.positions[i * 3 + 1],

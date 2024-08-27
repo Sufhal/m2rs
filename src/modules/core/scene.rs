@@ -2,6 +2,7 @@ use std::collections::{HashMap, VecDeque};
 use cgmath::SquareMatrix;
 use wgpu::core::device::queue;
 
+use crate::modules::pipelines::common_pipeline::CommonPipeline;
 use crate::modules::pipelines::render_pipeline::RenderPipeline;
 
 use super::object::{self, Object};
@@ -100,6 +101,7 @@ pub trait DrawScene<'a> {
         queue: &wgpu::Queue,
         scene: &'a mut Scene,
         render_pipeline: &'a RenderPipeline,
+        common_pipeline: &'a CommonPipeline,
     );
 }
 
@@ -112,6 +114,7 @@ where
         queue: &wgpu::Queue,
         scene: &'b mut Scene,
         render_pipeline: &'a RenderPipeline,
+        common_pipeline: &'a CommonPipeline,
     ) {
         for object in scene.get_all_objects() {
             if let Some(object_3d) = object.get_object_3d() {
@@ -121,7 +124,8 @@ where
                     &object_3d.model, 
                     &object_3d.instances_bind_group,
                     0..object_3d.get_taken_instances_count() as u32, 
-                    render_pipeline
+                    render_pipeline,
+                    common_pipeline
                 );
             }
         }

@@ -1,32 +1,26 @@
-use crate::modules::core::{instance::InstanceRaw, model::{SkinnedVertex, Vertex}};
-use super::common_pipeline::CommonPipeline;
+use crate::modules::core::model::{MeshVertex, Vertex};
 
-pub struct RenderBindGroupLayouts {
+pub struct TerrainBindGroupLayouts {
     pub mesh: wgpu::BindGroupLayout,
-    pub instances: wgpu::BindGroupLayout,
 }
 
-pub struct RenderPipeline {
+pub struct TerrainPipeline {
     pub pipeline: wgpu::RenderPipeline,
     pub pipeline_layout: wgpu::PipelineLayout,
-    pub bind_group_layouts: RenderBindGroupLayouts,
+    pub bind_group_layouts: TerrainBindGroupLayouts,
 }
 
-impl RenderPipeline {
+impl TerrainPipeline {
     pub fn new(
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
         depth_format: Option<wgpu::TextureFormat>,
-        common_pipeline: &CommonPipeline
     ) -> Self {
         let mesh = Self::create_mesh_layout(device);
-        let instances = Self::create_instances_layout(device);
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
+            label: Some("Terrain Pipeline Layout"),
             bind_group_layouts: &[
-                &common_pipeline.global_bind_group_layout,
                 &mesh,
-                &instances
             ],
             push_constant_ranges: &[],
         });
@@ -34,49 +28,8 @@ impl RenderPipeline {
         Self {
             pipeline,
             pipeline_layout,
-            bind_group_layouts: RenderBindGroupLayouts { mesh, instances },
+            bind_group_layouts: TerrainBindGroupLayouts { mesh },
         }
-    }
-
-    fn create_instances_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                // skeletons matrices
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                // skeletons bind inverse matrices
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                // skinning informations
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },  
-            ],
-            label: Some("instances_bind_group_layout"),
-        })
     }
 
     fn create_mesh_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
@@ -124,21 +77,20 @@ impl RenderPipeline {
     ) -> wgpu::RenderPipeline {
         let shader = device.create_shader_module(
             wgpu::ShaderModuleDescriptor {
-                label: Some("Normal Shader"),
+                label: Some("Terrain Shader"),
                 source: wgpu::ShaderSource::Wgsl(
-                    include_str!("../../shaders/shader_v2.wgsl").into()
+                    include_str!("../../shaders/terrain.wgsl").into()
                 ),
             }
         );
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("New Render Pipeline"),
+            label: Some("Terrain Pipeline"),
             layout: Some(layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[
-                    SkinnedVertex::desc(), 
-                    InstanceRaw::desc()
+                    MeshVertex::desc(), 
                 ],
             },
             fragment: Some(wgpu::FragmentState {

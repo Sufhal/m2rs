@@ -9,14 +9,13 @@ use winit::{
     window::Window,
 };
 use crate::modules::assets::gltf_loader::load_animations;
-use crate::modules::core::skinning::Keyframes;
 use crate::modules::core::texture;
 use crate::modules::camera::camera;
-use crate::modules::core::object::Object;
 use super::assets::gltf_loader::load_model_glb;
 use super::character::character::{Character, CharacterKind, NPCType};
 use super::core::object_3d::{Transform, TranslateWithScene};
 use super::core::scene;
+use super::pipelines::common_pipeline::CommonPipeline;
 use super::pipelines::render_pipeline::RenderPipeline;
 use super::terrain::terrain::Terrain;
 use super::utils::time_factory::{Instant, TimeFactory};
@@ -28,6 +27,7 @@ pub struct State<'a> {
     pub(crate) queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
+    pub common_pipeline: CommonPipeline,
     pub(crate) new_render_pipeline: RenderPipeline,
     camera: camera::Camera,
     projection: camera::Projection,
@@ -117,10 +117,12 @@ impl<'a> State<'a> {
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
         
+        let common_pipeline = CommonPipeline::new(&device);
         let new_render_pipeline = RenderPipeline::new(
             &device, 
             &config, 
-            Some(texture::Texture::DEPTH_FORMAT)
+            Some(texture::Texture::DEPTH_FORMAT),
+            &common_pipeline
         );
 
         let mut scene = scene::Scene::new();
@@ -187,6 +189,7 @@ impl<'a> State<'a> {
             queue,
             config,
             size,
+            common_pipeline,
             new_render_pipeline,
             camera,
             projection,
@@ -272,17 +275,17 @@ impl<'a> State<'a> {
         // self.performance_tracker.call_start("update");
         // self.performance_tracker.call_start("update_camera");
         self.camera_controller.update_camera(&mut self.camera, dt);
-        self.new_render_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection);
+        self.common_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(
-            &self.new_render_pipeline.buffers.camera,
+            &self.common_pipeline.buffers.camera,
             0,
-            bytemuck::cast_slice(&[self.new_render_pipeline.uniforms.camera]),
+            bytemuck::cast_slice(&[self.common_pipeline.uniforms.camera]),
         );
         // self.performance_tracker.call_end("update_camera");
         // self.performance_tracker.call_start("update_light");
-        let old_position: cgmath::Vector3<_> = self.new_render_pipeline.uniforms.light.position.into();
-        self.new_render_pipeline.uniforms.light.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
-        self.queue.write_buffer(&self.new_render_pipeline.buffers.light, 0, bytemuck::cast_slice(&[self.new_render_pipeline.uniforms.light]));
+        let old_position: cgmath::Vector3<_> = self.common_pipeline.uniforms.light.position.into();
+        self.common_pipeline.uniforms.light.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
+        self.queue.write_buffer(&self.common_pipeline.buffers.light, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.light]));
         // self.performance_tracker.call_end("update_light");
 
         // self.camera_uniform.update_view_proj(&self.camera, &self.projection);
@@ -370,7 +373,8 @@ impl<'a> State<'a> {
             render_pass.draw_scene(
                 &self.queue,
                 &mut self.scene, 
-                &self.new_render_pipeline
+                &self.new_render_pipeline,
+                &self.common_pipeline
             );
             // self.performance_tracker.call_end("render_draw_scene");
         }

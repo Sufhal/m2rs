@@ -1,6 +1,6 @@
 use cgmath::SquareMatrix;
 
-use crate::modules::{core::texture, pipelines::render_pipeline::RenderPipeline};
+use crate::modules::{core::texture, pipelines::{common_pipeline::{self, CommonPipeline}, render_pipeline::RenderPipeline}};
 use std::ops::Range;
 
 use super::skinning::{AnimationClip, Skeleton};
@@ -11,7 +11,7 @@ pub trait Vertex {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct ModelVertex {
+pub struct SkinnedVertex {
     pub position: [f32; 3],     // 12 octets
     pub tex_coords: [f32; 2],   // 8 octets
     pub normal: [f32; 3],       // 12 octets
@@ -19,7 +19,7 @@ pub struct ModelVertex {
     pub joints: [u32; 4],       // 16 octets
 }
 
-impl ModelVertex {
+impl SkinnedVertex {
     pub fn new(
         position: [f32; 3], 
         tex_coords: [f32; 2], 
@@ -27,7 +27,7 @@ impl ModelVertex {
         joints: [u32; 4], 
         weights: [f32; 4]
     ) -> Self {
-        ModelVertex {
+        SkinnedVertex {
             position,
             tex_coords,
             normal,
@@ -37,63 +37,13 @@ impl ModelVertex {
     }
 }
 
-impl Vertex for ModelVertex {
+impl Vertex for SkinnedVertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<ModelVertex>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<SkinnedVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
-                // // position
-                // wgpu::VertexAttribute {
-                //     offset: 0,
-                //     shader_location: 0,
-                //     format: wgpu::VertexFormat::Float32x3,
-                // },
-                //  // pad1
-                //  wgpu::VertexAttribute {
-                //     offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                //     shader_location: 1,
-                //     format: wgpu::VertexFormat::Float32,
-                // },
-                // // tex_coords
-                // wgpu::VertexAttribute {
-                //     offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
-                //     shader_location: 2,
-                //     format: wgpu::VertexFormat::Float32x2,
-                // },
-                // // pad2
-                //  wgpu::VertexAttribute {
-                //     offset: mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
-                //     shader_location: 3,
-                //     format: wgpu::VertexFormat::Float32x2,
-                // },
-                // // normal
-                // wgpu::VertexAttribute {
-                //     offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
-                //     shader_location: 4,
-                //     format: wgpu::VertexFormat::Float32x3,
-                // },
-                // // pad3
-                // wgpu::VertexAttribute {
-                //     offset: mem::size_of::<[f32; 11]>() as wgpu::BufferAddress,
-                //     shader_location: 5,
-                //     format: wgpu::VertexFormat::Float32,
-                // },
-                // // weights
-                // wgpu::VertexAttribute {
-                //     offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
-                //     shader_location: 6,
-                //     format: wgpu::VertexFormat::Float32x4,
-                // },
-                // // joints
-                // wgpu::VertexAttribute {
-                //     offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
-                //     shader_location: 7,
-                //     format: wgpu::VertexFormat::Uint32x4,
-                // },
-
-               
                 wgpu::VertexAttribute {
                     offset: 0,
                     shader_location: 0,
@@ -119,6 +69,55 @@ impl Vertex for ModelVertex {
                     shader_location: 4,
                     format: wgpu::VertexFormat::Uint32x4,
                 },
+            ],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct MeshVertex {
+    pub position: [f32; 3],     
+    pub tex_coords: [f32; 2],  
+    pub normal: [f32; 3],
+}
+
+impl MeshVertex {
+    pub fn new(
+        position: [f32; 3], 
+        tex_coords: [f32; 2], 
+        normal: [f32; 3], 
+    ) -> Self {
+        MeshVertex {
+            position,
+            tex_coords,
+            normal,
+        }
+    }
+}
+
+impl Vertex for MeshVertex {
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        use std::mem;
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<MeshVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 5]>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x3,
+                }
             ],
         }
     }
@@ -210,6 +209,7 @@ pub trait DrawModel<'a> {
         mesh_bind_group: &'a wgpu::BindGroup,
         instances_bind_group: &'a wgpu::BindGroup,
         render_pipeline: &'a RenderPipeline,
+        common_pipeline: &'a CommonPipeline,
     );
     fn draw_mesh_instanced(
         &mut self,
@@ -218,6 +218,7 @@ pub trait DrawModel<'a> {
         instances_bind_group: &'a wgpu::BindGroup,
         instances: Range<u32>,
         render_pipeline: &'a RenderPipeline,
+        common_pipeline: &'a CommonPipeline,
     );
 
     fn draw_model(
@@ -225,6 +226,7 @@ pub trait DrawModel<'a> {
         model: &'a Model,
         instances_bind_group: &'a wgpu::BindGroup,
         render_pipeline: &'a RenderPipeline,
+        common_pipeline: &'a CommonPipeline,
     );
     fn draw_model_instanced(
         &mut self,
@@ -232,6 +234,7 @@ pub trait DrawModel<'a> {
         instances_bind_group: &'a wgpu::BindGroup,
         instances: Range<u32>,
         render_pipeline: &'a RenderPipeline,
+        common_pipeline: &'a CommonPipeline,
     );
 }
 
@@ -245,8 +248,9 @@ where
         mesh_bind_group: &'b wgpu::BindGroup,
         instances_bind_group: &'b wgpu::BindGroup,
         render_pipeline: &'a RenderPipeline,
+        common_pipeline: &'a CommonPipeline,
     ) {
-        self.draw_mesh_instanced(mesh, mesh_bind_group, instances_bind_group, 0..1, render_pipeline);
+        self.draw_mesh_instanced(mesh, mesh_bind_group, instances_bind_group, 0..1, render_pipeline, common_pipeline);
     }
 
     fn draw_mesh_instanced(
@@ -256,10 +260,11 @@ where
         instances_bind_group: &'b wgpu::BindGroup,
         instances: Range<u32>,
         render_pipeline: &'a RenderPipeline,
+        common_pipeline: &'a CommonPipeline,
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        self.set_bind_group(0, &render_pipeline.global_bind_group, &[]);
+        self.set_bind_group(0, &common_pipeline.global_bind_group, &[]);
         self.set_bind_group(1, &mesh_bind_group, &[]);
         self.set_bind_group(2, &instances_bind_group, &[]);
         // self.set_bind_group(3, &mesh.transform_bind_group, &[]);
@@ -271,8 +276,9 @@ where
         model: &'b Model,
         instances_bind_group: &'b wgpu::BindGroup,
         render_pipeline: &'a RenderPipeline,
+        common_pipeline: &'a CommonPipeline,
     ) {
-        self.draw_model_instanced(model, instances_bind_group, 0..1, render_pipeline);
+        self.draw_model_instanced(model, instances_bind_group, 0..1, render_pipeline, common_pipeline);
     }
 
     fn draw_model_instanced(
@@ -281,11 +287,12 @@ where
         instances_bind_group: &'b wgpu::BindGroup,
         instances: Range<u32>,
         render_pipeline: &'a RenderPipeline,
+        common_pipeline: &'a CommonPipeline,
     ) {
         for i in 0..model.meshes.len() {
             let mesh = &model.meshes[i];
             let mesh_bind_group = &model.meshes_bind_groups[i];
-            self.draw_mesh_instanced(mesh, mesh_bind_group, instances_bind_group, instances.clone(), render_pipeline);
+            self.draw_mesh_instanced(mesh, mesh_bind_group, instances_bind_group, instances.clone(), render_pipeline, common_pipeline);
         }
     }
 }
