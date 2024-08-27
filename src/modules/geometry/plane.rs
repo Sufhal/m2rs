@@ -1,13 +1,11 @@
 
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
-
-use crate::modules::core::model::{Mesh, SkinnedVertex, TransformUniform};
-
+use crate::modules::core::model::{Mesh, MeshVertex, TransformUniform};
 use super::buffer::ToMesh;
 
 pub struct Plane {
-    vertices: Vec<SkinnedVertex>,
+    vertices: Vec<MeshVertex>,
     indices: Vec<u32>,
 }
 
@@ -31,12 +29,10 @@ impl Plane {
                     y as f32 / segments_y as f32,
                 ];
 
-                vertices.push(SkinnedVertex::new(
+                vertices.push(MeshVertex::new(
                     position,
                     tex_coords,
                     normal,
-                    [0,0,0,0],
-                    [0.0, 0.0, 0.0, 0.0],
                 ));
             }
         }

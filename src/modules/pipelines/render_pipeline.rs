@@ -1,4 +1,4 @@
-use crate::modules::core::{instance::InstanceRaw, model::{SkinnedVertex, Vertex}};
+use crate::modules::core::{instance::InstanceRaw, model::{SkinnedMeshVertex, Vertex}};
 use super::common_pipeline::CommonPipeline;
 
 pub struct RenderBindGroupLayouts {
@@ -137,7 +137,7 @@ impl RenderPipeline {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[
-                    SkinnedVertex::desc(), 
+                    SkinnedMeshVertex::desc(), 
                     InstanceRaw::desc()
                 ],
             },

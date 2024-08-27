@@ -102,7 +102,7 @@ pub async fn load_model(
                 let vertices = (0..m.mesh.positions.len() / 3)
                 .map(|i| {
                     if m.mesh.normals.is_empty(){
-                        model::SkinnedVertex::new(
+                        model::SkinnedMeshVertex::new(
                             [
                                 m.mesh.positions[i * 3],
                                 m.mesh.positions[i * 3 + 1],
@@ -114,7 +114,7 @@ pub async fn load_model(
                             [0.0, 0.0, 0.0, 0.0],
                         )
                     }else{
-                        model::SkinnedVertex::new(
+                        model::SkinnedMeshVertex::new(
                             [
                                 m.mesh.positions[i * 3],
                                 m.mesh.positions[i * 3 + 1],
@@ -160,7 +160,7 @@ pub async fn load_model(
         })
         .collect::<Vec<_>>();
 
-    let model = model::Model { meshes, skeleton: todo!(), animations: todo!(), materials, meshes_bind_groups: Vec::new() };
+    let model = model::SkinnedModel { meshes, skeleton: todo!(), animations: todo!(), materials, meshes_bind_groups: Vec::new() };
     let mut object = Object::new();
     object.set_object_3d(Object3D::new(device, bind_group_layouts, model));
     Ok(object)

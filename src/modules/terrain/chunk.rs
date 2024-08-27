@@ -1,4 +1,4 @@
-use crate::modules::{assets::assets::{load_binary, load_material}, core::model::Model, geometry::{buffer::ToMesh, plane::Plane}, state::State};
+use crate::modules::{assets::assets::{load_binary, load_material}, core::model::SkinnedModel, geometry::{buffer::ToMesh, plane::Plane}, state::State};
 
 use super::setting::Setting;
 

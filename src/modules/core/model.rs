@@ -11,7 +11,7 @@ pub trait Vertex {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct SkinnedVertex {
+pub struct SkinnedMeshVertex {
     pub position: [f32; 3],     // 12 octets
     pub tex_coords: [f32; 2],   // 8 octets
     pub normal: [f32; 3],       // 12 octets
@@ -19,7 +19,7 @@ pub struct SkinnedVertex {
     pub joints: [u32; 4],       // 16 octets
 }
 
-impl SkinnedVertex {
+impl SkinnedMeshVertex {
     pub fn new(
         position: [f32; 3], 
         tex_coords: [f32; 2], 
@@ -27,7 +27,7 @@ impl SkinnedVertex {
         joints: [u32; 4], 
         weights: [f32; 4]
     ) -> Self {
-        SkinnedVertex {
+        SkinnedMeshVertex {
             position,
             tex_coords,
             normal,
@@ -37,11 +37,11 @@ impl SkinnedVertex {
     }
 }
 
-impl Vertex for SkinnedVertex {
+impl Vertex for SkinnedMeshVertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<SkinnedVertex>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<SkinnedMeshVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
@@ -124,7 +124,7 @@ impl Vertex for MeshVertex {
 }
 
 #[derive(Debug)]
-pub struct Model {
+pub struct SkinnedModel {
     pub meshes: Vec<Mesh>,
     pub skeleton: Skeleton,
     pub animations: Vec<AnimationClip>,
@@ -132,7 +132,7 @@ pub struct Model {
     pub meshes_bind_groups: Vec<wgpu::BindGroup>,
 }
 
-impl Model {
+impl SkinnedModel {
     /// Creates one BindGroup per Mesh
     pub fn create_bind_groups(&mut self, device: &wgpu::Device, render_pipeline: &RenderPipeline) {
         self.meshes_bind_groups.clear();
@@ -223,14 +223,14 @@ pub trait DrawModel<'a> {
 
     fn draw_model(
         &mut self,
-        model: &'a Model,
+        model: &'a SkinnedModel,
         instances_bind_group: &'a wgpu::BindGroup,
         render_pipeline: &'a RenderPipeline,
         common_pipeline: &'a CommonPipeline,
     );
     fn draw_model_instanced(
         &mut self,
-        model: &'a Model,
+        model: &'a SkinnedModel,
         instances_bind_group: &'a wgpu::BindGroup,
         instances: Range<u32>,
         render_pipeline: &'a RenderPipeline,
@@ -273,7 +273,7 @@ where
 
     fn draw_model(
         &mut self,
-        model: &'b Model,
+        model: &'b SkinnedModel,
         instances_bind_group: &'b wgpu::BindGroup,
         render_pipeline: &'a RenderPipeline,
         common_pipeline: &'a CommonPipeline,
@@ -283,7 +283,7 @@ where
 
     fn draw_model_instanced(
         &mut self,
-        model: &'b Model,
+        model: &'b SkinnedModel,
         instances_bind_group: &'b wgpu::BindGroup,
         instances: Range<u32>,
         render_pipeline: &'a RenderPipeline,
@@ -315,13 +315,13 @@ pub trait DrawLight<'a> {
 
     fn draw_light_model(
         &mut self,
-        model: &'a Model,
+        model: &'a SkinnedModel,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
     );
     fn draw_light_model_instanced(
         &mut self,
-        model: &'a Model,
+        model: &'a SkinnedModel,
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
@@ -357,7 +357,7 @@ where
 
     fn draw_light_model(
         &mut self,
-        model: &'b Model,
+        model: &'b SkinnedModel,
         camera_bind_group: &'b wgpu::BindGroup,
         light_bind_group: &'b wgpu::BindGroup,
     ) {
@@ -365,7 +365,7 @@ where
     }
     fn draw_light_model_instanced(
         &mut self,
-        model: &'b Model,
+        model: &'b SkinnedModel,
         instances: Range<u32>,
         camera_bind_group: &'b wgpu::BindGroup,
         light_bind_group: &'b wgpu::BindGroup,

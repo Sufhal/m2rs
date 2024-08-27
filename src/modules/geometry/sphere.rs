@@ -1,12 +1,12 @@
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use crate::modules::core::model::{Mesh, SkinnedVertex, TransformUniform};
+use crate::modules::core::model::{Mesh, SkinnedMeshVertex, TransformUniform};
 
 use super::buffer::ToMesh;
 
 pub struct Sphere {
-    vertices: Vec<SkinnedVertex>,
+    vertices: Vec<SkinnedMeshVertex>,
     indices: Vec<u32>,
 }
 
@@ -42,7 +42,7 @@ impl Sphere {
                     y as f32 / rings as f32,
                 ];
                 
-                vertices.push(SkinnedVertex::new(
+                vertices.push(SkinnedMeshVertex::new(
                     position,
                     tex_coords,
                     normal,

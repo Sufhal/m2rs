@@ -5,7 +5,7 @@ use wgpu::util::DeviceExt;
 
 use crate::modules::{pipelines::render_pipeline::RenderBindGroupLayouts, utils::id_gen::generate_unique_string};
 
-use super::{instance::InstanceRaw, model::Model, scene::Scene, skinning::{AnimationClip, AnimationMixer, Mat4x4, Skeleton, SkeletonInstance}};
+use super::{instance::InstanceRaw, model::SkinnedModel, scene::Scene, skinning::{AnimationClip, AnimationMixer, Mat4x4, Skeleton, SkeletonInstance}};
 
 type Mat4 = cgmath::Matrix4<f32>;
 type Vec3 = cgmath::Vector3<f32>;
@@ -16,7 +16,7 @@ const INITIAL_INSTANCES_COUNT: usize = 100;
 #[derive(Debug)]
 pub struct Object3D {
     pub id: String,
-    pub model: Model,
+    pub model: SkinnedModel,
     pub instances_bind_group: wgpu::BindGroup,
     animation_clips: Rc<RefCell<Vec<AnimationClip>>>,
     skeleton: Rc<Skeleton>,
@@ -30,7 +30,7 @@ pub struct Object3D {
 }
 
 impl Object3D {
-    pub fn new(device: &wgpu::Device, bind_group_layouts: &RenderBindGroupLayouts, model: Model) -> Self {
+    pub fn new(device: &wgpu::Device, bind_group_layouts: &RenderBindGroupLayouts, model: SkinnedModel) -> Self {
         let animation_clips = Rc::new(RefCell::new(model.animations.clone()));
         let skeleton = Rc::new(model.skeleton.clone());
         let mut instances = Vec::new();

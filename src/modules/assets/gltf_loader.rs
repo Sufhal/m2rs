@@ -2,7 +2,7 @@ use std::{collections::HashMap, io::{BufReader, Cursor}};
 use cgmath::Matrix4;
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, Model, SkinnedVertex, TransformUniform}, object::Object, object_3d::Object3D, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, SkinnedModel, SkinnedMeshVertex, TransformUniform}, object::Object, object_3d::Object3D, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
 use super::assets::load_binary;
 
 pub async fn load_animation(path: &str, name: &str) -> anyhow::Result<AnimationClip> {
@@ -409,7 +409,7 @@ fn extract_objects(
                             }
                         }
                     });
-                    vertices.push(SkinnedVertex::new(
+                    vertices.push(SkinnedMeshVertex::new(
                         *position,
                         *tex_coord,
                         *normal,
@@ -451,7 +451,7 @@ fn extract_objects(
                 });
             });
             if meshes.len() > 0 {
-                let model = Model { 
+                let model = SkinnedModel { 
                     meshes, 
                     skeleton: skeleton.clone().unwrap(), 
                     animations: animation_clips.clone(),
