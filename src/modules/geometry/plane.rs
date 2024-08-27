@@ -61,6 +61,16 @@ impl Plane {
             indices,
         }
     }
+
+    pub fn set_vertices_height(&mut self, vertices_height: Vec<f32>) {
+        if vertices_height.len() != self.vertices.len() {
+            panic!("Impossible to set vertices height with incompatible surface vertices count");
+        }
+        for i in 0..vertices_height.len() {
+            self.vertices[i].position[2] = vertices_height[i];
+        }
+    }
+
 }
 
 impl ToMesh for Plane {

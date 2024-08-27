@@ -1,0 +1,9 @@
+{
+    "cell_scale": 200,
+    "height_scale": 0.5,
+    "view_radius": 128,
+    "map_size": [4, 5],
+    "base_position": [921600, 204800],
+    "texture_set": "metin2_C1",
+    "environment": "C1"
+}

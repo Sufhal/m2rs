@@ -5,4 +5,5 @@ pub mod camera;
 pub mod assets;
 pub mod utils;
 pub mod geometry;
-mod character;
+pub mod character;
+pub mod terrain;

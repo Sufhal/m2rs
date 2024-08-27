@@ -18,6 +18,7 @@ use super::character::character::{Character, CharacterKind, NPCType};
 use super::core::object_3d::{Transform, TranslateWithScene};
 use super::core::scene;
 use super::pipelines::render_pipeline::RenderPipeline;
+use super::terrain::terrain::Terrain;
 use super::utils::time_factory::{Instant, TimeFactory};
 // use super::utils::performance_tracker::PerformanceTracker;
 
@@ -210,6 +211,8 @@ impl<'a> State<'a> {
         character.translate(0.0, -0.5, 0.0, &mut state.scene);
         state.characters.push(character);
 
+        let terrain = Terrain::load("c1").await;
+        // panic!();
         state
     }
 
