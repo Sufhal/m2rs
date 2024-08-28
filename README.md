@@ -30,19 +30,26 @@ M2RS is an experimental projet which targets to entierly rewrite the game [Metin
 - `BoneAttachement`
   - [ ] allow `Object3D` to be attached to a skeleton bone (hairs, weapons)
 - `Terrain`
-  - [ ] parse and generate terrain chunks
+  - [x] parse and generate terrain chunks
   - [ ] shader
   - [ ] shadows
   - [ ] raycast to make characters walk above the ground
   - [ ] objects
   - [ ] trees
-  - [ ] water
+  - [ ] water geometry
+  - [ ] water shader
 - `Environment`
   - [ ] sun light that follow a realistic path between day and night 
   - [ ] environment colors
   - [ ] fog
   - [ ] clouds
   - [ ] skybox
+- `CLI`
+  - [x] textureset.txt
+  - [ ] setting.txt
+  - [ ] areaambiencedata.txt
+  - [ ] areadata.txt
+  - [ ] areaproperty.txt
 
 ## Optimization track
 - `GLTF` loader currently produces 4 skeletons if there is 4 skinned mesh linked to the same skeleton.
