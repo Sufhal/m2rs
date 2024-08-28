@@ -1,4 +1,4 @@
-mod modules;
+pub mod modules;
 use modules::state::State;
 use winit::{
     event::*,

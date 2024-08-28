@@ -44,6 +44,9 @@ M2RS is an experimental projet which targets to entierly rewrite the game [Metin
   - [ ] fog
   - [ ] clouds
   - [ ] skybox
+- `Particle system`
+  - [ ] ???
+
 - `CLI`
   - [x] textureset.txt
   - [ ] setting.txt
