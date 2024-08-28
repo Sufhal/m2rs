@@ -1,10 +1,9 @@
 use std::path::Path;
-
 use anyhow::*;
 use image::GenericImageView;
 use wgpu::util::DeviceExt;
 
-use crate::modules::state::State;
+use crate::modules::{state::State, utils::functions::is_power_of_two};
 
 #[derive(Debug)]
 pub struct Texture {
@@ -200,3 +199,64 @@ impl Texture {
         Self { texture, view, sampler }
     }
 }
+
+pub struct TextureAtlas {
+    pub texture: Texture,
+}
+
+impl TextureAtlas {
+    /// Create a new TextureAtlas using raw bytes. 
+    /// Each raw_bytes slices should represent an **4 channels** (rgba) texture with a size that is **power of two**.
+    pub fn new(raw_bytes: Vec<&[u8]>, state: &State<'_>) -> Self {
+        if raw_bytes.len() == 0 {
+            panic!("raw_bytes.len() must be > 0 to create a TextureAtlas");
+        }
+        if !is_power_of_two(raw_bytes[0].len() as u64) {
+            panic!("raw_bytes[0] must be square power of two");
+        }
+        let textures_count = raw_bytes.len() as u64;
+        let tile_size = f64::sqrt(raw_bytes[0].len() as f64) as u64;
+        let pixels = tile_size * tile_size * textures_count;
+        let atlas_size = (f64::sqrt(pixels as f64) as u64).next_power_of_two();
+        let tiles_per_row = atlas_size / tile_size;
+
+        let mut atlas_raw_bytes = Vec::new();
+
+        for x in 0..atlas_size {
+            for y in 0..atlas_size {
+                let tile_x = (x / tile_size) as i64;
+                let tile_y = (y / tile_size) as i64;
+                let index = (tile_x + tile_y * tiles_per_row as i64) as usize;
+
+                if index < textures_count as usize {
+                    let local_x = x - (tile_x as u64 * tile_size);
+                    let local_y = y - (tile_y as u64 * tile_size);
+                    let local_index = (local_x + local_y * tile_size) as usize;
+
+                    atlas_raw_bytes.extend([
+                        raw_bytes[index][local_index + 0],
+                        raw_bytes[index][local_index + 1],
+                        raw_bytes[index][local_index + 2],
+                        raw_bytes[index][local_index + 3],
+                    ]);
+                }
+                else {
+                    atlas_raw_bytes.extend([0, 0, 0, 0]);
+                }
+            }
+        }
+
+        let size_u32 = atlas_size as u32;
+
+        TextureAtlas {
+            texture: Texture::from_raw_bytes(
+                &atlas_raw_bytes, 
+                size_u32, 
+                size_u32, 
+                wgpu::TextureFormat::Rgba8UnormSrgb, 
+                4 * size_u32, 
+                state
+            )
+        }
+    }
+}  

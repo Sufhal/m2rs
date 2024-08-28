@@ -76,3 +76,7 @@ pub fn random_f64_timestamp(max: f64) -> f64 {
 pub fn random_u8(max: u8) -> u8 {
     fastrand::u8(0..max)
 }
+
+pub fn is_power_of_two(x: u64) -> bool {
+    (x != 0) && ((x & (x - 1)) == 0)
+}
