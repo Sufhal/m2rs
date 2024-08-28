@@ -42,7 +42,7 @@ impl Chunk {
                 let ignore = line_index == 0 || line_index == 257 || colmun_index == 0 || colmun_index == 257;
                 !ignore
             })
-            .map(|(_, v)| *v) // divided by 100 because original Metin2 is cm based
+            .map(|(_, v)| *v)
             .collect::<Vec<_>>();
 
         let texture = Texture::from_raw_bytes(
