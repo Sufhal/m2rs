@@ -7,6 +7,14 @@ edition = "2018"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "m2rs"
+path = "src/main.rs"
+
+[[bin]]
+name = "cli"
+path = "src/cli.rs"
+
 [dependencies]
 cfg-if = "1"
 anyhow = "1.0"

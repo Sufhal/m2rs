@@ -21,7 +21,7 @@ pub struct TextureDefinition {
 }
 
 impl TextureSet {
-    fn from_str(data: &str) -> Self {
+    pub fn from_txt(data: &str) -> Self {
         let mut lines = data.lines().map(str::trim);
         let mut definitions = Vec::new();
         lines.next(); // TextureSet
@@ -32,6 +32,7 @@ impl TextureSet {
                     .trim_matches('"')
                     .replace("\\", "/")
                     .replace("d:/ymir work", "pack")
+                    .replace(".dds", ".png")
                     .to_string();
                 let u_scale = lines.next().unwrap()
                     .parse::<f32>().unwrap();

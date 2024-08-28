@@ -1,9 +1,8 @@
-use anyhow::*;
 use fs_extra::copy_items;
 use fs_extra::dir::CopyOptions;
 use std::env;
 
-fn main() -> Result<()> {
+fn main() -> anyhow::Result<()> {
     // This tells Cargo to rerun this script if something in /assets/ changes.
     println!("cargo:rerun-if-changed=assets/*");
 
