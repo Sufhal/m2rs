@@ -52,7 +52,7 @@ M2RS is an experimental projet which targets to entierly rewrite the game [Metin
 To start the game, run the following command and Vulkan or Metal will be used for rendering depending on the platform (Windows, Linux or macOS).
 
 ```bash
-cargo run --bin m2js --release
+cargo run --bin m2rs --release
 ```
 
 ## Export in the browser (WASM)
@@ -80,5 +80,5 @@ A CLI is available if assets need conversion. Currently supported conversions ar
 In the future, this CLI will be used to optimize + encrypt assets.
 
 ```bash
-cargo run --bin m2js --release
+cargo run --bin cli --release
 ```
