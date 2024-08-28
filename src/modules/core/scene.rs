@@ -7,7 +7,7 @@ use crate::modules::pipelines::render_pipeline::RenderPipeline;
 
 use super::object::{self, Object};
 use super::object_3d::{self, Object3D};
-use super::model::{DrawModel, TransformUniform};
+use super::model::{DrawSkinnedModel, TransformUniform};
 
 pub struct Scene {
     objects: HashMap<String, Object>,

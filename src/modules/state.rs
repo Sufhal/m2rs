@@ -9,14 +9,17 @@ use winit::{
     window::Window,
 };
 use crate::modules::assets::gltf_loader::load_animations;
+use crate::modules::core::model::DrawTerrainMesh;
 use crate::modules::core::texture;
 use crate::modules::camera::camera;
+use crate::modules::terrain::terrain::DrawTerrain;
 use super::assets::gltf_loader::load_model_glb;
 use super::character::character::{Character, CharacterKind, NPCType};
 use super::core::object_3d::{Transform, TranslateWithScene};
 use super::core::scene;
 use super::pipelines::common_pipeline::CommonPipeline;
 use super::pipelines::render_pipeline::RenderPipeline;
+use super::pipelines::terrain_pipeline::TerrainPipeline;
 use super::terrain::terrain::Terrain;
 use super::utils::time_factory::{Instant, TimeFactory};
 // use super::utils::performance_tracker::PerformanceTracker;
@@ -28,7 +31,8 @@ pub struct State<'a> {
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub common_pipeline: CommonPipeline,
-    pub(crate) new_render_pipeline: RenderPipeline,
+    pub new_render_pipeline: RenderPipeline,
+    pub terrain_pipeline: TerrainPipeline,
     camera: camera::Camera,
     projection: camera::Projection,
     pub camera_controller: camera::CameraController,
@@ -41,6 +45,7 @@ pub struct State<'a> {
     instant: Instant,
     time_factory: TimeFactory,
     pub characters: Vec<Character>,
+    pub terrains: Vec<Terrain>,
 }
 
 impl<'a> State<'a> {
@@ -108,7 +113,8 @@ impl<'a> State<'a> {
             desired_maximum_frame_latency: 2,
         };
 
-        let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        let camera = camera::Camera::new((515.0, 5.0, 643.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
         let camera_controller = camera::CameraController::new(4.0, 0.4);
 
@@ -118,12 +124,8 @@ impl<'a> State<'a> {
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
         
         let common_pipeline = CommonPipeline::new(&device);
-        let new_render_pipeline = RenderPipeline::new(
-            &device, 
-            &config, 
-            Some(texture::Texture::DEPTH_FORMAT),
-            &common_pipeline
-        );
+        let terrain_pipeline = TerrainPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &common_pipeline);
+        let new_render_pipeline = RenderPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &common_pipeline);
 
         let mut scene = scene::Scene::new();
 
@@ -183,6 +185,7 @@ impl<'a> State<'a> {
 
         let _ = fs::write(Path::new("trash/scene_objects.txt"), format!("{:#?}", &&scene.get_all_objects().iter().map(|object| (object.name.clone(), object.matrix)).collect::<Vec<_>>()));
 
+
         let mut state = Self {
             surface,
             device,
@@ -191,6 +194,7 @@ impl<'a> State<'a> {
             size,
             common_pipeline,
             new_render_pipeline,
+            terrain_pipeline,
             camera,
             projection,
             camera_controller,
@@ -201,7 +205,8 @@ impl<'a> State<'a> {
             // performance_tracker: PerformanceTracker::new(),
             instant: Instant::now(),
             time_factory: TimeFactory::new(),
-            characters: Vec::new()
+            characters: Vec::new(),
+            terrains: Vec::new()
         };
 
         let character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
@@ -214,7 +219,12 @@ impl<'a> State<'a> {
         character.translate(0.0, -0.5, 0.0, &mut state.scene);
         state.characters.push(character);
 
-        let terrain = Terrain::load("c1", &state).await;
+
+        if let Ok(terrain) = Terrain::load("c1", &state).await {
+            state.terrains.push(terrain);
+        }
+
+
         // panic!();
         state
     }
@@ -284,7 +294,7 @@ impl<'a> State<'a> {
         // self.performance_tracker.call_end("update_camera");
         // self.performance_tracker.call_start("update_light");
         let old_position: cgmath::Vector3<_> = self.common_pipeline.uniforms.light.position.into();
-        self.common_pipeline.uniforms.light.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
+        self.common_pipeline.uniforms.light.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into();
         self.queue.write_buffer(&self.common_pipeline.buffers.light, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.light]));
         // self.performance_tracker.call_end("update_light");
 
@@ -377,6 +387,11 @@ impl<'a> State<'a> {
                 &self.common_pipeline
             );
             // self.performance_tracker.call_end("render_draw_scene");
+
+            render_pass.set_pipeline(&self.terrain_pipeline.pipeline);
+            for terrain in &self.terrains {
+                render_pass.draw_terrain(&self.queue, terrain, &self.common_pipeline);
+            }
         }
 
         self.queue.submit(iter::once(encoder.finish()));

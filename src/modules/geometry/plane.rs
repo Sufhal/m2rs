@@ -1,11 +1,11 @@
 
-use cgmath::SquareMatrix;
+use cgmath::{Matrix4, SquareMatrix};
 use wgpu::util::DeviceExt;
-use crate::modules::core::model::{Mesh, MeshVertex, TransformUniform};
-use super::buffer::ToMesh;
+use crate::modules::{core::{model::{Mesh, TerrainMesh, TerrainVertex, TransformUniform}, texture::Texture}, pipelines::terrain_pipeline::TerrainPipeline};
+use super::buffer::{ToMesh, ToTerrainMesh};
 
 pub struct Plane {
-    vertices: Vec<MeshVertex>,
+    vertices: Vec<TerrainVertex>,
     indices: Vec<u32>,
 }
 
@@ -16,6 +16,8 @@ impl Plane {
         let segment_width = width / segments_x as f32;
         let segment_height = height / segments_y as f32;
         let normal = [0.0, 1.0, 0.0]; // Normale pointant vers le haut
+
+        let mut offset = 0usize;
         for y in 0..=segments_y {
             for x in 0..=segments_x {
                 let position = [
@@ -29,11 +31,20 @@ impl Plane {
                     y as f32 / segments_y as f32,
                 ];
 
-                vertices.push(MeshVertex::new(
+                // let texture_indices = [
+                //     textures_indices[offset + 0],
+                //     textures_indices[offset + 1],
+                //     textures_indices[offset + 2],
+                //     textures_indices[offset + 3],
+                // ];
+
+                vertices.push(TerrainVertex::new(
                     position,
                     tex_coords,
                     normal,
+                    // texture_indices
                 ));
+                offset += 4;
             }
         }
         for y in 0..segments_y {
@@ -52,6 +63,7 @@ impl Plane {
                 indices.push(i3);
             }
         }
+        println!("indices {}", indices.len());
         Plane {
             vertices,
             indices,
@@ -63,36 +75,62 @@ impl Plane {
             panic!("Impossible to set vertices height with incompatible surface vertices count");
         }
         for i in 0..vertices_height.len() {
-            self.vertices[i].position[2] = vertices_height[i];
+            self.vertices[i].position[1] = vertices_height[i];
         }
     }
 
 }
 
-impl ToMesh for Plane {
-    fn to_mesh(&self, device: &wgpu::Device, name: String) -> Mesh {
+impl ToTerrainMesh for Plane {
+    fn to_terrain_mesh(
+        &self, 
+        device: &wgpu::Device, 
+        terrain_pipeline: &TerrainPipeline, 
+        name: String, 
+        position: [f32; 3], 
+        texture: &Texture
+    ) -> TerrainMesh {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Plane Vertex Buffer"),
+            label: Some("Terrain Vertex Buffer"),
             contents: bytemuck::cast_slice(&self.vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Plane Index Buffer"),
+            label: Some("Terrain Index Buffer"),
             contents: bytemuck::cast_slice(&self.indices),
             usage: wgpu::BufferUsages::INDEX,
         });
+
         let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Transform Buffer"),
-            contents: bytemuck::cast_slice(&[TransformUniform::identity()]),
+            contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation(position.into()).into())]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-        Mesh {
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &terrain_pipeline.bind_group_layouts.mesh,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: transform_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&texture.view)
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource:  wgpu::BindingResource::Sampler(&texture.sampler)
+                },
+            ],
+            label: None,
+        });
+        TerrainMesh {
             name,
             transform_buffer,
             vertex_buffer,
             index_buffer,
             num_elements: self.indices.len() as u32,
-            material: 0
+            bind_group
         }
     }
 }

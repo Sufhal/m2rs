@@ -1,4 +1,6 @@
-use crate::modules::core::model::{MeshVertex, Vertex};
+use crate::modules::core::model::{TerrainVertex, Vertex};
+
+use super::common_pipeline::CommonPipeline;
 
 pub struct TerrainBindGroupLayouts {
     pub mesh: wgpu::BindGroupLayout,
@@ -15,11 +17,13 @@ impl TerrainPipeline {
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
         depth_format: Option<wgpu::TextureFormat>,
+        common_pipeline: &CommonPipeline
     ) -> Self {
         let mesh = Self::create_mesh_layout(device);
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Terrain Pipeline Layout"),
             bind_group_layouts: &[
+                &common_pipeline.global_bind_group_layout,
                 &mesh,
             ],
             push_constant_ranges: &[],
@@ -35,9 +39,20 @@ impl TerrainPipeline {
     fn create_mesh_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
-                // texture
+                // transform
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                // tile
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
@@ -48,20 +63,9 @@ impl TerrainPipeline {
                 },
                 // sampler
                 wgpu::BindGroupLayoutEntry {
-                    binding: 1,
+                    binding: 2,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-                // transform
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
                     count: None,
                 },
             ],
@@ -90,7 +94,7 @@ impl TerrainPipeline {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[
-                    MeshVertex::desc(), 
+                    TerrainVertex::desc(), 
                 ],
             },
             fragment: Some(wgpu::FragmentState {

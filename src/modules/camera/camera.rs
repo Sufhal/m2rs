@@ -100,6 +100,7 @@ pub struct CameraController {
     scroll: f32,
     speed: f32,
     sensitivity: f32,
+    boost: f32
 }
 
 impl CameraController {
@@ -114,6 +115,7 @@ impl CameraController {
             rotate_horizontal: 0.0,
             rotate_vertical: 0.0,
             scroll: 0.0,
+            boost: 1.0,
             speed,
             sensitivity,
         }
@@ -146,8 +148,12 @@ impl CameraController {
                 self.amount_up = amount;
                 true
             }
-            KeyCode::ShiftLeft => {
+            KeyCode::ShiftLeft | KeyCode::ShiftRight => {
                 self.amount_down = amount;
+                true
+            }
+            KeyCode::AltLeft | KeyCode::AltRight => {
+                self.boost = if amount == 0.0 { 1.0 } else { 100.0 };
                 true
             }
             _ => false,
@@ -177,8 +183,8 @@ impl CameraController {
         let (yaw_sin, yaw_cos) = camera.yaw.0.sin_cos();
         let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
         let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
-        camera.position += forward * (self.amount_forward - self.amount_backward) * self.speed * dt;
-        camera.position += right * (self.amount_right - self.amount_left) * self.speed * dt;
+        camera.position += forward * (self.amount_forward - self.amount_backward) * self.speed * dt * self.boost;
+        camera.position += right * (self.amount_right - self.amount_left) * self.speed * dt * self.boost;
 
         // Move in/out (aka. "zoom")
         // Note: this isn't an actual zoom. The camera's position
@@ -191,7 +197,7 @@ impl CameraController {
 
         // Move up/down. Since we don't use roll, we can just
         // modify the y coordinate directly.
-        camera.position.y += (self.amount_up - self.amount_down) * self.speed * dt;
+        camera.position.y += (self.amount_up - self.amount_down) * self.speed * dt * self.boost;
 
         // Rotate
         camera.yaw += Rad(self.rotate_horizontal) * self.sensitivity * dt;
