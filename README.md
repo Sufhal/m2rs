@@ -92,3 +92,9 @@ In the future, this CLI will be used to optimize + encrypt assets.
 ```bash
 cargo run --bin cli --release
 ```
+
+## DDS to PNG
+All DDS files should be converted to PNG files. I usually do this with [imagemagick](https://imagemagick.org/):
+```bash
+find . -type f -name "*.dds" -exec mogrify -format png {} +
+```

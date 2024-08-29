@@ -81,55 +81,44 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // let object_color: vec4<f32> = textureSample(tex_tile, tex_sampler, in.tex_coords);
     let tile: vec4<f32> = textureSample(tex_tile, sampler_tile, in.tex_coords);
-    let tile_texture_index: u32 = u32(tile.r * 255.0);
-
+    let tile_texture_index: u32 = u32(round(tile.r * 255.0));
     let uv = in.tex_coords * 40.;
     var splat = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    // splat += textureSample(tex_0, tex_sampler, in.tex_coords);
 
-    for (var i: u32 = 0; i < 10 * 2; i = i + 2) {
-
-        let tile_index = textures_set[i + 0];
-        let tex_index = textures_set[i + 1];
-
-        if tile_index == tile_texture_index {
-            switch (tex_index) {
-                case 0u: {
-                    splat += textureSample(tex_0, sampler_tex, uv);
-                }
-                // case 1u: {
-                //     splat += textureSample(tex_1, sampler_tex, uv);
-                // }
-                // case 2u: {
-                //     splat += textureSample(tex_2, sampler_tex, uv);
-                // }
-                // case 3u: {
-                //     splat += textureSample(tex_3, sampler_tex, uv);
-                // }
-                // case 4u: {
-                //     splat += textureSample(tex_4, sampler_tex, uv);
-                // }
-                // case 5u: {
-                //     splat += textureSample(tex_5, sampler_tex, uv);
-                // }
-                // case 6u: {
-                //     splat += textureSample(tex_6, sampler_tex, uv);
-                // }
-                // case 7u: {
-                //     splat += textureSample(tex_7, sampler_tex, uv);
-                // }
-                // case 8u: {
-                //     splat += textureSample(tex_8, sampler_tex, uv);
-                // }
-                // case 9u: {
-                //     splat += textureSample(tex_9, sampler_tex, uv);
-                // }
-                default: {}
-            }
-        }
+    if tile_texture_index == 0 {
+        splat += textureSampleLevel(tex_0, sampler_tex, uv, 0.0);
+    }
+    else if tile_texture_index == 1 {
+        splat += textureSampleLevel(tex_1, sampler_tex, uv, 0.0);
+    }
+    else if tile_texture_index == 2 {
+        splat += textureSampleLevel(tex_2, sampler_tex, uv, 0.0);
+    }
+    else if tile_texture_index == 3 {
+        splat += textureSampleLevel(tex_3, sampler_tex, uv, 0.0);
+    }
+    else if tile_texture_index == 4 {
+        splat += textureSampleLevel(tex_4, sampler_tex, uv, 0.0);
+    }
+    else if tile_texture_index == 5 {
+        splat += textureSampleLevel(tex_5, sampler_tex, uv, 0.0);
+    }
+    else if tile_texture_index == 6 {
+        splat += textureSampleLevel(tex_6, sampler_tex, uv, 0.0);
+    }
+    else if tile_texture_index == 7 {
+        splat += textureSampleLevel(tex_7, sampler_tex, uv, 0.0);
+    }
+    else if tile_texture_index == 8 {
+        splat += textureSampleLevel(tex_8, sampler_tex, uv, 0.0);
+    }
+    else if tile_texture_index == 9 {
+        splat += textureSampleLevel(tex_9, sampler_tex, uv, 0.0);
     }
     
     return vec4<f32>(splat.xyz, 1.0);
+    // return vec4<f32>(tile.r, 0.0, 0.0, 1.0);
+    // return debug;
     // return vec4<f32>(object_color.xyz, 1.0);
 }
  

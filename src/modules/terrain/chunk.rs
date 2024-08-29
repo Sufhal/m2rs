@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use gltf::mesh::util::indices;
+
 use crate::modules::{assets::assets::load_binary, core::{model::TerrainMesh, texture::Texture}, geometry::{buffer::ToTerrainMesh, plane::Plane}, state::State, utils::structs::Set};
 use super::setting::Setting;
 
@@ -18,7 +20,7 @@ impl Chunk {
     ) -> anyhow::Result<Self> {
         let name = Self::name_from(*x, *y);
         let height = load_binary(&format!("{terrain_path}/{name}/height.raw")).await?;
-        let textures_indices = load_binary(&format!("{terrain_path}/{name}/tile.raw")).await?;
+        let tile_indices = load_binary(&format!("{terrain_path}/{name}/tile.raw")).await?;
         // Each vertex is defined by two bytes
         let u16_height_raw = height
             .chunks_exact(2)
@@ -38,7 +40,9 @@ impl Chunk {
             .map(|(_, v)| *v as f32 * setting.height_scale / 100.0) // divided by 100 because original Metin2 is cm based
             .collect::<Vec<_>>();
         // Delete first and last row and column of tile map
-        let textures_indices = textures_indices
+        // Replace its values with actual textures indices passed in the shader
+        let mut textures_set = Set::new();
+        let tile_indices = tile_indices
             .iter()
             .enumerate()
             .filter(|(i, _)| {
@@ -48,18 +52,15 @@ impl Chunk {
                 let ignore = line_index == 0 || line_index == 257 || colmun_index == 0 || colmun_index == 257;
                 !ignore
             })
-            .map(|(_, v)| *v)
+            .map(|(_, v)| {
+                let real_index = (*v) - 1;
+                textures_set.insert(real_index);
+                textures_set.position(&real_index).unwrap() as u8
+            })
             .collect::<Vec<_>>();
-        // Extract textures indices used in this chunk
-        let mut textures_set = Set::new();
-        for indice in &textures_indices {
-            textures_set.insert(*indice);
-        }
 
-        println!("{name} {:?}", textures_set);
-        
         let tile = Texture::from_raw_bytes(
-            &textures_indices, 
+            &tile_indices, 
             256, 
             256, 
             wgpu::TextureFormat::R8Unorm, 

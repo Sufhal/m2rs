@@ -20,4 +20,7 @@ impl<T> Set<T>
     pub fn get(&self, index: usize) -> Option<&T> {
         self.data.get(index)
     }
+    pub fn position(&self, value: &T) -> Option<usize> {
+        self.data.iter().position(|v| v == value)
+    }
 }
