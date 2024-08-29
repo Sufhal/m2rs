@@ -55,6 +55,8 @@ impl Chunk {
         for indice in &textures_indices {
             textures_set.insert(*indice);
         }
+
+        println!("{name} {:?}", textures_set);
         
         let tile = Texture::from_raw_bytes(
             &textures_indices, 

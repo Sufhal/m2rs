@@ -107,6 +107,8 @@ impl ToTerrainMesh for Plane {
                 acc.extend([*v as u32, i as u32]);
                 acc
             });
+        println!("set {:?} - {}", set, *textures_set.get(0).unwrap_or(&0) as usize); // <- ça c'est pas bon
+        
         // dbg!(&set);
         // panic!();
         let textures_set_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -140,43 +142,43 @@ impl ToTerrainMesh for Plane {
                 },
                 wgpu::BindGroupEntry {
                     binding: 5,
-                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(0).unwrap_or(&0) as usize].view),
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(0).unwrap_or(&1) as usize - 1].view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 6,
-                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(1).unwrap_or(&0) as usize].view),
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(1).unwrap_or(&1) as usize - 1].view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 7,
-                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(2).unwrap_or(&0) as usize].view),
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(2).unwrap_or(&1) as usize - 1].view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 8,
-                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(3).unwrap_or(&0) as usize].view),
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(3).unwrap_or(&1) as usize - 1].view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 9,
-                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(4).unwrap_or(&0) as usize].view),
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(4).unwrap_or(&1) as usize - 1].view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 10,
-                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(5).unwrap_or(&0) as usize].view),
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(5).unwrap_or(&1) as usize - 1].view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 11,
-                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(6).unwrap_or(&0) as usize].view),
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(6).unwrap_or(&1) as usize - 1].view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 12,
-                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(7).unwrap_or(&0) as usize].view),
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(7).unwrap_or(&1) as usize - 1].view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 13,
-                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(8).unwrap_or(&0) as usize].view),
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(8).unwrap_or(&1) as usize - 1].view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 14,
-                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(9).unwrap_or(&0) as usize].view),
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(9).unwrap_or(&1) as usize - 1].view),
                 },
             ],
             label: None,

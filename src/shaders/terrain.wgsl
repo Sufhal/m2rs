@@ -83,10 +83,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let tile: vec4<f32> = textureSample(tex_tile, sampler_tile, in.tex_coords);
     let tile_texture_index: u32 = u32(tile.r * 255.0);
 
+    let uv = in.tex_coords * 40.;
     var splat = vec4<f32>(0.0, 0.0, 0.0, 1.0);
     // splat += textureSample(tex_0, tex_sampler, in.tex_coords);
 
-    for (var i: u32 = 0; i < 9 * 2; i = i + 2) {
+    for (var i: u32 = 0; i < 10 * 2; i = i + 2) {
 
         let tile_index = textures_set[i + 0];
         let tex_index = textures_set[i + 1];
@@ -94,35 +95,35 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         if tile_index == tile_texture_index {
             switch (tex_index) {
                 case 0u: {
-                    splat += textureSample(tex_0, sampler_tex, in.tex_coords);
+                    splat += textureSample(tex_0, sampler_tex, uv);
                 }
-                case 1u: {
-                    splat += textureSample(tex_1, sampler_tex, in.tex_coords);
-                }
-                case 2u: {
-                    splat += textureSample(tex_2, sampler_tex, in.tex_coords);
-                }
-                case 3u: {
-                    splat += textureSample(tex_3, sampler_tex, in.tex_coords);
-                }
-                case 4u: {
-                    splat += textureSample(tex_4, sampler_tex, in.tex_coords);
-                }
-                case 5u: {
-                    splat += textureSample(tex_5, sampler_tex, in.tex_coords);
-                }
-                case 6u: {
-                    splat += textureSample(tex_6, sampler_tex, in.tex_coords);
-                }
-                case 7u: {
-                    splat += textureSample(tex_7, sampler_tex, in.tex_coords);
-                }
-                case 8u: {
-                    splat += textureSample(tex_8, sampler_tex, in.tex_coords);
-                }
-                case 9u: {
-                    splat += textureSample(tex_9, sampler_tex, in.tex_coords);
-                }
+                // case 1u: {
+                //     splat += textureSample(tex_1, sampler_tex, uv);
+                // }
+                // case 2u: {
+                //     splat += textureSample(tex_2, sampler_tex, uv);
+                // }
+                // case 3u: {
+                //     splat += textureSample(tex_3, sampler_tex, uv);
+                // }
+                // case 4u: {
+                //     splat += textureSample(tex_4, sampler_tex, uv);
+                // }
+                // case 5u: {
+                //     splat += textureSample(tex_5, sampler_tex, uv);
+                // }
+                // case 6u: {
+                //     splat += textureSample(tex_6, sampler_tex, uv);
+                // }
+                // case 7u: {
+                //     splat += textureSample(tex_7, sampler_tex, uv);
+                // }
+                // case 8u: {
+                //     splat += textureSample(tex_8, sampler_tex, uv);
+                // }
+                // case 9u: {
+                //     splat += textureSample(tex_9, sampler_tex, uv);
+                // }
                 default: {}
             }
         }
