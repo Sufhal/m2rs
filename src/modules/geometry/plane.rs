@@ -1,7 +1,9 @@
 
+use std::collections::HashSet;
+
 use cgmath::{Matrix4, SquareMatrix};
 use wgpu::util::DeviceExt;
-use crate::modules::{core::{model::{Mesh, TerrainMesh, TerrainVertex, TransformUniform}, texture::Texture}, pipelines::terrain_pipeline::TerrainPipeline};
+use crate::modules::{core::{model::{Mesh, TerrainMesh, TerrainVertex, TransformUniform}, texture::Texture}, pipelines::terrain_pipeline::TerrainPipeline, terrain::texture_set::TextureSetUniform, utils::structs::Set};
 use super::buffer::{ToMesh, ToTerrainMesh};
 
 pub struct Plane {
@@ -17,7 +19,6 @@ impl Plane {
         let segment_height = height / segments_y as f32;
         let normal = [0.0, 1.0, 0.0]; // Normale pointant vers le haut
 
-        let mut offset = 0usize;
         for y in 0..=segments_y {
             for x in 0..=segments_x {
                 let position = [
@@ -31,20 +32,11 @@ impl Plane {
                     y as f32 / segments_y as f32,
                 ];
 
-                // let texture_indices = [
-                //     textures_indices[offset + 0],
-                //     textures_indices[offset + 1],
-                //     textures_indices[offset + 2],
-                //     textures_indices[offset + 3],
-                // ];
-
                 vertices.push(TerrainVertex::new(
                     position,
                     tex_coords,
                     normal,
-                    // texture_indices
                 ));
-                offset += 4;
             }
         }
         for y in 0..segments_y {
@@ -63,7 +55,6 @@ impl Plane {
                 indices.push(i3);
             }
         }
-        println!("indices {}", indices.len());
         Plane {
             vertices,
             indices,
@@ -88,7 +79,9 @@ impl ToTerrainMesh for Plane {
         terrain_pipeline: &TerrainPipeline, 
         name: String, 
         position: [f32; 3], 
-        texture: &Texture
+        tile: &Texture,
+        textures: &Vec<Texture>,
+        textures_set: &Set<u8>
     ) -> TerrainMesh {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Terrain Vertex Buffer"),
@@ -100,12 +93,28 @@ impl ToTerrainMesh for Plane {
             contents: bytemuck::cast_slice(&self.indices),
             usage: wgpu::BufferUsages::INDEX,
         });
-
         let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Transform Buffer"),
             contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation(position.into()).into())]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+        // dbg!(&textures_set);
+        let set = textures_set
+            .to_vec()
+            .iter()
+            .enumerate()
+            .fold(Vec::new(), |mut acc, (i, v)| {
+                acc.extend([*v as u32, i as u32]);
+                acc
+            });
+        // dbg!(&set);
+        // panic!();
+        let textures_set_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("TextureSet Buffer"),
+            contents: bytemuck::cast_slice(&set),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        });
+
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &terrain_pipeline.bind_group_layouts.mesh,
             entries: &[
@@ -115,11 +124,59 @@ impl ToTerrainMesh for Plane {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&texture.view)
+                    resource: textures_set_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource:  wgpu::BindingResource::Sampler(&texture.sampler)
+                    resource: wgpu::BindingResource::Sampler(&tile.sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(&tile.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::Sampler(&textures[0].sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(0).unwrap_or(&0) as usize].view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(1).unwrap_or(&0) as usize].view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 7,
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(2).unwrap_or(&0) as usize].view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 8,
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(3).unwrap_or(&0) as usize].view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 9,
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(4).unwrap_or(&0) as usize].view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 10,
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(5).unwrap_or(&0) as usize].view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 11,
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(6).unwrap_or(&0) as usize].view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 12,
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(7).unwrap_or(&0) as usize].view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 13,
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(8).unwrap_or(&0) as usize].view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 14,
+                    resource: wgpu::BindingResource::TextureView(&textures[*textures_set.get(9).unwrap_or(&0) as usize].view),
                 },
             ],
             label: None,

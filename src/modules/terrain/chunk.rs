@@ -1,4 +1,6 @@
-use crate::modules::{assets::assets::load_binary, core::{model::TerrainMesh, texture::Texture}, geometry::{buffer::ToTerrainMesh, plane::Plane}, state::State};
+use std::collections::HashSet;
+
+use crate::modules::{assets::assets::load_binary, core::{model::TerrainMesh, texture::Texture}, geometry::{buffer::ToTerrainMesh, plane::Plane}, state::State, utils::structs::Set};
 use super::setting::Setting;
 
 pub struct Chunk {
@@ -11,15 +13,18 @@ impl Chunk {
         x: &u8, 
         y: &u8,
         setting: &Setting,
+        textures: &Vec<Texture>,
         state: &State<'_>
     ) -> anyhow::Result<Self> {
         let name = Self::name_from(*x, *y);
         let height = load_binary(&format!("{terrain_path}/{name}/height.raw")).await?;
         let textures_indices = load_binary(&format!("{terrain_path}/{name}/tile.raw")).await?;
+        // Each vertex is defined by two bytes
         let u16_height_raw = height
             .chunks_exact(2)
             .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
             .collect::<Vec<u16>>();
+        // Delete first and last row and column of height map
         let vertices_height = u16_height_raw
             .iter()
             .enumerate()
@@ -32,6 +37,7 @@ impl Chunk {
             })
             .map(|(_, v)| *v as f32 * setting.height_scale / 100.0) // divided by 100 because original Metin2 is cm based
             .collect::<Vec<_>>();
+        // Delete first and last row and column of tile map
         let textures_indices = textures_indices
             .iter()
             .enumerate()
@@ -44,8 +50,13 @@ impl Chunk {
             })
             .map(|(_, v)| *v)
             .collect::<Vec<_>>();
-
-        let texture = Texture::from_raw_bytes(
+        // Extract textures indices used in this chunk
+        let mut textures_set = Set::new();
+        for indice in &textures_indices {
+            textures_set.insert(*indice);
+        }
+        
+        let tile = Texture::from_raw_bytes(
             &textures_indices, 
             256, 
             256, 
@@ -67,7 +78,9 @@ impl Chunk {
                 -300.0,
                 (*y as f32 * size) + (size / 2.0)
             ],
-            &texture
+            &tile,
+            textures,
+            &textures_set
         );
         Ok(Self {
             mesh
@@ -87,3 +100,5 @@ impl Chunk {
     }
 
 }
+
+

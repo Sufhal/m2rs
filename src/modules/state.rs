@@ -140,13 +140,13 @@ impl<'a> State<'a> {
         ).await.expect("unable to load");
         for mut object in model_objects {
             if let Some(object_3d) = &mut object.object_3d {
-                let clips = load_animations(
-                    "shaman_wait_1.glb", 
-                    // "shaman_cheonryun.glb", 
-                    // "fox.glb", 
-                    &object_3d.model.skeleton
-                ).await.unwrap();
-                object_3d.set_animations(clips);
+                // let clips = load_animations(
+                //     "shaman_wait_1.glb", 
+                //     // "shaman_cheonryun.glb", 
+                //     // "fox.glb", 
+                //     &object_3d.model.skeleton
+                // ).await.unwrap();
+                // object_3d.set_animations(clips);
                 // object_3d.model.animations = clips;
                 
   

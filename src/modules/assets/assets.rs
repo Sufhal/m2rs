@@ -1,5 +1,4 @@
 use std::io::{BufReader, Cursor};
-
 use cfg_if::cfg_if;
 use wgpu::util::DeviceExt;
 
@@ -56,6 +55,12 @@ pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
     Ok(data)
 }
 
+pub async fn load_png_bytes(file_name: &str) -> anyhow::Result<Vec<u8>>{
+    let data = load_binary(file_name).await?;
+    let image = image::load_from_memory(&data)?;
+    let bytes = image.as_bytes().to_vec();
+    Ok(bytes)
+}
 
 pub async fn load_texture(
     file_name: &str,
