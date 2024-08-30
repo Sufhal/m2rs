@@ -49,38 +49,20 @@ impl TerrainPipeline {
                 },
                 count: None,
             },
-            // texture set
+            // chunk informations
             wgpu::BindGroupLayoutEntry {
                 binding: 1,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
+                    ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
                 count: None,
             },
-            // sampler tile
+            // sampler (texture + aplha map)
             wgpu::BindGroupLayoutEntry {
                 binding: 2,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            },
-            // tile
-            // wgpu::BindGroupLayoutEntry {
-            //     binding: 3,
-            //     visibility: wgpu::ShaderStages::FRAGMENT,
-            //     ty: wgpu::BindingType::Texture {
-            //         multisampled: false,
-            //         view_dimension: wgpu::TextureViewDimension::D2,
-            //         sample_type: wgpu::TextureSampleType::Float { filterable: true },
-            //     },
-            //     count: None,
-            // },
-            // sampler textures
-            wgpu::BindGroupLayoutEntry {
-                binding: 3,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                 count: None,
@@ -88,7 +70,7 @@ impl TerrainPipeline {
         ];
 
         for i in 0..8 {
-            let offset = 4;
+            let offset = 3;
             // texture
             entries.push(wgpu::BindGroupLayoutEntry {
                 binding: offset + (i * 2) as u32,

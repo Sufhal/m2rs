@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use cgmath::{Matrix4, SquareMatrix};
 use wgpu::util::DeviceExt;
-use crate::modules::{core::{model::{Mesh, TerrainMesh, TerrainVertex, TransformUniform}, texture::Texture}, pipelines::terrain_pipeline::TerrainPipeline, terrain::texture_set::TextureSetUniform, utils::structs::Set};
+use crate::modules::{core::{model::{Mesh, TerrainMesh, TerrainVertex, TransformUniform}, texture::Texture}, pipelines::terrain_pipeline::TerrainPipeline, terrain::{chunk::ChunkInformationUniform, texture_set::{ChunkTextureSet, TextureSetUniform}}, utils::structs::Set};
 use super::buffer::{ToMesh, ToTerrainMesh};
 
 pub struct Plane {
@@ -79,10 +79,9 @@ impl ToTerrainMesh for Plane {
         terrain_pipeline: &TerrainPipeline, 
         name: String, 
         position: [f32; 3], 
-        tile: &Texture,
         textures: &Vec<Texture>,
         alpha_maps: &Vec<Texture>,
-        textures_set: &Set<u8>
+        textures_set: &ChunkTextureSet,
     ) -> TerrainMesh {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Terrain Vertex Buffer"),
@@ -99,24 +98,15 @@ impl ToTerrainMesh for Plane {
             contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation(position.into()).into())]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-        let set = textures_set
-            .to_vec()
-            .iter()
-            .enumerate()
-            .fold(Vec::new(), |mut acc, (i, v)| {
-                acc.extend([*v as u32, i as u32]);
-                acc
-            });
-
-        println!("{name} textures_set {:?}", textures_set);
-        let textures_set_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("TextureSet Buffer"),
-            contents: bytemuck::cast_slice(&set),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+        let chunk_informations_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Chunk Informations Buffer"),
+            contents: bytemuck::cast_slice(&[ChunkInformationUniform { textures_count: textures_set.textures.len() as u32 }]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
         let get_texture_view = |index: u8| {
-            let set_index = textures_set.get(index as usize).unwrap_or(&0);
+            let set_index = textures_set.textures.get(index as usize).unwrap_or(&0);
+            println!("using {set_index} for index {index}");
             &textures[*set_index as usize].view
         };
 
@@ -135,24 +125,16 @@ impl ToTerrainMesh for Plane {
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: textures_set_buffer.as_entire_binding(),
+                resource: chunk_informations_buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: wgpu::BindingResource::Sampler(&tile.sampler),
-            },
-            // wgpu::BindGroupEntry {
-            //     binding: 3,
-            //     resource: wgpu::BindingResource::TextureView(&tile.view),
-            // },
-            wgpu::BindGroupEntry {
-                binding: 3,
                 resource: wgpu::BindingResource::Sampler(&textures[0].sampler),
             },
         ];
 
         for i in 0..8 {
-            let offset = 4;
+            let offset = 3;
             entries.push(wgpu::BindGroupEntry {
                 binding: offset + (i * 2) as u32,
                 resource: wgpu::BindingResource::TextureView(get_texture_view(i)),

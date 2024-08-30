@@ -1,4 +1,5 @@
 #[derive(Debug, Clone)]
+/// This Set replace HashSet when data order matters
 pub struct Set<T> {
     data: Vec<T>
 }

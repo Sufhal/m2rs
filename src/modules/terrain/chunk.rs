@@ -1,6 +1,6 @@
 use image::{imageops::blur, GrayImage};
 use crate::modules::{assets::assets::load_binary, core::{model::TerrainMesh, texture::Texture}, geometry::{buffer::ToTerrainMesh, plane::Plane}, state::State, utils::structs::Set};
-use super::setting::Setting;
+use super::{setting::Setting, texture_set::ChunkTextureSet};
 
 pub struct Chunk {
     pub mesh: TerrainMesh
@@ -17,7 +17,6 @@ impl Chunk {
     ) -> anyhow::Result<Self> {
         let name = Self::name_from(*x, *y);
         let height = load_binary(&format!("{terrain_path}/{name}/height.raw")).await?;
-        let tile_indices = load_binary(&format!("{terrain_path}/{name}/tile.raw")).await?;
         // Each vertex is defined by two bytes
         let u16_height_raw = height
             .chunks_exact(2)
@@ -36,44 +35,14 @@ impl Chunk {
             })
             .map(|(_, v)| *v as f32 * setting.height_scale / 100.0) // divided by 100 because original Metin2 is cm based
             .collect::<Vec<_>>();
-        // Delete first and last row and column of tile map
-        // Replace its values with actual textures indices passed in the shader
-        let mut textures_set = Set::new();
-        let tile_indices = tile_indices
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| {
-                const ORIGINAL_SIZE: f64 = 258.0;
-                let line_index = f64::floor(*i as f64 / ORIGINAL_SIZE) as u64;
-			    let colmun_index = (*i as f64 % ORIGINAL_SIZE) as u64;
-                let ignore = line_index == 0 || line_index == 257 || colmun_index == 0 || colmun_index == 257;
-                !ignore
-            })
-            .map(|(_, v)| {
-                let real_index = (*v) - 1;
-                textures_set.insert(real_index);
-                textures_set.position(&real_index).unwrap() as u8
-            })
-            .collect::<Vec<_>>();
 
+        let textures_set = ChunkTextureSet::read(&format!("{terrain_path}/{name}")).await?;
         let mut alpha_maps = Vec::new();
-        for i in 0..textures_set.len() {
-            let index = textures_set.get(i).unwrap();
-            let alpha_map = tile_indices
-                .iter()
-                .fold(Vec::<u8>::new(), |mut acc, v| {
-                    if *v == *index {
-                        acc.push(u8::MAX);
-                    } else {
-                        acc.push(u8::MIN);
-                    }
-                    acc
-                });
-            let blurred_alpha_map: GrayImage = image::ImageBuffer::from_raw(256, 256, alpha_map).unwrap();
-            let blurred_alpha_map = blur(&blurred_alpha_map, 2.0);
+        for i in 0..textures_set.textures.len() {
+            let alpha_map_raw = load_binary(&format!("{terrain_path}/{name}/tile_{i}.raw")).await?;
             alpha_maps.push(
                 Texture::from_raw_bytes(
-                    &blurred_alpha_map.to_vec(), 
+                    &alpha_map_raw, 
                     256, 
                     256, 
                     wgpu::TextureFormat::R8Unorm, 
@@ -81,17 +50,7 @@ impl Chunk {
                     state
                 )
             );
-            // std::fs::write(std::path::PathBuf::from(&format!("trash/{name}_{index}.png")), blurred_alpha_map.to_vec());
         }
-
-        let tile = Texture::from_raw_bytes(
-            &tile_indices, 
-            256, 
-            256, 
-            wgpu::TextureFormat::R8Unorm, 
-            256, 
-            state
-        );
 
         let segments = 128u32;
         let size = segments as f32 * 2.0;
@@ -106,7 +65,6 @@ impl Chunk {
                 -300.0,
                 (*y as f32 * size) + (size / 2.0)
             ],
-            &tile,
             textures,
             &alpha_maps,
             &textures_set
@@ -131,3 +89,8 @@ impl Chunk {
 }
 
 
+#[repr(C)]
+#[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
+pub struct ChunkInformationUniform {
+    pub textures_count: u32
+}
