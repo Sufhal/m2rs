@@ -135,7 +135,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // splat += get_texture_at(tile_texture_index_a, uv) * alpha;
     // splat += get_texture_at(tile_texture_index_b, uv) * (1 - alpha);
 
-    var splat = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    var splat = vec4<f32>(0.0, 0.0, 0.0, 1.0);
     for (var i: u32 = 0; i < chunk_informations.textures_count; i = i + 1) {
         splat += get_texture_at(i, in.tex_coords);
     }
