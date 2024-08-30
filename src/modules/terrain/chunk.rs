@@ -1,9 +1,9 @@
-use image::{imageops::blur, GrayImage};
-use crate::modules::{assets::assets::load_binary, core::{model::TerrainMesh, texture::Texture}, geometry::{buffer::ToTerrainMesh, plane::Plane}, state::State, utils::structs::Set};
-use super::{setting::Setting, texture_set::ChunkTextureSet};
+use crate::modules::{assets::assets::load_binary, core::{model::CustomMesh, texture::Texture}, geometry::plane::Plane, state::State};
+use super::{height::Height, setting::Setting, texture_set::ChunkTextureSet, water::Water};
 
 pub struct Chunk {
-    pub mesh: TerrainMesh
+    pub terrain_mesh: CustomMesh,
+    pub water_mesh: CustomMesh,
 }
 
 impl Chunk {
@@ -16,30 +16,14 @@ impl Chunk {
         state: &State<'_>
     ) -> anyhow::Result<Self> {
         let name = Self::name_from(*x, *y);
-        let height = load_binary(&format!("{terrain_path}/{name}/height.raw")).await?;
-        // Each vertex is defined by two bytes
-        let u16_height_raw = height
-            .chunks_exact(2)
-            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-            .collect::<Vec<u16>>();
-        // Delete first and last row and column of height map
-        let vertices_height = u16_height_raw
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| {
-                const ORIGINAL_SIZE: f64 = 131.0;
-                let line_index = f64::floor(*i as f64 / ORIGINAL_SIZE) as u64;
-			    let colmun_index = (*i as f64 % ORIGINAL_SIZE) as u64;
-                let ignore = line_index == 0 || line_index == 130 || colmun_index == 0 || colmun_index == 130;
-                !ignore
-            })
-            .map(|(_, v)| *v as f32 * setting.height_scale / 100.0) // divided by 100 because original Metin2 is cm based
-            .collect::<Vec<_>>();
-
-        let textures_set = ChunkTextureSet::read(&format!("{terrain_path}/{name}")).await?;
+        let chunk_path = &format!("{terrain_path}/{name}");
+        let height = Height::read(&chunk_path, setting.height_scale).await?;
+        let water = Water::read(&chunk_path).await?;
+        // dbg!(&water);
+        let textures_set = ChunkTextureSet::read(&chunk_path).await?;
         let mut alpha_maps = Vec::new();
         for i in 0..textures_set.textures.len() {
-            let alpha_map_raw = load_binary(&format!("{terrain_path}/{name}/tile_{i}.raw")).await?;
+            let alpha_map_raw = load_binary(&format!("{chunk_path}/tile_{i}.raw")).await?;
             alpha_maps.push(
                 Texture::from_raw_bytes(
                     &alpha_map_raw, 
@@ -51,15 +35,14 @@ impl Chunk {
                 )
             );
         }
-
         let segments = 128u32;
         let size = segments as f32 * 2.0;
-        let mut geometry = Plane::new(size, size, segments, segments);
-        geometry.set_vertices_height(vertices_height);
-        let mesh = geometry.to_terrain_mesh(
+        let mut terrain_geometry = Plane::new(size, size, segments, segments);
+        terrain_geometry.set_vertices_height(height.vertices);
+        let terrain_mesh = terrain_geometry.to_terrain_mesh(
             &state.device, 
             &state.terrain_pipeline, 
-            name,
+            name.clone(),
             [
                 (*x as f32 * size) + (size / 2.0),
                 -300.0,
@@ -69,8 +52,20 @@ impl Chunk {
             &alpha_maps,
             &textures_set
         );
+        let water_geometry = water.generate_plane(setting.height_scale);
+        let water_mesh = water_geometry.to_water_mesh(
+            &state.device, 
+            &state.water_pipeline, 
+            name,
+            [
+                (*x as f32 * size),
+                -300.0,
+                (*y as f32 * size)
+            ],
+        );
         Ok(Self {
-            mesh
+            terrain_mesh,
+            water_mesh
         })
     }
 

@@ -8,11 +8,9 @@ use winit::{
     keyboard::PhysicalKey,
     window::Window,
 };
-use crate::modules::assets::gltf_loader::load_animations;
-use crate::modules::core::model::DrawTerrainMesh;
+use crate::modules::core::model::DrawCustomMesh;
 use crate::modules::core::texture;
 use crate::modules::camera::camera;
-use crate::modules::terrain::terrain::DrawTerrain;
 use super::assets::gltf_loader::load_model_glb;
 use super::character::character::{Character, CharacterKind, NPCType};
 use super::core::object_3d::{Transform, TranslateWithScene};
@@ -20,6 +18,7 @@ use super::core::scene;
 use super::pipelines::common_pipeline::CommonPipeline;
 use super::pipelines::render_pipeline::RenderPipeline;
 use super::pipelines::terrain_pipeline::TerrainPipeline;
+use super::pipelines::water_pipeline::WaterPipeline;
 use super::terrain::terrain::Terrain;
 use super::utils::time_factory::{Instant, TimeFactory};
 // use super::utils::performance_tracker::PerformanceTracker;
@@ -33,6 +32,7 @@ pub struct State<'a> {
     pub common_pipeline: CommonPipeline,
     pub new_render_pipeline: RenderPipeline,
     pub terrain_pipeline: TerrainPipeline,
+    pub water_pipeline: WaterPipeline,
     camera: camera::Camera,
     projection: camera::Projection,
     pub camera_controller: camera::CameraController,
@@ -125,6 +125,7 @@ impl<'a> State<'a> {
         
         let common_pipeline = CommonPipeline::new(&device);
         let terrain_pipeline = TerrainPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &common_pipeline);
+        let water_pipeline = WaterPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &common_pipeline);
         let new_render_pipeline = RenderPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &common_pipeline);
 
         let mut scene = scene::Scene::new();
@@ -195,6 +196,7 @@ impl<'a> State<'a> {
             common_pipeline,
             new_render_pipeline,
             terrain_pipeline,
+            water_pipeline,
             camera,
             projection,
             camera_controller,
@@ -390,7 +392,16 @@ impl<'a> State<'a> {
 
             render_pass.set_pipeline(&self.terrain_pipeline.pipeline);
             for terrain in &self.terrains {
-                render_pass.draw_terrain(&self.queue, terrain, &self.common_pipeline);
+                for chunk in terrain.get_terrain_meshes() {
+                    render_pass.draw_custom_mesh(chunk, &self.common_pipeline);
+                }
+            }
+
+            render_pass.set_pipeline(&self.water_pipeline.pipeline);
+            for terrain in &self.terrains {
+                for chunk in terrain.get_water_meshes() {
+                    render_pass.draw_custom_mesh(chunk, &self.common_pipeline);
+                }
             }
         }
 

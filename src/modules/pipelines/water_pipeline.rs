@@ -1,18 +1,17 @@
 use crate::modules::core::model::{SimpleVertex, Vertex};
-
 use super::common_pipeline::CommonPipeline;
 
-pub struct TerrainBindGroupLayouts {
+pub struct WaterBindGroupLayouts {
     pub mesh: wgpu::BindGroupLayout,
 }
 
-pub struct TerrainPipeline {
+pub struct WaterPipeline {
     pub pipeline: wgpu::RenderPipeline,
     pub pipeline_layout: wgpu::PipelineLayout,
-    pub bind_group_layouts: TerrainBindGroupLayouts,
+    pub bind_group_layouts: WaterBindGroupLayouts,
 }
 
-impl TerrainPipeline {
+impl WaterPipeline {
     pub fn new(
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
@@ -21,7 +20,7 @@ impl TerrainPipeline {
     ) -> Self {
         let mesh = Self::create_mesh_layout(device);
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Terrain Pipeline Layout"),
+            label: Some("Water Pipeline Layout"),
             bind_group_layouts: &[
                 &common_pipeline.global_bind_group_layout,
                 &mesh,
@@ -32,12 +31,12 @@ impl TerrainPipeline {
         Self {
             pipeline,
             pipeline_layout,
-            bind_group_layouts: TerrainBindGroupLayouts { mesh },
+            bind_group_layouts: WaterBindGroupLayouts { mesh },
         }
     }
 
     fn create_mesh_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
-        let mut entries = vec![
+        let entries = vec![
             // transform
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
@@ -49,55 +48,10 @@ impl TerrainPipeline {
                 },
                 count: None,
             },
-            // chunk informations
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            },
-            // sampler (texture + aplha map)
-            wgpu::BindGroupLayoutEntry {
-                binding: 2,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            },
         ];
-
-        for i in 0..8 {
-            let offset = 3;
-            // texture
-            entries.push(wgpu::BindGroupLayoutEntry {
-                binding: offset + (i * 2) as u32,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                },
-                count: None,
-            });
-            // alpha map
-            entries.push(wgpu::BindGroupLayoutEntry {
-                binding: offset + (i * 2 + 1) as u32,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                },
-                count: None,
-            });
-        }
-
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &entries,
-            label: Some("terrain_mesh_bind_group_layout"),
+            label: Some("water_mesh_bind_group_layout"),
         })
     }
 
@@ -109,14 +63,14 @@ impl TerrainPipeline {
     ) -> wgpu::RenderPipeline {
         let shader = device.create_shader_module(
             wgpu::ShaderModuleDescriptor {
-                label: Some("Terrain Shader"),
+                label: Some("Water Shader"),
                 source: wgpu::ShaderSource::Wgsl(
-                    include_str!("../../shaders/terrain.wgsl").into()
+                    include_str!("../../shaders/water.wgsl").into()
                 ),
             }
         );
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Terrain Pipeline"),
+            label: Some("Water Pipeline"),
             layout: Some(layout),
             vertex: wgpu::VertexState {
                 module: &shader,

@@ -1,4 +1,4 @@
-use crate::modules::{core::{model::{DrawTerrainMesh, TerrainMesh}, texture::TextureAtlas}, pipelines::common_pipeline::CommonPipeline, state::State};
+use crate::modules::{core::{model::{DrawCustomMesh, CustomMesh}, texture::TextureAtlas}, pipelines::common_pipeline::CommonPipeline, state::State};
 use super::{chunk::Chunk, setting::Setting, texture_set::TextureSet};
 
 pub struct Terrain {
@@ -33,37 +33,18 @@ impl Terrain {
         })
     }
 
-    pub fn get_meshes(&self) -> Vec<&TerrainMesh> {
+    pub fn get_terrain_meshes(&self) -> Vec<&CustomMesh> {
         self.chunks
             .iter()
-            .map(|chunk| &chunk.mesh)
+            .map(|v| &v.terrain_mesh)
+            .collect()
+    }
+
+    pub fn get_water_meshes(&self) -> Vec<&CustomMesh> {
+        self.chunks
+            .iter()
+            .map(|v| &v.water_mesh)
             .collect()
     }
 
 }
-
-pub trait DrawTerrain<'a> {
-    fn draw_terrain(
-        &mut self,
-        queue: &wgpu::Queue,
-        terrain: &'a Terrain,
-        common_pipeline: &'a CommonPipeline,
-    );
-}
-
-impl<'a, 'b> DrawTerrain<'b> for wgpu::RenderPass<'a>
-where 
-    'b: 'a,
-{
-    fn draw_terrain(
-        &mut self,
-        queue: &wgpu::Queue,
-        terrain: &'b Terrain,
-        common_pipeline: &'a CommonPipeline,
-    ) {
-        for chunk in terrain.get_meshes() {
-            self.draw_terrain_mesh(chunk, common_pipeline);
-        }
-    }
-}
-

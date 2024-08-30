@@ -15,7 +15,8 @@ impl Setting {
     pub async fn read(path: &str) -> anyhow::Result<Self> {
         let filename = format!("{path}/setting.json");
         let file = load_string(&filename).await?;
-        let setting = serde_json::from_str::<Setting>(&file)?;
+        let mut setting = serde_json::from_str::<Setting>(&file)?;
+        setting.height_scale = setting.height_scale / 100.0; // divided by 100 because original Metin2 is cm based
         Ok(setting)
     }
 }

@@ -3,11 +3,10 @@ use std::collections::HashSet;
 
 use cgmath::{Matrix4, SquareMatrix};
 use wgpu::util::DeviceExt;
-use crate::modules::{core::{model::{Mesh, TerrainMesh, TerrainVertex, TransformUniform}, texture::Texture}, pipelines::terrain_pipeline::TerrainPipeline, terrain::{chunk::ChunkInformationUniform, texture_set::{ChunkTextureSet, TextureSetUniform}}, utils::structs::Set};
-use super::buffer::{ToMesh, ToTerrainMesh};
+use crate::modules::{core::{model::{CustomMesh, Mesh, SimpleVertex, TransformUniform}, texture::Texture}, pipelines::{terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::{ChunkTextureSet, TextureSetUniform}}, utils::structs::Set};
 
 pub struct Plane {
-    vertices: Vec<TerrainVertex>,
+    vertices: Vec<SimpleVertex>,
     indices: Vec<u32>,
 }
 
@@ -32,7 +31,7 @@ impl Plane {
                     y as f32 / segments_y as f32,
                 ];
 
-                vertices.push(TerrainVertex::new(
+                vertices.push(SimpleVertex::new(
                     position,
                     tex_coords,
                     normal,
@@ -61,6 +60,31 @@ impl Plane {
         }
     }
 
+    pub fn from(positions: Vec<f32>, uvs: Vec<f32>, indices: Vec<u32>) -> Self {
+        let mut vertices = Vec::new();
+        let normal = [0.0, 1.0, 0.0]; // Normale pointant vers le haut
+        for i in 0..positions.len() / 3 {
+            let p = i * 3;
+            let u = i * 2;
+            vertices.push(SimpleVertex::new(
+                [
+                    positions[p + 0],
+                    positions[p + 1],
+                    positions[p + 2],
+                ], 
+                [
+                    uvs[u + 0],
+                    uvs[u + 1],
+                ], 
+                normal
+            ))
+        }
+        Plane {
+            vertices,
+            indices
+        }
+    }
+
     pub fn set_vertices_height(&mut self, vertices_height: Vec<f32>) {
         if vertices_height.len() != self.vertices.len() {
             panic!("Impossible to set vertices height with incompatible surface vertices count");
@@ -70,10 +94,7 @@ impl Plane {
         }
     }
 
-}
-
-impl ToTerrainMesh for Plane {
-    fn to_terrain_mesh(
+    pub fn to_terrain_mesh(
         &self, 
         device: &wgpu::Device, 
         terrain_pipeline: &TerrainPipeline, 
@@ -82,7 +103,7 @@ impl ToTerrainMesh for Plane {
         textures: &Vec<Texture>,
         alpha_maps: &Vec<Texture>,
         textures_set: &ChunkTextureSet,
-    ) -> TerrainMesh {
+    ) -> CustomMesh {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Terrain Vertex Buffer"),
             contents: bytemuck::cast_slice(&self.vertices),
@@ -106,7 +127,6 @@ impl ToTerrainMesh for Plane {
 
         let get_texture_view = |index: u8| {
             let set_index = textures_set.textures.get(index as usize).unwrap_or(&0);
-            println!("using {set_index} for index {index}");
             &textures[*set_index as usize].view
         };
 
@@ -151,7 +171,7 @@ impl ToTerrainMesh for Plane {
             label: None,
         });
 
-        TerrainMesh {
+        CustomMesh {
             name,
             transform_buffer,
             vertex_buffer,
@@ -160,4 +180,52 @@ impl ToTerrainMesh for Plane {
             bind_group
         }
     }
+
+    pub fn to_water_mesh(
+        &self, 
+        device: &wgpu::Device, 
+        water_pipeline: &WaterPipeline, 
+        name: String, 
+        position: [f32; 3], 
+    ) -> CustomMesh {
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Water Vertex Buffer"),
+            contents: bytemuck::cast_slice(&self.vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Water Index Buffer"),
+            contents: bytemuck::cast_slice(&self.indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Transform Buffer"),
+            contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation(position.into()).into())]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let entries = vec![
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: transform_buffer.as_entire_binding(),
+            },
+        ];
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &water_pipeline.bind_group_layouts.mesh,
+            entries: &entries,
+            label: None,
+        });
+
+        CustomMesh {
+            name,
+            transform_buffer,
+            vertex_buffer,
+            index_buffer,
+            num_elements: self.indices.len() as u32,
+            bind_group
+        }
+    }
+
+
 }

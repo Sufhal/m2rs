@@ -1,6 +1,5 @@
 use cgmath::SquareMatrix;
-
-use crate::modules::{core::texture, pipelines::{common_pipeline::{self, CommonPipeline}, render_pipeline::RenderPipeline}};
+use crate::modules::{core::texture, pipelines::{common_pipeline::CommonPipeline, render_pipeline::RenderPipeline}};
 use std::ops::Range;
 
 use super::skinning::{AnimationClip, Skeleton};
@@ -76,21 +75,21 @@ impl Vertex for SkinnedMeshVertex {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct TerrainVertex {
+pub struct SimpleVertex {
     pub position: [f32; 3],     
     pub tex_coords: [f32; 2],  
     pub normal: [f32; 3],
     // pub texture_indices: [f32; 4],
 }
 
-impl TerrainVertex {
+impl SimpleVertex {
     pub fn new(
         position: [f32; 3], 
         tex_coords: [f32; 2], 
         normal: [f32; 3], 
         // texture_indices: [f32; 4]
     ) -> Self {
-        TerrainVertex {
+        SimpleVertex {
             position,
             tex_coords,
             normal,
@@ -99,11 +98,11 @@ impl TerrainVertex {
     }
 }
 
-impl Vertex for TerrainVertex {
+impl Vertex for SimpleVertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<TerrainVertex>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<SimpleVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
@@ -209,7 +208,7 @@ pub struct Mesh {
     pub material: usize,
 }
 
-pub struct TerrainMesh {
+pub struct CustomMesh {
     pub name: String,
     pub transform_buffer: wgpu::Buffer,
     pub vertex_buffer: wgpu::Buffer,
@@ -241,7 +240,7 @@ where
         mesh_bind_group: &'b wgpu::BindGroup,
         instances_bind_group: &'b wgpu::BindGroup,
         instances: Range<u32>,
-        render_pipeline: &'a RenderPipeline,
+        _render_pipeline: &'a RenderPipeline,
         common_pipeline: &'a CommonPipeline,
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
@@ -286,27 +285,28 @@ where
 }
 
 
-pub trait DrawTerrainMesh<'a> {
-    fn draw_terrain_mesh(
+pub trait DrawCustomMesh<'a> {
+    fn draw_custom_mesh(
         &mut self,
-        terrain_mesh: &'a TerrainMesh,
+        custom_mesh: &'a CustomMesh,
         common_pipeline: &'a CommonPipeline,
     );
 }
 
-impl<'a, 'b> DrawTerrainMesh<'b> for wgpu::RenderPass<'a>
+impl<'a, 'b> DrawCustomMesh<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn draw_terrain_mesh(
+    fn draw_custom_mesh(
         &mut self,
-        terrain_mesh: &'a TerrainMesh,
+        custom_mesh: &'a CustomMesh,
         common_pipeline: &'a CommonPipeline,
+
     ) {
-        self.set_vertex_buffer(0, terrain_mesh.vertex_buffer.slice(..));
-        self.set_index_buffer(terrain_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        self.set_vertex_buffer(0, custom_mesh.vertex_buffer.slice(..));
+        self.set_index_buffer(custom_mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
         self.set_bind_group(0, &common_pipeline.global_bind_group, &[]);
-        self.set_bind_group(1, &terrain_mesh.bind_group, &[]);
-        self.draw_indexed(0..terrain_mesh.num_elements, 0, 0..1);
+        self.set_bind_group(1, &custom_mesh.bind_group, &[]);
+        self.draw_indexed(0..custom_mesh.num_elements, 0, 0..1);
     }
 }

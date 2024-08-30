@@ -77,7 +77,7 @@ struct ChunkInformations {
 @group(1) @binding(18) var tex_alpha_map_7: texture_2d<f32>;
 
 fn get_texture_at(texture_index: u32, uv: vec2<f32>) -> vec4<f32> {
-    let tex_uv = uv * 40.0;
+    let tex_uv = uv * 40.0; // TODO: map level textureset.json contains data about this factor
     if texture_index == 0 {
         let alpha = textureSampleLevel(tex_alpha_map_0, sampler_tex, uv, 0.0);
         return textureSampleLevel(tex_0, sampler_tex, tex_uv, 0.0) * alpha.r;
