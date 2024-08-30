@@ -11,8 +11,22 @@ use crate::modules::{assets::assets::{load_png_bytes, load_string, load_texture}
 
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ChunkTextureSet {
+    pub textures: Vec<u8>
+}
+
+impl ChunkTextureSet {
+    pub async fn read(path: &str) -> anyhow::Result<Self> {
+        let filename = format!("{path}/textureset.json");
+        let file = load_string(&filename).await?;
+        let setting = serde_json::from_str::<Self>(&file)?;
+        Ok(setting)
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TextureSet {
-    pub definitions: Vec<TextureDefinition> 
+    pub definitions: Vec<TextureDefinition>
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

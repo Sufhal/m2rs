@@ -1,7 +1,4 @@
-use std::collections::HashSet;
-
-use gltf::mesh::util::indices;
-
+use image::{imageops::blur, GrayImage};
 use crate::modules::{assets::assets::load_binary, core::{model::TerrainMesh, texture::Texture}, geometry::{buffer::ToTerrainMesh, plane::Plane}, state::State, utils::structs::Set};
 use super::setting::Setting;
 
@@ -59,6 +56,34 @@ impl Chunk {
             })
             .collect::<Vec<_>>();
 
+        let mut alpha_maps = Vec::new();
+        for i in 0..textures_set.len() {
+            let index = textures_set.get(i).unwrap();
+            let alpha_map = tile_indices
+                .iter()
+                .fold(Vec::<u8>::new(), |mut acc, v| {
+                    if *v == *index {
+                        acc.push(u8::MAX);
+                    } else {
+                        acc.push(u8::MIN);
+                    }
+                    acc
+                });
+            let blurred_alpha_map: GrayImage = image::ImageBuffer::from_raw(256, 256, alpha_map).unwrap();
+            let blurred_alpha_map = blur(&blurred_alpha_map, 2.0);
+            alpha_maps.push(
+                Texture::from_raw_bytes(
+                    &blurred_alpha_map.to_vec(), 
+                    256, 
+                    256, 
+                    wgpu::TextureFormat::R8Unorm, 
+                    256, 
+                    state
+                )
+            );
+            // std::fs::write(std::path::PathBuf::from(&format!("trash/{name}_{index}.png")), blurred_alpha_map.to_vec());
+        }
+
         let tile = Texture::from_raw_bytes(
             &tile_indices, 
             256, 
@@ -83,6 +108,7 @@ impl Chunk {
             ],
             &tile,
             textures,
+            &alpha_maps,
             &textures_set
         );
         Ok(Self {

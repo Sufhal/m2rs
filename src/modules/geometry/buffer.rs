@@ -15,6 +15,7 @@ pub trait ToTerrainMesh {
         position: [f32; 3],
         tile: &Texture,
         textures: &Vec<Texture>,
+        alpha_maps: &Vec<Texture>,
         textures_set: &Set<u8>
     ) -> TerrainMesh;
 }

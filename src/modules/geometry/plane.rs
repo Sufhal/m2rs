@@ -81,6 +81,7 @@ impl ToTerrainMesh for Plane {
         position: [f32; 3], 
         tile: &Texture,
         textures: &Vec<Texture>,
+        alpha_maps: &Vec<Texture>,
         textures_set: &Set<u8>
     ) -> TerrainMesh {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -116,8 +117,15 @@ impl ToTerrainMesh for Plane {
 
         let get_texture_view = |index: u8| {
             let set_index = textures_set.get(index as usize).unwrap_or(&0);
-            println!("for shader texture index {index}, index {set_index} will be used");
             &textures[*set_index as usize].view
+        };
+
+        let get_alpha_view = |index: usize| {
+            if let Some(texture) = alpha_maps.get(index) {
+                &texture.view
+            } else {
+                &alpha_maps[0].view
+            }
         };
 
         let mut entries = vec![
@@ -133,21 +141,25 @@ impl ToTerrainMesh for Plane {
                 binding: 2,
                 resource: wgpu::BindingResource::Sampler(&tile.sampler),
             },
+            // wgpu::BindGroupEntry {
+            //     binding: 3,
+            //     resource: wgpu::BindingResource::TextureView(&tile.view),
+            // },
             wgpu::BindGroupEntry {
                 binding: 3,
-                resource: wgpu::BindingResource::TextureView(&tile.view),
-            },
-            wgpu::BindGroupEntry {
-                binding: 4,
                 resource: wgpu::BindingResource::Sampler(&textures[0].sampler),
             },
         ];
 
-        for i in 0..10 {
-            let binding = 5 + i as u32;
+        for i in 0..8 {
+            let offset = 4;
             entries.push(wgpu::BindGroupEntry {
-                binding,
+                binding: offset + (i * 2) as u32,
                 resource: wgpu::BindingResource::TextureView(get_texture_view(i)),
+            });
+            entries.push(wgpu::BindGroupEntry {
+                binding: offset + (i * 2 + 1) as u32,
+                resource: wgpu::BindingResource::TextureView(get_alpha_view(i as usize)),
             });
         }
 

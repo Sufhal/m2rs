@@ -23,4 +23,7 @@ impl<T> Set<T>
     pub fn position(&self, value: &T) -> Option<usize> {
         self.data.iter().position(|v| v == value)
     }
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
 }

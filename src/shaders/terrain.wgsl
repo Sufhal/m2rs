@@ -55,18 +55,62 @@ var<uniform> light: Light;
 
 @group(1) @binding(1) var<storage, read> textures_set: array<u32>;
 @group(1) @binding(2) var sampler_tile: sampler;
-@group(1) @binding(3) var tex_tile: texture_2d<f32>;
-@group(1) @binding(4) var sampler_tex: sampler;
-@group(1) @binding(5) var tex_0: texture_2d<f32>;
+// @group(1) @binding(3) var tex_tile: texture_2d<f32>;
+@group(1) @binding(3) var sampler_tex: sampler;
+@group(1) @binding(4) var tex_0: texture_2d<f32>;
+@group(1) @binding(5) var tex_alpha_map_0: texture_2d<f32>;
 @group(1) @binding(6) var tex_1: texture_2d<f32>;
-@group(1) @binding(7) var tex_2: texture_2d<f32>;
-@group(1) @binding(8) var tex_3: texture_2d<f32>;
-@group(1) @binding(9) var tex_4: texture_2d<f32>;
-@group(1) @binding(10) var tex_5: texture_2d<f32>;
-@group(1) @binding(11) var tex_6: texture_2d<f32>;
-@group(1) @binding(12) var tex_7: texture_2d<f32>;
-@group(1) @binding(13) var tex_8: texture_2d<f32>;
-@group(1) @binding(14) var tex_9: texture_2d<f32>;
+@group(1) @binding(7) var tex_alpha_map_1: texture_2d<f32>;
+@group(1) @binding(8) var tex_2: texture_2d<f32>;
+@group(1) @binding(9) var tex_alpha_map_2: texture_2d<f32>;
+@group(1) @binding(10) var tex_3: texture_2d<f32>;
+@group(1) @binding(11) var tex_alpha_map_3: texture_2d<f32>;
+@group(1) @binding(12) var tex_4: texture_2d<f32>;
+@group(1) @binding(13) var tex_alpha_map_4: texture_2d<f32>;
+@group(1) @binding(14) var tex_5: texture_2d<f32>;
+@group(1) @binding(15) var tex_alpha_map_5: texture_2d<f32>;
+@group(1) @binding(16) var tex_6: texture_2d<f32>;
+@group(1) @binding(17) var tex_alpha_map_6: texture_2d<f32>;
+@group(1) @binding(18) var tex_7: texture_2d<f32>;
+@group(1) @binding(19) var tex_alpha_map_7: texture_2d<f32>;
+// @group(1) @binding(21) var tex_8: texture_2d<f32>;
+// @group(1) @binding(22) var tex_alpha_map_8: texture_2d<f32>;
+// @group(1) @binding(23) var tex_9: texture_2d<f32>;
+// @group(1) @binding(24) var tex_alpha_map_9: texture_2d<f32>;
+
+fn get_texture_at(texture_index: u32, uv: vec2<f32>) -> vec4<f32> {
+    if texture_index == 0 {
+        return textureSampleLevel(tex_0, sampler_tex, uv, 0.0);
+    }
+    else if texture_index == 1 {
+        return textureSampleLevel(tex_1, sampler_tex, uv, 0.0);
+    }
+    else if texture_index == 2 {
+        return textureSampleLevel(tex_2, sampler_tex, uv, 0.0);
+    }
+    else if texture_index == 3 {
+        return textureSampleLevel(tex_3, sampler_tex, uv, 0.0);
+    }
+    else if texture_index == 4 {
+        return textureSampleLevel(tex_4, sampler_tex, uv, 0.0);
+    }
+    else if texture_index == 5 {
+        return textureSampleLevel(tex_5, sampler_tex, uv, 0.0);
+    }
+    else if texture_index == 6 {
+        return textureSampleLevel(tex_6, sampler_tex, uv, 0.0);
+    }
+    else if texture_index == 7 {
+        return textureSampleLevel(tex_7, sampler_tex, uv, 0.0);
+    }
+    // else if texture_index == 8 {
+    //     return textureSampleLevel(tex_8, sampler_tex, uv, 0.0);
+    // }
+    // else if texture_index == 9 {
+    //     return textureSampleLevel(tex_9, sampler_tex, uv, 0.0);
+    // }
+    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+}
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -80,44 +124,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let result = (ambient_color + diffuse_color); // disabled specular, we don't want terrain to reflect light
 
     // let object_color: vec4<f32> = textureSample(tex_tile, tex_sampler, in.tex_coords);
-    let tile: vec4<f32> = textureSample(tex_tile, sampler_tile, in.tex_coords);
-    let tile_texture_index: u32 = u32(round(tile.r * 255.0));
-    let uv = in.tex_coords * 40.;
-    var splat = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    // let tile: vec4<f32> = textureSample(tex_tile, sampler_tex, in.tex_coords);
+    // let upscaled_tile: f32 = tile.r * 255.0;
+    // let tile_texture_index_a: u32 = u32(floor(upscaled_tile));
+    // let tile_texture_index_b: u32 = u32(ceil(upscaled_tile));
+    // let alpha: f32 = upscaled_tile - floor(upscaled_tile);
+    // let uv = in.tex_coords * 40.;
+    // var splat = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
-    if tile_texture_index == 0 {
-        splat += textureSampleLevel(tex_0, sampler_tex, uv, 0.0);
-    }
-    else if tile_texture_index == 1 {
-        splat += textureSampleLevel(tex_1, sampler_tex, uv, 0.0);
-    }
-    else if tile_texture_index == 2 {
-        splat += textureSampleLevel(tex_2, sampler_tex, uv, 0.0);
-    }
-    else if tile_texture_index == 3 {
-        splat += textureSampleLevel(tex_3, sampler_tex, uv, 0.0);
-    }
-    else if tile_texture_index == 4 {
-        splat += textureSampleLevel(tex_4, sampler_tex, uv, 0.0);
-    }
-    else if tile_texture_index == 5 {
-        splat += textureSampleLevel(tex_5, sampler_tex, uv, 0.0);
-    }
-    else if tile_texture_index == 6 {
-        splat += textureSampleLevel(tex_6, sampler_tex, uv, 0.0);
-    }
-    else if tile_texture_index == 7 {
-        splat += textureSampleLevel(tex_7, sampler_tex, uv, 0.0);
-    }
-    else if tile_texture_index == 8 {
-        splat += textureSampleLevel(tex_8, sampler_tex, uv, 0.0);
-    }
-    else if tile_texture_index == 9 {
-        splat += textureSampleLevel(tex_9, sampler_tex, uv, 0.0);
-    }
+    // splat += get_texture_at(tile_texture_index_a, uv) * alpha;
+    // splat += get_texture_at(tile_texture_index_b, uv) * (1 - alpha);
     
-    return vec4<f32>(splat.xyz, 1.0);
-    // return vec4<f32>(tile.r, 0.0, 0.0, 1.0);
+    let alpha: vec4<f32> = textureSample(tex_alpha_map_0, sampler_tex, in.tex_coords);
+    // return vec4<f32>(splat.xyz, 1.0);
+    return vec4<f32>(alpha.r, 0.0, 0.0, 1.0);
     // return debug;
     // return vec4<f32>(object_color.xyz, 1.0);
 }
