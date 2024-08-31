@@ -31,13 +31,13 @@ M2RS is an experimental projet which targets to entierly rewrite the game [Metin
   - [ ] allow `Object3D` to be attached to a skeleton bone (hairs, weapons)
 - `Terrain`
   - [x] parse and generate terrain chunks
-  - [ ] shader
+  - [x] shader
   - [ ] shadows
   - [ ] raycast to make characters walk above the ground
   - [ ] objects
   - [ ] trees
-  - [ ] water geometry
-  - [ ] water shader
+  - [x] water geometry
+  - [x] water shader
 - `Environment`
   - [ ] sun light that follow a realistic path between day and night 
   - [ ] environment colors
