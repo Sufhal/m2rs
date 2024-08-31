@@ -1,4 +1,6 @@
 use std::{collections::{BTreeMap, HashMap}, convert::TryInto};
+use rustc_hash::FxHashMap;
+
 use crate::modules::{assets::assets::{load_binary, load_png_bytes, load_texture}, core::{model::SimpleVertex, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
 
 const PATCH_SIZE: f32 = 2.0;
@@ -44,7 +46,7 @@ impl Water {
         let mut positions = Vec::new();
         let mut uvs = Vec::new();
         let mut indices = Vec::new();
-        let mut indices_positions = HashMap::new();
+        let mut indices_positions = FxHashMap::default();
 
         let size = f32::sqrt(water_height.len() as f32);
         let uv_factor = 1.0 / size;

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cgmath::Matrix4;
+use rustc_hash::FxHashMap;
 use wgpu::util::DeviceExt;
 use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, pipelines::{terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::WaterUniform}};
 
@@ -8,14 +9,14 @@ use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform},
 pub struct Plane {
     pub vertices: Vec<SimpleVertex>,
     pub indices: Vec<u32>,
-    pub indices_positions: HashMap<usize, usize>,
+    pub indices_positions: FxHashMap<usize, usize>,
 }
 
 impl Plane {
     pub fn new(width: f32, height: f32, segments_x: u32, segments_y: u32) -> Self {
         let mut vertices = Vec::new();
         let mut indices = Vec::new();
-        let mut indices_positions = HashMap::new();
+        let mut indices_positions = FxHashMap::default();
         let segment_width = width / segments_x as f32;
         let segment_height = height / segments_y as f32;
         let normal = [0.0, 1.0, 0.0]; // Normale pointant vers le haut
@@ -69,7 +70,7 @@ impl Plane {
         }
     }
 
-    pub fn from(positions: Vec<f32>, uvs: Vec<f32>, indices: Vec<u32>, indices_positions: HashMap<usize, usize>) -> Self {
+    pub fn from(positions: Vec<f32>, uvs: Vec<f32>, indices: Vec<u32>, indices_positions: FxHashMap<usize, usize>) -> Self {
         let mut vertices = Vec::new();
         let normal = [0.0, 1.0, 0.0]; // Normale pointant vers le haut
         for i in 0..positions.len() / 3 {
