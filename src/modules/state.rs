@@ -284,6 +284,7 @@ impl<'a> State<'a> {
 
     pub fn update(&mut self, dt: instant::Duration) {
         self.time_factory.tick();
+        let elapsed_time = self.time_factory.elapsed_time_from_start();
         // self.performance_tracker.call_start("update");
         // self.performance_tracker.call_start("update_camera");
         self.camera_controller.update_camera(&mut self.camera, dt);
@@ -331,6 +332,10 @@ impl<'a> State<'a> {
                 }
                 object_3d.update_skeleton(&self.queue);
             }
+        }
+
+        for terrain in &mut self.terrains {
+            terrain.update(elapsed_time, &self.queue);
         }
         // self.performance_tracker.call_end("update_objects");
         // self.performance_tracker.call_end("update");

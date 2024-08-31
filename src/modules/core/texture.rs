@@ -14,6 +14,25 @@ pub struct Texture {
 
 impl Texture {
 
+    pub fn update(&mut self, rgba: &[u8], queue: &wgpu::Queue) {
+        let dimensions = (self.texture.width(), self.texture.height());
+        queue.write_texture(
+            wgpu::ImageCopyTexture {
+                aspect: wgpu::TextureAspect::All,
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            rgba,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * dimensions.0),
+                rows_per_image: Some(dimensions.1),
+            },
+            self.texture.size(),
+        );
+    } 
+
     pub fn from_raw_bytes(
         bytes: &[u8],
         width: u32,

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use cgmath::{Matrix4, SquareMatrix};
 use wgpu::util::DeviceExt;
-use crate::modules::{core::{model::{CustomMesh, Mesh, SimpleVertex, TransformUniform}, texture::Texture}, pipelines::{terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::{ChunkTextureSet, TextureSetUniform}}, utils::structs::Set};
+use crate::modules::{core::{model::{CustomMesh, Mesh, SimpleVertex, TransformUniform}, texture::Texture}, pipelines::{terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::{ChunkTextureSet, TextureSetUniform}, water::WaterUniform}, utils::structs::Set};
 
 pub struct Plane {
     vertices: Vec<SimpleVertex>,
@@ -186,7 +186,9 @@ impl Plane {
         device: &wgpu::Device, 
         water_pipeline: &WaterPipeline, 
         name: String, 
-        position: [f32; 3], 
+        position: [f32; 3],
+        textures: [&Texture; 2],
+        water_uniform: WaterUniform,
     ) -> CustomMesh {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Water Vertex Buffer"),
@@ -203,13 +205,35 @@ impl Plane {
             contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation(position.into()).into())]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+        let water_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Water Buffer"),
+            contents: bytemuck::cast_slice(&[water_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
 
         let entries = vec![
             wgpu::BindGroupEntry {
                 binding: 0,
                 resource: transform_buffer.as_entire_binding(),
             },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: water_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: wgpu::BindingResource::Sampler(&textures[0].sampler),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: wgpu::BindingResource::TextureView(&textures[0].view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: wgpu::BindingResource::TextureView(&textures[1].view),
+            },
         ];
+
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &water_pipeline.bind_group_layouts.mesh,

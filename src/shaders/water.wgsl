@@ -45,8 +45,16 @@ struct Light {
     position: vec3<f32>,
     color: vec3<f32>,
 }
-@group(0) @binding(1)
-var<uniform> light: Light;
+@group(0) @binding(1) var<uniform> light: Light;
+
+struct Water {
+    factor: f32,
+    time: f32,
+}
+@group(1) @binding(1) var<uniform> water: Water;
+@group(1) @binding(2) var sampler_tex: sampler;
+@group(1) @binding(3) var tex_0: texture_2d<f32>;
+@group(1) @binding(4) var tex_1: texture_2d<f32>;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -58,6 +66,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let result = (ambient_color + diffuse_color); // disabled specular, we don't want terrain to reflect light
 
-    return vec4<f32>(0.05, 0.5, 0.5, 1.0);
+    return textureSample(tex_0, sampler_tex, in.tex_coords * 10.0);
+
+    // return vec4<f32>(0.05, 0.5, 0.5, 1.0);
 }
  

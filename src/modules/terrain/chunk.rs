@@ -1,5 +1,5 @@
-use crate::modules::{assets::assets::load_binary, core::{model::CustomMesh, texture::Texture}, geometry::plane::Plane, state::State};
-use super::{height::Height, setting::Setting, texture_set::ChunkTextureSet, water::Water};
+use crate::modules::{assets::assets::load_binary, core::{model::CustomMesh, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
+use super::{height::Height, setting::Setting, texture_set::ChunkTextureSet, water::{Water, WaterTexture}};
 
 pub struct Chunk {
     pub terrain_mesh: CustomMesh,
@@ -13,6 +13,7 @@ impl Chunk {
         y: &u8,
         setting: &Setting,
         textures: &Vec<Texture>,
+        water_textures: &WaterTexture,
         state: &State<'_>
     ) -> anyhow::Result<Self> {
         let name = Self::name_from(*x, *y);
@@ -62,6 +63,11 @@ impl Chunk {
                 -300.0,
                 (*y as f32 * size)
             ],
+            [
+                &water_textures.textures[0],
+                &water_textures.textures[1],
+            ],
+            water_textures.uniform.clone()
         );
         Ok(Self {
             terrain_mesh,
@@ -71,14 +77,7 @@ impl Chunk {
 
     /// Something like "001002", "004005"
     pub fn name_from(x: u8, y: u8) -> String {
-        fn transform(value: u8) -> String {
-            let mut output = format!("{value}");
-            while output.len() < 3 {
-                output.insert_str(0, "0");
-            }
-            output
-        }
-        transform(x) + &transform(y)
+        u8_to_string_with_len(x, 3) + &u8_to_string_with_len(y, 3)
     }
 
 }

@@ -80,3 +80,11 @@ pub fn random_u8(max: u8) -> u8 {
 pub fn is_power_of_two(x: u64) -> bool {
     (x != 0) && ((x & (x - 1)) == 0)
 }
+
+pub fn u8_to_string_with_len(value: u8, len: usize) -> String {
+    let mut output = format!("{value}");
+    while output.len() < len {
+        output.insert_str(0, "0");
+    }
+    output
+}
