@@ -9,6 +9,11 @@ struct TransformUniform {
     transform: mat4x4<f32>,
 };
 @group(1) @binding(0) var<uniform> transform: TransformUniform;
+struct Water {
+    factor: f32,
+    time: f32,
+}
+@group(1) @binding(1) var<uniform> water: Water;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -37,11 +42,14 @@ fn vs_main(
     out.tex_coords = model.tex_coords;
     out.world_normal = model.normal;
     var transformed_model_matrix = transform.transform;
-    var world_position: vec4<f32> = transformed_model_matrix * vec4<f32>(model.position, 1.0);
+    let wave_offset = sin(water.time * 1.5) / 20.;
+    var position = model.position;
+    position.y += wave_offset;
+    var world_position: vec4<f32> = transformed_model_matrix * vec4<f32>(position, 1.0);
     out.world_position = world_position.xyz;
     out.clip_position = camera.view_proj * world_position;
     out.position = model.position;
-    out.depth = water_depth.depth;
+    out.depth = water_depth.depth + wave_offset;
     return out;
 }
 
@@ -53,11 +61,6 @@ struct Light {
 }
 @group(0) @binding(1) var<uniform> light: Light;
 
-struct Water {
-    factor: f32,
-    time: f32,
-}
-@group(1) @binding(1) var<uniform> water: Water;
 @group(1) @binding(2) var sampler_tex: sampler;
 @group(1) @binding(3) var tex_0: texture_2d<f32>;
 @group(1) @binding(4) var tex_1: texture_2d<f32>;
