@@ -1,9 +1,6 @@
-
-use std::collections::HashSet;
-
-use cgmath::{Matrix4, SquareMatrix};
+use cgmath::Matrix4;
 use wgpu::util::DeviceExt;
-use crate::modules::{core::{model::{CustomMesh, Mesh, SimpleVertex, TransformUniform}, texture::Texture}, pipelines::{terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::{ChunkTextureSet, TextureSetUniform}, water::WaterUniform}, utils::structs::Set};
+use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, pipelines::{terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::WaterUniform}};
 
 pub struct Plane {
     vertices: Vec<SimpleVertex>,

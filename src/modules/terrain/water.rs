@@ -129,13 +129,5 @@ impl WaterTexture {
             self.textures[0].update(&self.textures_data[current], queue);
             self.textures[1].update(&self.textures_data[next], queue);
         }
-        
-        // const textureIndex = ((elapsedTimeFromStart * 1000) / 70) % 30;
-		// const actual = Math.floor(textureIndex);
-		// const next = actual === this._textures.length - 1 ? 0 : Math.ceil(textureIndex);
-		// this._uniforms.waterTexture.value = this._textures[actual];
-		// this._uniforms.waterTextureNext.value = this._textures[next];
-		// this._uniforms.factor.value = textureIndex - actual;
-		// this._uniforms.time.value = elapsedTimeFromStart;
     }
 } 

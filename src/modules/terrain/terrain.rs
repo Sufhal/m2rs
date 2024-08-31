@@ -1,7 +1,8 @@
-use crate::modules::{core::{model::{DrawCustomMesh, CustomMesh}, texture::TextureAtlas}, pipelines::common_pipeline::CommonPipeline, state::State};
+use crate::modules::{core::model::CustomMesh, state::State};
 use super::{chunk::Chunk, setting::Setting, texture_set::TextureSet, water::WaterTexture};
 
 pub struct Terrain {
+    #[allow(dead_code)]
     setting: Setting,
     water_texture: WaterTexture,
     chunks: Vec<Chunk>

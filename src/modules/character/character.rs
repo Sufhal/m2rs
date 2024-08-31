@@ -71,6 +71,7 @@ impl fmt::Display for CharacterKind {
 }
 
 pub struct Character {
+    #[allow(dead_code)]
     kind: CharacterKind,
     pub objects: Vec<(String, String)>, // (Object ID, Object3DInstance ID)
     motions: MotionsGroups

@@ -1,12 +1,8 @@
 use std::collections::{HashMap, VecDeque};
 use cgmath::SquareMatrix;
-use wgpu::core::device::queue;
-
 use crate::modules::pipelines::common_pipeline::CommonPipeline;
 use crate::modules::pipelines::render_pipeline::RenderPipeline;
-
-use super::object::{self, Object};
-use super::object_3d::{self, Object3D};
+use super::object::Object;
 use super::model::{DrawSkinnedModel, TransformUniform};
 
 pub struct Scene {

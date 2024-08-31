@@ -147,15 +147,14 @@ pub enum Keyframes {
     Other,
 }
 
-const DEFAULT_CLIP_TRANSITION_DURATION_MS: f64 = 800.0;
-
 #[derive(Clone, Debug)]
-struct PlayState {
+pub struct PlayState {
     animation: usize,
     elapsed_time: f64
 }
 #[derive(Clone, Debug)]
-struct TransitionState {
+#[allow(dead_code)]
+pub struct TransitionState {
     elapsed_time: f64,
     animation_in: usize,
     animation_out: usize
@@ -188,15 +187,10 @@ impl AnimationMixer {
         clips.iter().position(|c| c.name == clip_name)
     }
     pub fn update(&mut self, delta_ms: f64) {
-        let clips = RefCell::borrow(&self.clips);
+        let _clips = RefCell::borrow(&self.clips);
         match &mut self.state {
             MixerState::Play(state) => {
                 state.elapsed_time += delta_ms;
-                // if state.elapsed_time + delta_ms > (clips[state.animation].duration * 1000.0) as f64 {
-                //     state.elapsed_time = 0.0; // loop
-                // } else {
-                //     state.elapsed_time += delta_ms;
-                // }
             },
             _ => ()
         };

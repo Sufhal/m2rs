@@ -20,7 +20,7 @@ use super::pipelines::render_pipeline::RenderPipeline;
 use super::pipelines::terrain_pipeline::TerrainPipeline;
 use super::pipelines::water_pipeline::WaterPipeline;
 use super::terrain::terrain::Terrain;
-use super::utils::time_factory::{Instant, TimeFactory};
+use super::utils::time_factory::TimeFactory;
 // use super::utils::performance_tracker::PerformanceTracker;
 
 pub struct State<'a> {
@@ -42,7 +42,6 @@ pub struct State<'a> {
     pub scene: scene::Scene,
     // performance_tracker: PerformanceTracker,
     // time: std::time::Instant,
-    instant: Instant,
     time_factory: TimeFactory,
     pub characters: Vec<Character>,
     pub terrains: Vec<Terrain>,
@@ -205,7 +204,6 @@ impl<'a> State<'a> {
             window,
             scene,
             // performance_tracker: PerformanceTracker::new(),
-            instant: Instant::now(),
             time_factory: TimeFactory::new(),
             characters: Vec::new(),
             terrains: Vec::new()

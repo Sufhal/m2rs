@@ -1,8 +1,5 @@
-use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
-
 use crate::modules::core::model::{Mesh, SkinnedMeshVertex, TransformUniform};
-
 use super::buffer::ToMesh;
 
 pub struct Sphere {

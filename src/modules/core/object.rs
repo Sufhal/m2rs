@@ -1,7 +1,6 @@
 use cgmath::SquareMatrix;
 use crate::modules::utils::id_gen::generate_unique_string;
-
-use super::{object_3d::{self, Object3D}, scene::Scene};
+use super::object_3d::Object3D;
 
 #[derive(Debug)]
 pub struct Metadata {
@@ -17,6 +16,7 @@ pub struct Object {
     pub childrens: Vec<String>,
     pub matrix: [[f32; 4]; 4],
     pub matrix_world: [[f32; 4]; 4],
+    #[allow(dead_code)]
     matrix_world_needs_update: bool,
     pub object_3d: Option<Object3D>,
     pub metadata: Option<Metadata>,

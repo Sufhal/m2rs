@@ -1,13 +1,9 @@
 use std::{cell::RefCell, rc::Rc};
-
 use cgmath::{One, Quaternion, Rad, Rotation3};
 use wgpu::util::DeviceExt;
-
 use crate::modules::{pipelines::render_pipeline::RenderBindGroupLayouts, utils::id_gen::generate_unique_string};
-
 use super::{instance::InstanceRaw, model::SkinnedModel, scene::Scene, skinning::{AnimationClip, AnimationMixer, Mat4x4, Skeleton, SkeletonInstance}};
 
-type Mat4 = cgmath::Matrix4<f32>;
 type Vec3 = cgmath::Vector3<f32>;
 type Quat = cgmath::Quaternion<f32>;
 

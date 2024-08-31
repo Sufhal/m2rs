@@ -196,7 +196,7 @@ fn extract_skeleton(
                 })
                 .collect::<Vec<_>>();
 
-            let mut model_skeleton = Skeleton { bones };
+            let model_skeleton = Skeleton { bones };
             skeleton = Some(model_skeleton);
             break;
         }
