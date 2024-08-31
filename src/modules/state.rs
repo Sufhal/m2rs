@@ -15,6 +15,7 @@ use super::assets::gltf_loader::load_model_glb;
 use super::character::character::{Character, CharacterKind, NPCType};
 use super::core::object_3d::{Transform, TranslateWithScene};
 use super::core::scene;
+use super::geometry::plane::Plane;
 use super::pipelines::common_pipeline::CommonPipeline;
 use super::pipelines::render_pipeline::RenderPipeline;
 use super::pipelines::terrain_pipeline::TerrainPipeline;
@@ -49,6 +50,12 @@ pub struct State<'a> {
 
 impl<'a> State<'a> {
     pub async fn new(window: &'a Window) -> State<'a> {
+
+        // let plane = Plane::new(1.0, 1.0, 2, 2);
+        // dbg!(&plane, plane.indices.len(), plane.vertices.len());
+        // panic!();
+
+
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -224,8 +231,6 @@ impl<'a> State<'a> {
             state.terrains.push(terrain);
         }
 
-
-        // panic!();
         state
     }
 
@@ -402,9 +407,10 @@ impl<'a> State<'a> {
 
             render_pass.set_pipeline(&self.water_pipeline.pipeline);
             for terrain in &self.terrains {
-                for chunk in terrain.get_water_meshes() {
-                    render_pass.draw_custom_mesh(chunk, &self.common_pipeline);
-                }
+                for chunk in &terrain.chunks {
+                    render_pass.set_vertex_buffer(1, chunk.depth_buffer.slice(..));
+                    render_pass.draw_custom_mesh(&chunk.water_mesh, &self.common_pipeline);
+                } 
             }
         }
 

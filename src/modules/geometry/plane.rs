@@ -1,16 +1,21 @@
+use std::collections::HashMap;
+
 use cgmath::Matrix4;
 use wgpu::util::DeviceExt;
 use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, pipelines::{terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::WaterUniform}};
 
+#[derive(Debug)]
 pub struct Plane {
-    vertices: Vec<SimpleVertex>,
-    indices: Vec<u32>,
+    pub vertices: Vec<SimpleVertex>,
+    pub indices: Vec<u32>,
+    pub indices_positions: HashMap<usize, usize>,
 }
 
 impl Plane {
     pub fn new(width: f32, height: f32, segments_x: u32, segments_y: u32) -> Self {
         let mut vertices = Vec::new();
         let mut indices = Vec::new();
+        let mut indices_positions = HashMap::new();
         let segment_width = width / segments_x as f32;
         let segment_height = height / segments_y as f32;
         let normal = [0.0, 1.0, 0.0]; // Normale pointant vers le haut
@@ -42,6 +47,11 @@ impl Plane {
                 let i2 = i0 + (segments_x + 1);
                 let i3 = i2 + 1;
 
+                indices_positions.insert(i0 as usize, indices.len());
+                indices_positions.insert(i1 as usize, indices.len() + 3);
+                indices_positions.insert(i2 as usize, indices.len() + 4);
+                indices_positions.insert(i3 as usize, indices.len() + 5);
+
                 indices.push(i0);
                 indices.push(i2);
                 indices.push(i1);
@@ -49,15 +59,17 @@ impl Plane {
                 indices.push(i1);
                 indices.push(i2);
                 indices.push(i3);
+
             }
         }
         Plane {
             vertices,
             indices,
+            indices_positions
         }
     }
 
-    pub fn from(positions: Vec<f32>, uvs: Vec<f32>, indices: Vec<u32>) -> Self {
+    pub fn from(positions: Vec<f32>, uvs: Vec<f32>, indices: Vec<u32>, indices_positions: HashMap<usize, usize>) -> Self {
         let mut vertices = Vec::new();
         let normal = [0.0, 1.0, 0.0]; // Normale pointant vers le haut
         for i in 0..positions.len() / 3 {
@@ -78,7 +90,8 @@ impl Plane {
         }
         Plane {
             vertices,
-            indices
+            indices,
+            indices_positions
         }
     }
 

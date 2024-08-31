@@ -1,9 +1,12 @@
+use wgpu::util::DeviceExt;
+
 use crate::modules::{assets::assets::load_binary, core::{model::CustomMesh, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
 use super::{height::Height, setting::Setting, texture_set::ChunkTextureSet, water::{Water, WaterTexture}};
 
 pub struct Chunk {
     pub terrain_mesh: CustomMesh,
     pub water_mesh: CustomMesh,
+    pub depth_buffer: wgpu::Buffer,
     water_buffer: wgpu::Buffer,
 }
 
@@ -55,6 +58,12 @@ impl Chunk {
             &textures_set
         );
         let water_geometry = water.generate_plane(setting.height_scale);
+        let depth = Water::calculate_depth(&water_geometry, &terrain_geometry);
+        let depth_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Depth Buffer"),
+            contents: bytemuck::cast_slice(&depth),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
         let (water_mesh, water_buffer) = water_geometry.to_water_mesh(
             &state.device, 
             &state.water_pipeline, 
@@ -73,7 +82,8 @@ impl Chunk {
         Ok(Self {
             terrain_mesh,
             water_mesh,
-            water_buffer
+            water_buffer,
+            depth_buffer,
         })
     }
 

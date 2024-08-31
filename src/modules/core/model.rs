@@ -79,7 +79,6 @@ pub struct SimpleVertex {
     pub position: [f32; 3],     
     pub tex_coords: [f32; 2],  
     pub normal: [f32; 3],
-    // pub texture_indices: [f32; 4],
 }
 
 impl SimpleVertex {
@@ -87,13 +86,11 @@ impl SimpleVertex {
         position: [f32; 3], 
         tex_coords: [f32; 2], 
         normal: [f32; 3], 
-        // texture_indices: [f32; 4]
     ) -> Self {
         SimpleVertex {
             position,
             tex_coords,
             normal,
-            // texture_indices
         }
     }
 }

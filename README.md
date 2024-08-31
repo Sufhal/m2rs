@@ -56,6 +56,7 @@ M2RS is an experimental projet which targets to entierly rewrite the game [Metin
 
 ## Optimization track
 - `GLTF` loader currently produces 4 skeletons if there is 4 skinned mesh linked to the same skeleton.
+- Water generation is currently slow due to vertices height comparaison between two planes without being equal in vertices count (HashMap set/get overhead)
 
 ## Start
 

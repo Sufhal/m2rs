@@ -1,5 +1,5 @@
-use std::convert::TryInto;
-use crate::modules::{assets::assets::{load_binary, load_png_bytes, load_texture}, core::texture::Texture, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
+use std::{collections::{BTreeMap, HashMap}, convert::TryInto};
+use crate::modules::{assets::assets::{load_binary, load_png_bytes, load_texture}, core::{model::SimpleVertex, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
 
 const PATCH_SIZE: f32 = 2.0;
 
@@ -44,10 +44,10 @@ impl Water {
         let mut positions = Vec::new();
         let mut uvs = Vec::new();
         let mut indices = Vec::new();
+        let mut indices_positions = HashMap::new();
 
         let size = f32::sqrt(water_height.len() as f32);
         let uv_factor = 1.0 / size;
-
         let mut vertex_offset = 0;
 
         for i in 0..water_height.len() {
@@ -67,17 +67,43 @@ impl Water {
             positions.extend([x + PATCH_SIZE, height, y + PATCH_SIZE]);
             uvs.extend([(x + PATCH_SIZE) * uv_factor, (y + PATCH_SIZE) * uv_factor]);
 
+            let vertex_index = vertex_offset as usize;
+
+            indices_positions.insert(vertex_index + 0, indices.len() + 0);
+            indices_positions.insert(vertex_index + 2, indices.len() + 1);
+            indices_positions.insert(vertex_index + 1, indices.len() + 2);
+            indices_positions.insert(vertex_index + 3, indices.len() + 5);
+
             indices.extend([
-                vertex_offset, vertex_offset + 1, vertex_offset + 2,
-                vertex_offset + 1, vertex_offset + 3, vertex_offset + 2,
+                vertex_offset, 
+                vertex_offset + 2, 
+                vertex_offset + 1,
+                vertex_offset + 1, 
+                vertex_offset + 2,
+                vertex_offset + 3,
             ]);
 
             vertex_offset += 4;
         }
-
-        Plane::from(positions, uvs, indices)
-
+        Plane::from(positions, uvs, indices, indices_positions)
     }
+
+    pub fn calculate_depth(
+        water_plane: &Plane,
+        terrain_plane: &Plane,
+    ) -> Vec<f32> {
+        // dbg!(water_plane.indices.len(), water_plane.vertices.len(), terrain_plane.indices.len(), terrain_plane.vertices.len());
+        let mut depth: Vec<f32> = Vec::new();
+        for i in 0..water_plane.vertices.len() {
+            let indice_position = water_plane.indices_positions.get(&i).unwrap();
+            let water_height = water_plane.vertices[i].position[1];
+            let terrain_height = terrain_plane.vertices[terrain_plane.indices[*indice_position] as usize].position[1];
+            depth.push(water_height - terrain_height);
+            // depth.push(1.0);
+        }
+        depth
+    }
+
 }
 
 #[repr(C)]
@@ -131,3 +157,26 @@ impl WaterTexture {
         }
     }
 } 
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct WaterDepth {
+    depth: f32,
+}
+
+impl WaterDepth {
+    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+        use std::mem;
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<WaterDepth>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 3,
+                    format: wgpu::VertexFormat::Float32,
+                },
+            ],
+        }
+    }
+}

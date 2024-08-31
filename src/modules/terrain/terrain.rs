@@ -5,7 +5,7 @@ pub struct Terrain {
     #[allow(dead_code)]
     setting: Setting,
     water_texture: WaterTexture,
-    chunks: Vec<Chunk>
+    pub chunks: Vec<Chunk>
 }
 
 impl Terrain {

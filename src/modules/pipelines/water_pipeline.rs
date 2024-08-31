@@ -1,6 +1,6 @@
 use wgpu::{BlendComponent, BlendFactor, BlendOperation};
 
-use crate::modules::core::model::{SimpleVertex, Vertex};
+use crate::modules::{core::model::{SimpleVertex, Vertex}, terrain::water::WaterDepth};
 use super::common_pipeline::CommonPipeline;
 
 pub struct WaterBindGroupLayouts {
@@ -119,6 +119,7 @@ impl WaterPipeline {
                 entry_point: "vs_main",
                 buffers: &[
                     SimpleVertex::desc(), 
+                    WaterDepth::desc()
                 ],
             },
             fragment: Some(wgpu::FragmentState {
