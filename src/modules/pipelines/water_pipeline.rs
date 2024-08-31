@@ -1,3 +1,5 @@
+use wgpu::{BlendComponent, BlendFactor, BlendOperation};
+
 use crate::modules::core::model::{SimpleVertex, Vertex};
 use super::common_pipeline::CommonPipeline;
 
@@ -125,8 +127,12 @@ impl WaterPipeline {
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format.add_srgb_suffix(),
                     blend: Some(wgpu::BlendState {
-                        alpha: wgpu::BlendComponent::REPLACE,
-                        color: wgpu::BlendComponent::REPLACE,
+                        color: BlendComponent {
+                            src_factor: BlendFactor::SrcAlpha,
+                            dst_factor: BlendFactor::OneMinusSrcAlpha,
+                            operation: BlendOperation::Add,
+                        },
+                        alpha: BlendComponent::OVER,
                     }),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],

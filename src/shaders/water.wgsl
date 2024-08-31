@@ -58,7 +58,7 @@ struct Water {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let ambient_strength = 0.1;
+    let ambient_strength = .1;
     let ambient_color = light.color * ambient_strength;
     let light_dir = normalize(light.position - in.world_position);
     let diffuse_strength = max(dot(in.world_normal, light_dir), 0.0);
@@ -67,13 +67,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let result = (ambient_color + diffuse_color); // disabled specular, we don't want terrain to reflect light
 
     let uv = vec2<f32>(in.tex_coords.y, in.tex_coords.x) * 10.0;
+    let alpha = .5;
+    let min_transparency = .8;
+    let max_transparency = .8;
+    let opque_depth_limit = .8;
 
-    return mix(
+    let water_color =  mix(
         textureSample(tex_0, sampler_tex, uv),
         textureSample(tex_1, sampler_tex, uv),
         water.factor
     );
 
-    // return vec4<f32>(0.05, 0.5, 0.5, 1.0);
+    return vec4<f32>(water_color.rgb, alpha);
 }
  
