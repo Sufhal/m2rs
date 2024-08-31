@@ -4,6 +4,7 @@ use super::{height::Height, setting::Setting, texture_set::ChunkTextureSet, wate
 pub struct Chunk {
     pub terrain_mesh: CustomMesh,
     pub water_mesh: CustomMesh,
+    water_buffer: wgpu::Buffer,
 }
 
 impl Chunk {
@@ -54,7 +55,7 @@ impl Chunk {
             &textures_set
         );
         let water_geometry = water.generate_plane(setting.height_scale);
-        let water_mesh = water_geometry.to_water_mesh(
+        let (water_mesh, water_buffer) = water_geometry.to_water_mesh(
             &state.device, 
             &state.water_pipeline, 
             name,
@@ -71,13 +72,22 @@ impl Chunk {
         );
         Ok(Self {
             terrain_mesh,
-            water_mesh
+            water_mesh,
+            water_buffer
         })
     }
 
     /// Something like "001002", "004005"
     pub fn name_from(x: u8, y: u8) -> String {
         u8_to_string_with_len(x, 3) + &u8_to_string_with_len(y, 3)
+    }
+
+    pub fn update(&self, water_texture: &WaterTexture, queue: &wgpu::Queue) {
+        queue.write_buffer(
+            &self.water_buffer,
+            0 as wgpu::BufferAddress,
+            bytemuck::cast_slice(&[water_texture.uniform]),
+        );
     }
 
 }

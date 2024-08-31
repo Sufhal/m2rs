@@ -39,6 +39,9 @@ impl Terrain {
 
     pub fn update(&mut self, elapsed_time: f32, queue: &wgpu::Queue) {
         self.water_texture.update(elapsed_time, queue);
+        for chunk in &self.chunks {
+            chunk.update(&self.water_texture, queue);
+        }
     }
 
     pub fn get_terrain_meshes(&self) -> Vec<&CustomMesh> {

@@ -66,7 +66,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let result = (ambient_color + diffuse_color); // disabled specular, we don't want terrain to reflect light
 
-    return textureSample(tex_0, sampler_tex, in.tex_coords * 10.0);
+    let uv = vec2<f32>(in.tex_coords.y, in.tex_coords.x) * 10.0;
+
+    return mix(
+        textureSample(tex_0, sampler_tex, uv),
+        textureSample(tex_1, sampler_tex, uv),
+        water.factor
+    );
 
     // return vec4<f32>(0.05, 0.5, 0.5, 1.0);
 }

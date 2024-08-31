@@ -189,7 +189,7 @@ impl Plane {
         position: [f32; 3],
         textures: [&Texture; 2],
         water_uniform: WaterUniform,
-    ) -> CustomMesh {
+    ) -> (CustomMesh, wgpu::Buffer) {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Water Vertex Buffer"),
             contents: bytemuck::cast_slice(&self.vertices),
@@ -241,14 +241,17 @@ impl Plane {
             label: None,
         });
 
-        CustomMesh {
-            name,
-            transform_buffer,
-            vertex_buffer,
-            index_buffer,
-            num_elements: self.indices.len() as u32,
-            bind_group
-        }
+        (
+            CustomMesh {
+                name,
+                transform_buffer,
+                vertex_buffer,
+                index_buffer,
+                num_elements: self.indices.len() as u32,
+                bind_group
+            },
+            water_buffer
+        )
     }
 
 
