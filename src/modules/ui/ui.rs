@@ -1,26 +1,35 @@
 use std::ops::{Add, Div};
 
-use wgpu_text::{glyph_brush::{ab_glyph::FontRef, Section as TextSection, Text}, BrushBuilder, TextBrush};
+use wgpu_text::{glyph_brush::{ab_glyph::FontRef, HorizontalAlign, Layout, Section as TextSection, Text, VerticalAlign}, BrushBuilder, TextBrush};
 
 use crate::modules::utils::{functions::{calculate_fps, to_fixed_2}, structs::LimitedVec, time_factory::TimeFactory};
 
 pub struct UserInterface {
     pub brush: TextBrush<FontRef<'static>>,
     pub metrics: Metrics,
+    pub std_out: LimitedVec<String>,
     scale_factor: f32,
     elapsed_time: f64,
 }
 
 impl UserInterface {
 
-    pub fn new(device: &wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration, scale_factor: f32) -> Self {
+    pub fn new(device: &wgpu::Device, surface_configuration: &wgpu::SurfaceConfiguration, multisampled_texture: &wgpu::Texture, scale_factor: f32) -> Self {
         let font = include_bytes!("../../fonts/JetBrainsMono-Bold.ttf");
-        let brush = BrushBuilder::using_font_bytes(font).unwrap()
+        let builder = BrushBuilder::using_font_bytes(font).unwrap().with_multisample(
+            wgpu::MultisampleState {
+                count: multisampled_texture.sample_count(),
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            }
+        );
+        let brush = builder
          /* .initial_cache_size((16_384, 16_384))) */ // use this to avoid resizing cache texture
             .build(device, surface_configuration.width, surface_configuration.height, wgpu::TextureFormat::Bgra8UnormSrgb);
         Self {
             brush,
             scale_factor,
+            std_out: LimitedVec::new(10),
             metrics: Metrics::new(),
             elapsed_time: 0.0,
         }
@@ -37,11 +46,22 @@ impl UserInterface {
         }
         self.elapsed_time = 0.0;
         let metrics_string = self.metrics.to_string();
+        let std_out_string = self.std_out.as_vecdeque().iter().fold(String::new(), |mut acc, v| {
+            acc.insert_str(acc.len(), &v);
+            acc
+        });
         let size = self.size(14.0);
         let sections = vec![
+            
+            TextSection::new()
+                .add_text(Text::new(&std_out_string).with_scale(size))
+                .with_screen_position((self.size(200.0), self.size(10.0))),
+                
+
             TextSection::new()
                 .add_text(Text::new(&metrics_string).with_scale(size))
-                .with_screen_position((self.size(10.0), self.size(10.0)))
+                .with_screen_position((self.size(10.0), self.size(10.0))),
+                
         ];
         self.brush.queue(device, queue, sections).unwrap();
     }
@@ -75,7 +95,7 @@ impl Metrics {
         let logical = calculate_fps(self.logical_render_time.mean) as u32;
         let update = to_fixed_2(self.update_call.mean);
         let render = to_fixed_2(self.render_call.mean);
-        format!("{absolute} fps\n{logical} fps w/ submit\n{update} ms update\n{render} ms render")
+        format!("{absolute} fps\n{logical} fps w/o submit\n{update} ms update\n{render} ms render")
     }
     pub fn push_data(&mut self, data: MetricData) {
         match data {

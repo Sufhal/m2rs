@@ -17,6 +17,7 @@ impl TerrainPipeline {
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
         depth_format: Option<wgpu::TextureFormat>,
+        multisampled_texture: &wgpu::Texture,
         common_pipeline: &CommonPipeline
     ) -> Self {
         let mesh = Self::create_mesh_layout(device);
@@ -28,7 +29,7 @@ impl TerrainPipeline {
             ],
             push_constant_ranges: &[],
         });
-        let pipeline = Self::create_pipeline(device, &pipeline_layout, config, depth_format);
+        let pipeline = Self::create_pipeline(device, &pipeline_layout, config, depth_format, multisampled_texture);
         Self {
             pipeline,
             pipeline_layout,
@@ -106,6 +107,7 @@ impl TerrainPipeline {
         layout: &wgpu::PipelineLayout,
         config: &wgpu::SurfaceConfiguration,
         depth_format: Option<wgpu::TextureFormat>,
+        multisampled_texture: &wgpu::Texture,
     ) -> wgpu::RenderPipeline {
         let shader = device.create_shader_module(
             wgpu::ShaderModuleDescriptor {
@@ -159,7 +161,7 @@ impl TerrainPipeline {
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState {
-                count: 1,
+                count: multisampled_texture.sample_count(),
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },

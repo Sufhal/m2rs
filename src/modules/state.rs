@@ -9,7 +9,7 @@ use winit::{
     window::Window,
 };
 use crate::modules::core::model::DrawCustomMesh;
-use crate::modules::core::texture;
+use crate::modules::core::texture::{self, Texture};
 use crate::modules::camera::camera;
 use crate::modules::ui::ui::{MetricData};
 use crate::modules::utils::functions::calculate_fps;
@@ -33,6 +33,8 @@ pub struct State<'a> {
     pub device: wgpu::Device,
     pub(crate) queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    sample_count: u32,
+    supported_sample_count: Vec<u32>,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub common_pipeline: CommonPipeline,
     pub new_render_pipeline: RenderPipeline,
@@ -43,6 +45,7 @@ pub struct State<'a> {
     pub camera_controller: camera::CameraController,
     pub mouse_pressed: bool,
     depth_texture: texture::Texture,
+    pub multisampled_texture: wgpu::Texture,
     pub window: &'a Window,
     pub scene: scene::Scene,
     // performance_tracker: PerformanceTracker,
@@ -113,6 +116,7 @@ impl<'a> State<'a> {
             .copied()
             .find(|f| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format.remove_srgb_suffix(),
@@ -123,6 +127,21 @@ impl<'a> State<'a> {
             view_formats: vec![surface_format.add_srgb_suffix()],
             desired_maximum_frame_latency: 2,
         };
+
+        let surface_format_features = adapter.get_texture_format_features(surface_format);
+        let supported_sample_count = surface_format_features.flags.supported_sample_counts();
+        let sample_count = *supported_sample_count.iter().max().unwrap_or(&1);
+
+        let multisampled_texture = Self::create_multisampled_texture(
+            &device, 
+            sample_count, 
+            (config.width, config.height), 
+            config.format, 
+            config.view_formats.clone()
+        );
+
+        let mut ui = UserInterface::new(&device, &config, &multisampled_texture, window.scale_factor() as f32);
+        ui.std_out.push(format!("MSAA set to {sample_count}"));
 
         let camera = camera::Camera::new((515.0, 5.0, 643.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
@@ -135,9 +154,9 @@ impl<'a> State<'a> {
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
         
         let common_pipeline = CommonPipeline::new(&device);
-        let terrain_pipeline = TerrainPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &common_pipeline);
-        let water_pipeline = WaterPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &common_pipeline);
-        let new_render_pipeline = RenderPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &common_pipeline);
+        let terrain_pipeline = TerrainPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
+        let water_pipeline = WaterPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
+        let new_render_pipeline = RenderPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
 
         let mut scene = scene::Scene::new();
 
@@ -197,7 +216,7 @@ impl<'a> State<'a> {
 
         let _ = fs::write(Path::new("trash/scene_objects.txt"), format!("{:#?}", &&scene.get_all_objects().iter().map(|object| (object.name.clone(), object.matrix)).collect::<Vec<_>>()));
 
-        let ui = UserInterface::new(&device, &config, window.scale_factor() as f32);
+        
 
         let mut state = Self {
             surface,
@@ -214,6 +233,9 @@ impl<'a> State<'a> {
             camera_controller,
             mouse_pressed: false, 
             depth_texture,
+            multisampled_texture,
+            sample_count,
+            supported_sample_count,
             window,
             scene,
             // performance_tracker: PerformanceTracker::new(),
@@ -245,6 +267,7 @@ impl<'a> State<'a> {
         &self.window
     }
 
+
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             info!("new size {new_size:#?}");
@@ -252,9 +275,16 @@ impl<'a> State<'a> {
             self.config.width = std::cmp::min(new_size.width, wgpu::Limits::default().max_texture_dimension_2d);
             self.config.height = std::cmp::min(new_size.height, wgpu::Limits::default().max_texture_dimension_2d);
             self.surface.configure(&self.device, &self.config);
-            self.depth_texture = texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+            self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
             self.projection.resize(new_size.width, new_size.height);
             self.ui.brush.resize_view(new_size.width as f32, new_size.height as f32, &self.queue);
+            self.multisampled_texture = Self::create_multisampled_texture(
+                &self.device, 
+                self.sample_count, 
+                (self.size.width, self.size.height),
+                self.config.format,
+                self.config.view_formats.clone()
+            );
         }
     }
 
@@ -345,7 +375,8 @@ impl<'a> State<'a> {
         let output = self.surface.get_current_texture()?;
         fragment.resume();
         let render_call_fragment = TimeFragment::new();
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor {
+
+        let output_view = output.texture.create_view(&wgpu::TextureViewDescriptor {
             format: Some(self.config.format.add_srgb_suffix()),
             ..Default::default()
         });
@@ -355,13 +386,18 @@ impl<'a> State<'a> {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
+        
+        let multisampled_view = self.multisampled_texture.create_view(&wgpu::TextureViewDescriptor {
+            format: Some(self.config.format.add_srgb_suffix()),
+            ..Default::default()
+        });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
+                    view: &multisampled_view,
+                    resolve_target: Some(&output_view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
                             r: 0.1,
@@ -417,8 +453,8 @@ impl<'a> State<'a> {
                 encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Render Pass"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &view,
-                        resolve_target: None,
+                        view: &multisampled_view,
+                        resolve_target: Some(&output_view),
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Load,
                             store: wgpu::StoreOp::Store,
@@ -436,5 +472,29 @@ impl<'a> State<'a> {
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
         Ok(())
+    }
+
+    fn create_multisampled_texture(
+        device: &wgpu::Device,
+        sample_count: u32, 
+        size: (u32, u32),
+        format: wgpu::TextureFormat,
+        view_formats: Vec<wgpu::TextureFormat>
+    ) -> wgpu::Texture {
+        let multisampled_texture = device.create_texture(&wgpu::TextureDescriptor {
+            size: wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &view_formats,
+            label: Some("Multisampled Texture"),
+        });
+        multisampled_texture
     }
 }
