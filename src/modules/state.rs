@@ -21,6 +21,7 @@ use super::pipelines::render_pipeline::RenderPipeline;
 use super::pipelines::terrain_pipeline::TerrainPipeline;
 use super::pipelines::water_pipeline::WaterPipeline;
 use super::terrain::terrain::Terrain;
+use super::ui::ui::UserInterface;
 use super::utils::time_factory::TimeFactory;
 // use super::utils::performance_tracker::PerformanceTracker;
 
@@ -46,6 +47,7 @@ pub struct State<'a> {
     time_factory: TimeFactory,
     pub characters: Vec<Character>,
     pub terrains: Vec<Terrain>,
+    pub ui: UserInterface<'a>
 }
 
 impl<'a> State<'a> {
@@ -192,6 +194,7 @@ impl<'a> State<'a> {
 
         let _ = fs::write(Path::new("trash/scene_objects.txt"), format!("{:#?}", &&scene.get_all_objects().iter().map(|object| (object.name.clone(), object.matrix)).collect::<Vec<_>>()));
 
+        let ui = UserInterface::new(&device, &config);
 
         let mut state = Self {
             surface,
@@ -213,7 +216,8 @@ impl<'a> State<'a> {
             // performance_tracker: PerformanceTracker::new(),
             time_factory: TimeFactory::new(),
             characters: Vec::new(),
-            terrains: Vec::new()
+            terrains: Vec::new(),
+            ui
         };
 
         let character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
@@ -247,6 +251,7 @@ impl<'a> State<'a> {
             self.surface.configure(&self.device, &self.config);
             self.depth_texture = texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
             self.projection.resize(new_size.width, new_size.height);
+            self.ui.brush.resize_view(new_size.width as f32, new_size.height as f32, &self.queue);
         }
     }
 
@@ -412,6 +417,27 @@ impl<'a> State<'a> {
                     render_pass.draw_custom_mesh(&chunk.water_mesh, &self.common_pipeline);
                 } 
             }
+        }
+
+        self.ui.brush.queue(&self.device, &self.queue, vec![&self.ui.section]).unwrap();
+
+        {
+            let mut rpass =
+                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+            self.ui.brush.draw(&mut rpass);
         }
 
         self.queue.submit(iter::once(encoder.finish()));
