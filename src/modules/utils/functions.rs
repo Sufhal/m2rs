@@ -88,3 +88,15 @@ pub fn u8_to_string_with_len(value: u8, len: usize) -> String {
     }
     output
 }
+
+pub fn calculate_fps(frame_time_ms: f64) -> f64 {
+    if frame_time_ms == 0.0 {
+        0.0
+    } else {
+        1000.0 / frame_time_ms
+    }
+}
+
+pub fn to_fixed_2(value: f64) -> f64 {
+    (value * 100.0).round() / 100.0
+}

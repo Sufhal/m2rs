@@ -1,5 +1,5 @@
 pub mod modules;
-use modules::state::State;
+use modules::{state::State, utils::time_factory::TimeFragment};
 use winit::{
     event::*,
     event_loop::{EventLoop, ControlFlow},
@@ -26,7 +26,7 @@ pub async fn run() {
     let event_loop = EventLoop::new().unwrap();
     // event_loop.set_control_flow(ControlFlow::Poll); // <- solves the issue of performance drop when refocusing the window in wasm export
     let window = WindowBuilder::new().build(&event_loop).unwrap();
-    window.set_title("M2RS");
+    window.set_title("Metin2");
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -112,8 +112,10 @@ pub async fn run() {
                                 let now = instant::Instant::now();
                                 let dt = now - last_render_time;
                                 last_render_time = now;
+
+                                let fragment = TimeFragment::new();
                                 state.update(dt);
-                                match state.render() {
+                                match state.render(fragment) {
                                     Ok(_) => {}
                                     // Reconfigure the surface if it's lost or outdated
                                     Err(

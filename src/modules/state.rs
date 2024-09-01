@@ -11,6 +11,9 @@ use winit::{
 use crate::modules::core::model::DrawCustomMesh;
 use crate::modules::core::texture;
 use crate::modules::camera::camera;
+use crate::modules::ui::ui::{MetricData};
+use crate::modules::utils::functions::calculate_fps;
+use crate::modules::utils::time_factory::TimeFragment;
 use super::assets::gltf_loader::load_model_glb;
 use super::character::character::{Character, CharacterKind, NPCType};
 use super::core::object_3d::{Transform, TranslateWithScene};
@@ -47,7 +50,7 @@ pub struct State<'a> {
     time_factory: TimeFactory,
     pub characters: Vec<Character>,
     pub terrains: Vec<Terrain>,
-    pub ui: UserInterface<'a>
+    pub ui: UserInterface
 }
 
 impl<'a> State<'a> {
@@ -194,7 +197,7 @@ impl<'a> State<'a> {
 
         let _ = fs::write(Path::new("trash/scene_objects.txt"), format!("{:#?}", &&scene.get_all_objects().iter().map(|object| (object.name.clone(), object.matrix)).collect::<Vec<_>>()));
 
-        let ui = UserInterface::new(&device, &config);
+        let ui = UserInterface::new(&device, &config, window.scale_factor() as f32);
 
         let mut state = Self {
             surface,
@@ -292,9 +295,9 @@ impl<'a> State<'a> {
 
     pub fn update(&mut self, dt: instant::Duration) {
         self.time_factory.tick();
+        let update_call_fragment = TimeFragment::new();
         let elapsed_time = self.time_factory.elapsed_time_from_start();
-        // self.performance_tracker.call_start("update");
-        // self.performance_tracker.call_start("update_camera");
+
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.common_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection);
         self.queue.write_buffer(
@@ -307,27 +310,13 @@ impl<'a> State<'a> {
         let old_position: cgmath::Vector3<_> = self.common_pipeline.uniforms.light.position.into();
         self.common_pipeline.uniforms.light.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into();
         self.queue.write_buffer(&self.common_pipeline.buffers.light, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.light]));
-        // self.performance_tracker.call_end("update_light");
 
-        // self.camera_uniform.update_view_proj(&self.camera, &self.projection);
-        // self.queue.write_buffer(
-        //     &self.camera_buffer,
-        //     0,
-        //     bytemuck::cast_slice(&[self.camera_uniform]),
-        // );
-        // let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
-        // self.light_uniform.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into(); // UPDATED!
-        // self.queue.write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&[self.light_uniform]));
-        
-        // self.performance_tracker.call_start("update_scene");
         self.scene.compute_world_matrices();
         self.scene.update_objects_buffers(&self.queue);
-        // self.performance_tracker.call_end("update_scene");
-
-        // self.performance_tracker.call_start("update_objects");
 
         let delta_ms = self.time_factory.get_delta();
-        println!("delta {delta_ms}");
+
+        self.ui.update(delta_ms);
 
         for character in &self.characters {
             character.update(&mut self.scene);
@@ -345,13 +334,17 @@ impl<'a> State<'a> {
         for terrain in &mut self.terrains {
             terrain.update(elapsed_time, &self.queue);
         }
-        // self.performance_tracker.call_end("update_objects");
-        // self.performance_tracker.call_end("update");
+
+        self.ui.metrics.push_data(MetricData::UpdateCallTime(update_call_fragment.elapsed_ms()));
+
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        // self.performance_tracker.call_start("render");
+    pub fn render(&mut self, mut fragment: TimeFragment) -> Result<(), wgpu::SurfaceError> {
+        fragment.pause();
+        // Avoiding tracking Queue::submit() called by Surface::get_current_texture(), the time execution is not revelant
         let output = self.surface.get_current_texture()?;
+        fragment.resume();
+        let render_call_fragment = TimeFragment::new();
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor {
             format: Some(self.config.format.add_srgb_suffix()),
             ..Default::default()
@@ -394,14 +387,12 @@ impl<'a> State<'a> {
             use scene::DrawScene;
             render_pass.set_pipeline(&self.new_render_pipeline.pipeline);
 
-            // self.performance_tracker.call_start("render_draw_scene");
             render_pass.draw_scene(
                 &self.queue,
                 &mut self.scene, 
                 &self.new_render_pipeline,
                 &self.common_pipeline
             );
-            // self.performance_tracker.call_end("render_draw_scene");
 
             render_pass.set_pipeline(&self.terrain_pipeline.pipeline);
             for terrain in &self.terrains {
@@ -419,7 +410,7 @@ impl<'a> State<'a> {
             }
         }
 
-        self.ui.brush.queue(&self.device, &self.queue, vec![&self.ui.section]).unwrap();
+        self.ui.queue(&self.device, &self.queue);
 
         {
             let mut rpass =
@@ -440,11 +431,10 @@ impl<'a> State<'a> {
             self.ui.brush.draw(&mut rpass);
         }
 
+        self.ui.metrics.push_data(MetricData::RenderCallTime(render_call_fragment.elapsed_ms()));
+        self.ui.metrics.push_data(MetricData::LogicalRenderTime(fragment.elapsed_ms()));
         self.queue.submit(iter::once(encoder.finish()));
-        // self.performance_tracker.call_start("render_present");
         output.present();
-        // self.performance_tracker.call_end("render_present");
-        // self.performance_tracker.call_end("render");
         Ok(())
     }
 }

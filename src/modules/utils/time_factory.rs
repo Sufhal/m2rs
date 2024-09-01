@@ -36,6 +36,32 @@ impl TimeFactory {
     }
 }
 
+pub struct TimeFragment {
+    stored_time: f64,
+    instant: web_time::Instant
+}
+
+impl TimeFragment {
+    pub fn new() -> Self {
+        Self {
+            stored_time: 0.0,
+            instant: web_time::Instant::now()
+        }
+    }
+    pub fn elapsed_ms(&self) -> f64 {
+        self.stored_time + self.elapsed_ms_from_instant()
+    }
+    pub fn pause(&mut self) {
+        self.stored_time = self.elapsed_ms_from_instant();
+    }
+    pub fn resume(&mut self) {
+        self.instant = web_time::Instant::now()
+    }
+    fn elapsed_ms_from_instant(&self) -> f64 {
+        web_time::Instant::now().duration_since(self.instant).as_nanos() as f64 / 1000000.0
+    }
+}
+
 pub struct Instant {
     instant: f64
 }

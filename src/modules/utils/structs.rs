@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 #[derive(Debug, Clone)]
 /// This Set replace HashSet when data order matters
 pub struct Set<T> {
@@ -26,5 +28,39 @@ impl<T> Set<T>
     }
     pub fn len(&self) -> usize {
         self.data.len()
+    }
+}
+
+
+pub struct LimitedVec<T> {
+    deque: VecDeque<T>,
+    capacity: usize,
+}
+
+impl<T> LimitedVec<T> {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            deque: VecDeque::with_capacity(capacity),
+            capacity,
+        }
+    }
+
+    pub fn push(&mut self, item: T) {
+        if self.deque.len() == self.capacity {
+            self.deque.pop_front();
+        }
+        self.deque.push_back(item);
+    }
+
+    pub fn as_vecdeque(&self) -> &VecDeque<T> {
+        &self.deque
+    }
+
+    pub fn len(&self) -> usize {
+        self.deque.len()
+    } 
+
+    pub fn clear(&mut self) {
+        self.deque.clear()
     }
 }
