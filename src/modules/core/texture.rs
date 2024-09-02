@@ -3,7 +3,7 @@ use anyhow::*;
 use image::GenericImageView;
 use wgpu::util::DeviceExt;
 
-use crate::modules::{state::State, utils::functions::is_power_of_two};
+use crate::modules::{state::State, utils::{functions::is_power_of_two, time_factory::TimeFragment}};
 
 #[derive(Debug)]
 pub struct Texture {
@@ -124,6 +124,8 @@ impl Texture {
         img: &image::DynamicImage,
         label: Option<&str>,
     ) -> Result<Self> {
+        let fragment = TimeFragment::new();
+
         let rgba = img.to_rgba8();
         let dimensions = img.dimensions();
 
@@ -170,6 +172,8 @@ impl Texture {
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
+
+        println!("Creating texture of {:?} took {}ms", label, fragment.elapsed_ms());
 
         Ok(Self {
             texture,
