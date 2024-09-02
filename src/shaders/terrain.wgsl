@@ -136,8 +136,47 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // splat += get_texture_at(tile_texture_index_b, uv) * (1 - alpha);
 
     var splat = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+
+    let uv = in.tex_coords;
+    // let tex_uv = uv * 1.0; // TODO: map level textureset.json contains data about this factor
+    let tex_uv = uv * 40.0; // TODO: map level textureset.json contains data about this factor
+    let t0 = textureSample(tex_0, sampler_tex, tex_uv) * textureSample(tex_alpha_map_0, sampler_tex, uv).r;
+    let t1 = textureSample(tex_1, sampler_tex, tex_uv) * textureSample(tex_alpha_map_1, sampler_tex, uv).r;
+    let t2 = textureSample(tex_2, sampler_tex, tex_uv) * textureSample(tex_alpha_map_2, sampler_tex, uv).r;
+    let t3 = textureSample(tex_3, sampler_tex, tex_uv) * textureSample(tex_alpha_map_3, sampler_tex, uv).r;
+    let t4 = textureSample(tex_4, sampler_tex, tex_uv) * textureSample(tex_alpha_map_4, sampler_tex, uv).r;
+    let t5 = textureSample(tex_5, sampler_tex, tex_uv) * textureSample(tex_alpha_map_5, sampler_tex, uv).r;
+    let t6 = textureSample(tex_6, sampler_tex, tex_uv) * textureSample(tex_alpha_map_6, sampler_tex, uv).r;
+    let t7 = textureSample(tex_7, sampler_tex, tex_uv) * textureSample(tex_alpha_map_7, sampler_tex, uv).r;
+
     for (var i: u32 = 0; i < chunk_informations.textures_count; i = i + 1) {
-        splat += get_texture_at(i, in.tex_coords);
+        switch i {
+            case 0u: {
+                splat += t0;
+            }
+            case 1u: {
+                splat += t1;
+            }
+            case 2u: {
+                splat += t2;
+            }
+            case 3u: {
+                splat += t3;
+            }
+            case 4u: {
+                splat += t4;
+            }
+            case 5u: {
+                splat += t5;
+            }
+            case 6u: {
+                splat += t6;
+            }
+            case 7u: {
+                splat += t7;
+            }
+            default: {}
+        }
     }
     return splat;
     // let alpha: vec4<f32> = textureSample(tex_alpha_map_0, sampler_tex, in.tex_coords);

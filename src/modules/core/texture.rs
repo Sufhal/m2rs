@@ -167,12 +167,14 @@ impl Texture {
             size,
         );
 
+
         // Génération manuelle des mipmaps
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Mipmap Generator") });
 
         let pipeline = Self::create_mipmap_pipeline(device, format);
 
         for level in 1..mip_level_count {
+        
             let src_view = texture.create_view(&wgpu::TextureViewDescriptor {
                 base_mip_level: level - 1,
                 mip_level_count: Some(1),
@@ -185,25 +187,28 @@ impl Texture {
                 ..Default::default()
             });
 
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Mipmap Generation Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &dst_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-
             let bind_group = Self::create_bind_group(device, &src_view);
-            pass.set_pipeline(&pipeline);
-            pass.set_bind_group(0, &bind_group, &[]);
-            pass.draw(0..3, 0..1);
+            {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Mipmap Generation Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &dst_view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+    
+                pass.set_pipeline(&pipeline);
+                pass.set_bind_group(0, &bind_group, &[]);
+                pass.draw(0..6, 0..1);
+            }
+
         }
 
         queue.submit(Some(encoder.finish()));
@@ -213,9 +218,9 @@ impl Texture {
             address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
             address_mode_w: wgpu::AddressMode::Repeat,
-            mag_filter: wgpu::FilterMode::Nearest,
+            mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
 
