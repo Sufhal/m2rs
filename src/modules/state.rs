@@ -130,6 +130,7 @@ impl<'a> State<'a> {
 
         let surface_format_features = adapter.get_texture_format_features(surface_format);
         let supported_sample_count = surface_format_features.flags.supported_sample_counts();
+        // let sample_count = 1;
         let sample_count = *supported_sample_count.iter().max().unwrap_or(&1);
 
         let multisampled_texture = Self::create_multisampled_texture(
@@ -141,7 +142,7 @@ impl<'a> State<'a> {
         );
 
         let mut ui = UserInterface::new(&device, &config, &multisampled_texture, window.scale_factor() as f32);
-        ui.std_out.push(format!("MSAA set to {sample_count}"));
+        ui.std_out.push(format!("MSAA set to {sample_count}, supported values are {:?}", supported_sample_count));
 
         let camera = camera::Camera::new((515.0, 5.0, 643.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
@@ -151,7 +152,7 @@ impl<'a> State<'a> {
         let mut camera_uniform = camera::CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
 
-        let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+        let depth_texture = texture::Texture::create_depth_texture(&device, &config, sample_count, "depth_texture");
         
         let common_pipeline = CommonPipeline::new(&device);
         let terrain_pipeline = TerrainPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
@@ -275,7 +276,7 @@ impl<'a> State<'a> {
             self.config.width = std::cmp::min(new_size.width, wgpu::Limits::default().max_texture_dimension_2d);
             self.config.height = std::cmp::min(new_size.height, wgpu::Limits::default().max_texture_dimension_2d);
             self.surface.configure(&self.device, &self.config);
-            self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+            self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, self.sample_count, "depth_texture");
             self.projection.resize(new_size.width, new_size.height);
             self.ui.brush.resize_view(new_size.width as f32, new_size.height as f32, &self.queue);
             self.multisampled_texture = Self::create_multisampled_texture(
