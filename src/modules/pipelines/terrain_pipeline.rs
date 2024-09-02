@@ -61,7 +61,7 @@ impl TerrainPipeline {
                 },
                 count: None,
             },
-            // sampler (texture + aplha map)
+            // sampler (texture)
             wgpu::BindGroupLayoutEntry {
                 binding: 2,
                 visibility: wgpu::ShaderStages::FRAGMENT,
@@ -95,6 +95,13 @@ impl TerrainPipeline {
                 count: None,
             });
         }
+
+        entries.push(wgpu::BindGroupLayoutEntry {
+            binding: entries.len() as u32,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        });
 
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &entries,

@@ -38,6 +38,7 @@ impl Texture {
         width: u32,
         height: u32,
         format: wgpu::TextureFormat,
+        filter: wgpu::FilterMode,
         bytes_per_row: u32,
         state: &State<'_>
     ) -> Self {
@@ -61,8 +62,8 @@ impl Texture {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
+            mag_filter: filter,
+            min_filter: filter,
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
@@ -450,6 +451,7 @@ impl TextureAtlas {
                 size_u32, 
                 size_u32, 
                 wgpu::TextureFormat::Rgba8UnormSrgb, 
+                wgpu::FilterMode::Linear,
                 4 * size_u32, 
                 state
             )

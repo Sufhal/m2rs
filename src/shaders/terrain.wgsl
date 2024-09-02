@@ -75,43 +75,7 @@ struct ChunkInformations {
 @group(1) @binding(16) var tex_alpha_map_6: texture_2d<f32>;
 @group(1) @binding(17) var tex_7: texture_2d<f32>;
 @group(1) @binding(18) var tex_alpha_map_7: texture_2d<f32>;
-
-fn get_texture_at(texture_index: u32, uv: vec2<f32>) -> vec4<f32> {
-    let tex_uv = uv * 40.0; // TODO: map level textureset.json contains data about this factor
-    if texture_index == 0 {
-        let alpha = textureSampleLevel(tex_alpha_map_0, sampler_tex, uv, 0.0);
-        return textureSampleLevel(tex_0, sampler_tex, tex_uv, 0.0) * alpha.r;
-    }
-    else if texture_index == 1 {
-        let alpha = textureSampleLevel(tex_alpha_map_1, sampler_tex, uv, 0.0);
-        return textureSampleLevel(tex_1, sampler_tex, tex_uv, 0.0) * alpha.r;
-    }
-    else if texture_index == 2 {
-        let alpha = textureSampleLevel(tex_alpha_map_2, sampler_tex, uv, 0.0);
-        return textureSampleLevel(tex_2, sampler_tex, tex_uv, 0.0) * alpha.r;
-    }
-    else if texture_index == 3 {
-        let alpha = textureSampleLevel(tex_alpha_map_3, sampler_tex, uv, 0.0);
-        return textureSampleLevel(tex_3, sampler_tex, tex_uv, 0.0) * alpha.r;
-    }
-    else if texture_index == 4 {
-        let alpha = textureSampleLevel(tex_alpha_map_4, sampler_tex, uv, 0.0);
-        return textureSampleLevel(tex_4, sampler_tex, tex_uv, 0.0) * alpha.r;
-    }
-    else if texture_index == 5 {
-        let alpha = textureSampleLevel(tex_alpha_map_5, sampler_tex, uv, 0.0);
-        return textureSampleLevel(tex_5, sampler_tex, tex_uv, 0.0) * alpha.r;
-    }
-    else if texture_index == 6 {
-        let alpha = textureSampleLevel(tex_alpha_map_6, sampler_tex, uv, 0.0);
-        return textureSampleLevel(tex_6, sampler_tex, tex_uv, 0.0) * alpha.r;
-    }
-    else if texture_index == 7 {
-        let alpha = textureSampleLevel(tex_alpha_map_7, sampler_tex, uv, 0.0);
-        return textureSampleLevel(tex_7, sampler_tex, tex_uv, 0.0) * alpha.r;
-    }
-    return vec4<f32>(0.0, 0.0, 0.0, 0.0);
-}
+@group(1) @binding(19) var sampler_alpha: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -140,14 +104,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let uv = in.tex_coords;
     // let tex_uv = uv * 1.0; // TODO: map level textureset.json contains data about this factor
     let tex_uv = uv * 40.0; // TODO: map level textureset.json contains data about this factor
-    let t0 = textureSample(tex_0, sampler_tex, tex_uv) * textureSample(tex_alpha_map_0, sampler_tex, uv).r;
-    let t1 = textureSample(tex_1, sampler_tex, tex_uv) * textureSample(tex_alpha_map_1, sampler_tex, uv).r;
-    let t2 = textureSample(tex_2, sampler_tex, tex_uv) * textureSample(tex_alpha_map_2, sampler_tex, uv).r;
-    let t3 = textureSample(tex_3, sampler_tex, tex_uv) * textureSample(tex_alpha_map_3, sampler_tex, uv).r;
-    let t4 = textureSample(tex_4, sampler_tex, tex_uv) * textureSample(tex_alpha_map_4, sampler_tex, uv).r;
-    let t5 = textureSample(tex_5, sampler_tex, tex_uv) * textureSample(tex_alpha_map_5, sampler_tex, uv).r;
-    let t6 = textureSample(tex_6, sampler_tex, tex_uv) * textureSample(tex_alpha_map_6, sampler_tex, uv).r;
-    let t7 = textureSample(tex_7, sampler_tex, tex_uv) * textureSample(tex_alpha_map_7, sampler_tex, uv).r;
+    let t0 = textureSample(tex_0, sampler_tex, tex_uv) * textureSample(tex_alpha_map_0, sampler_alpha, uv).r;
+    let t1 = textureSample(tex_1, sampler_tex, tex_uv) * textureSample(tex_alpha_map_1, sampler_alpha, uv).r;
+    let t2 = textureSample(tex_2, sampler_tex, tex_uv) * textureSample(tex_alpha_map_2, sampler_alpha, uv).r;
+    let t3 = textureSample(tex_3, sampler_tex, tex_uv) * textureSample(tex_alpha_map_3, sampler_alpha, uv).r;
+    let t4 = textureSample(tex_4, sampler_tex, tex_uv) * textureSample(tex_alpha_map_4, sampler_alpha, uv).r;
+    let t5 = textureSample(tex_5, sampler_tex, tex_uv) * textureSample(tex_alpha_map_5, sampler_alpha, uv).r;
+    let t6 = textureSample(tex_6, sampler_tex, tex_uv) * textureSample(tex_alpha_map_6, sampler_alpha, uv).r;
+    let t7 = textureSample(tex_7, sampler_tex, tex_uv) * textureSample(tex_alpha_map_7, sampler_alpha, uv).r;
 
     for (var i: u32 = 0; i < chunk_informations.textures_count; i = i + 1) {
         switch i {

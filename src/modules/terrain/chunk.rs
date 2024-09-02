@@ -35,6 +35,7 @@ impl Chunk {
                     256, 
                     256, 
                     wgpu::TextureFormat::R8Unorm, 
+                    wgpu::FilterMode::Nearest,
                     256, 
                     state
                 )
