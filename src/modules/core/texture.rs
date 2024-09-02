@@ -134,18 +134,23 @@ impl Texture {
             height: dimensions.1,
             depth_or_array_layers: 1,
         };
+
+        let mip_level_count = (size.width.max(size.height) as f32).log2().floor() as u32 + 1;
+
+
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label,
             size,
-            mip_level_count: 1,
+            mip_level_count,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         });
 
+        
         queue.write_texture(
             wgpu::ImageCopyTexture {
                 aspect: wgpu::TextureAspect::All,
@@ -161,6 +166,47 @@ impl Texture {
             },
             size,
         );
+
+        // Génération manuelle des mipmaps
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Mipmap Generator") });
+
+        let pipeline = Self::create_mipmap_pipeline(device, format);
+
+        for level in 1..mip_level_count {
+            let src_view = texture.create_view(&wgpu::TextureViewDescriptor {
+                base_mip_level: level - 1,
+                mip_level_count: Some(1),
+                ..Default::default()
+            });
+            
+            let dst_view = texture.create_view(&wgpu::TextureViewDescriptor {
+                base_mip_level: level,
+                mip_level_count: Some(1),
+                ..Default::default()
+            });
+
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Mipmap Generation Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &dst_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+
+            let bind_group = Self::create_bind_group(device, &src_view);
+            pass.set_pipeline(&pipeline);
+            pass.set_bind_group(0, &bind_group, &[]);
+            pass.draw(0..3, 0..1);
+        }
+
+        queue.submit(Some(encoder.finish()));
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -182,6 +228,123 @@ impl Texture {
         })
     }
 
+    fn create_mipmap_pipeline(device: &wgpu::Device, format: wgpu::TextureFormat) -> wgpu::RenderPipeline {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Mipmap Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../../shaders/mipmap.wgsl").into()), // Le chemin vers votre shader WGSL
+        });
+    
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Mipmap Pipeline Layout"),
+            bind_group_layouts: &[&device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                ],
+                label: Some("Mipmap Bind Group Layout"),
+            })],
+            push_constant_ranges: &[],
+        });
+    
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Mipmap Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main", // Point d'entrée pour le vertex shader
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main", // Point d'entrée pour le fragment shader
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                unclipped_depth: false,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+        })
+    }    
+
+    fn create_bind_group(device: &wgpu::Device, texture_view: &wgpu::TextureView) -> wgpu::BindGroup {
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            ..Default::default()
+        });
+    
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Mipmap Bind Group Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+            ],
+        });
+    
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(texture_view),
+                },
+            ],
+            label: Some("Mipmap Bind Group"),
+        })
+    }
+    
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float; // 1.
     
     pub fn create_depth_texture(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration, sample_count: u32, label: &str) -> Self {
