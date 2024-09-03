@@ -12,6 +12,8 @@ struct TransformUniform {
 struct Water {
     factor: f32,
     time: f32,
+    current: u32,
+    count: u32,
 }
 @group(1) @binding(1) var<uniform> water: Water;
 
@@ -62,11 +64,22 @@ struct Light {
 @group(0) @binding(1) var<uniform> light: Light;
 
 @group(1) @binding(2) var sampler_tex: sampler;
-@group(1) @binding(3) var tex_0: texture_2d<f32>;
-@group(1) @binding(4) var tex_1: texture_2d<f32>;
+@group(1) @binding(3) var tex_atlas: texture_2d<f32>;
 
 fn normalize_value_between(value: f32, min: f32, max: f32) -> f32 {
     return (value - min) / (max - min);
+}
+
+fn get_uv_in_atlas(uv: vec2<f32>, texture_index: u32, atlas_size: vec2<u32>) -> vec2<f32> {
+    // Taille de chaque sous-texture dans l'atlas
+    let texture_size = vec2<f32>(1.0) / vec2<f32>(atlas_size);
+
+    // Position de la texture indexée dans l'atlas
+    let texel_index = vec2<u32>(texture_index % atlas_size.x, texture_index / atlas_size.x);
+    let base_uv = vec2<f32>(texel_index) * texture_size;
+
+    // UV dans la sous-région correspondante
+    return base_uv + uv * texture_size;
 }
 
 @fragment
@@ -85,9 +98,23 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let opaque_depth_limit = 1.;
     var alpha = min_transparency;
 
-    let water_color =  mix(
-        textureSample(tex_0, sampler_tex, uv),
-        textureSample(tex_1, sampler_tex, uv),
+    // let water_color = mix(
+    //     textureSample(tex_0, sampler_tex, uv),
+    //     textureSample(tex_1, sampler_tex, uv),
+    //     water.factor
+    // );
+
+    let current: u32 = water.current;
+    var next: u32 = 0u;
+    if current != water.count {
+        ceil()
+    }
+    // if current as usize == TEXTURES_COUNT - 1 { 0.0 } else { f32::ceil(texture_index) };
+
+    let index: u32 = 8u;
+    let water_color = mix(
+        textureSample(tex_atlas, sampler_tex, get_uv_in_atlas(in.tex_coords, index, vec2<u32>(8, 8))),
+        textureSample(tex_atlas, sampler_tex, get_uv_in_atlas(in.tex_coords, index, vec2<u32>(8, 8))),
         water.factor
     );
 

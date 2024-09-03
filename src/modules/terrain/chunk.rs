@@ -74,11 +74,7 @@ impl Chunk {
                 -300.0,
                 (*y as f32 * size)
             ],
-            [
-                &water_textures.textures[0],
-                &water_textures.textures[1],
-            ],
-            water_textures.uniform.clone()
+            &water_textures,
         );
         Ok(Self {
             terrain_mesh,

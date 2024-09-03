@@ -4,6 +4,7 @@ use rustc_hash::FxHashMap;
 use crate::modules::{assets::assets::{load_binary, load_png_bytes, load_texture}, core::{model::SimpleVertex, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
 
 const PATCH_SIZE: f32 = 2.0;
+const TEXTURES_COUNT: usize = 30;
 
 #[derive(Debug)]
 pub struct Water {
@@ -112,51 +113,35 @@ impl Water {
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
 pub struct WaterUniform {
     factor: f32,
-    time: f32
+    time: f32,
+    current: u32,
+    count: u32,
 }
 
 pub struct WaterTexture {
-    pub textures: [Texture; 2],
+    pub atlas_texture: Texture,
     pub uniform: WaterUniform,
-    textures_data: Vec<Vec<u8>>,
-    current: usize,
 }
 
 impl WaterTexture {
     pub async fn load(state: &State<'_>) -> anyhow::Result<Self> {
-        let mut textures_data = Vec::new();
-        for i in 1..=30 {
-            let data = load_png_bytes(&format!("pack/special/water/{}.png", u8_to_string_with_len(i, 2))).await?;
-            textures_data.push(data);
-        }
-        let textures = [
-            load_texture("pack/special/water/01.png", &state.device, &state.queue).await?,
-            load_texture("pack/special/water/02.png", &state.device, &state.queue).await?,
-        ];
+        let atlas_texture = load_texture("pack/special/water/atlas.png", &state.device, &state.queue).await?;
         Ok(Self {
-            textures,
-            textures_data,
-            current: 0,
+            atlas_texture,
             uniform: WaterUniform {
                 factor: 0.0,
                 time: 0.0,
+                current: 0,
+                count: TEXTURES_COUNT as u32
             }
         })
     }
-    pub fn update(&mut self, elapsed_time: f32, queue: &wgpu::Queue) {
+    pub fn update(&mut self, elapsed_time: f32) {
         let texture_index = (elapsed_time * 1000.0 / 70.0) % 30.0;
         let current = f32::floor(texture_index);
-        let next = if current as usize == self.textures_data.len() - 1 { 0.0 } else { f32::ceil(texture_index) };
+        let next = if current as usize == TEXTURES_COUNT - 1 { 0.0 } else { f32::ceil(texture_index) };
         self.uniform.factor = texture_index - current;
         self.uniform.time = elapsed_time;
-        let current = current as usize;
-        let next = next as usize;
-        if current != self.current {
-            // texture update needed
-            self.current = current;
-            self.textures[0].update(&self.textures_data[current], queue);
-            self.textures[1].update(&self.textures_data[next], queue);
-        }
     }
 } 
 

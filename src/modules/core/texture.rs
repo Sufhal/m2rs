@@ -138,7 +138,6 @@ impl Texture {
 
         let mip_level_count = (size.width.max(size.height) as f32).log2().floor() as u32 + 1;
 
-
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label,
@@ -150,7 +149,6 @@ impl Texture {
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         });
-
         
         queue.write_texture(
             wgpu::ImageCopyTexture {
@@ -167,7 +165,6 @@ impl Texture {
             },
             size,
         );
-
 
         // Génération manuelle des mipmaps
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Mipmap Generator") });

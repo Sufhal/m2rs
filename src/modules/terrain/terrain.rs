@@ -39,7 +39,7 @@ impl Terrain {
     }
 
     pub fn update(&mut self, elapsed_time: f32, queue: &wgpu::Queue) {
-        self.water_texture.update(elapsed_time, queue);
+        self.water_texture.update(elapsed_time);
         for chunk in &self.chunks {
             chunk.update(&self.water_texture, queue);
         }

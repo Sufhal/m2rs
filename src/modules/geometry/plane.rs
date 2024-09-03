@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cgmath::Matrix4;
 use rustc_hash::FxHashMap;
 use wgpu::util::DeviceExt;
-use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, pipelines::{terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::WaterUniform}};
+use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, pipelines::{terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::{Water, WaterTexture, WaterUniform}}};
 
 #[derive(Debug)]
 pub struct Plane {
@@ -212,8 +212,7 @@ impl Plane {
         water_pipeline: &WaterPipeline, 
         name: String, 
         position: [f32; 3],
-        textures: [&Texture; 2],
-        water_uniform: WaterUniform,
+        water_texture: &WaterTexture,
     ) -> (CustomMesh, wgpu::Buffer) {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Water Vertex Buffer"),
@@ -232,7 +231,7 @@ impl Plane {
         });
         let water_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Water Buffer"),
-            contents: bytemuck::cast_slice(&[water_uniform]),
+            contents: bytemuck::cast_slice(&[water_texture.uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -247,18 +246,13 @@ impl Plane {
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: wgpu::BindingResource::Sampler(&textures[0].sampler),
+                resource: wgpu::BindingResource::Sampler(&water_texture.atlas_texture.sampler),
             },
             wgpu::BindGroupEntry {
                 binding: 3,
-                resource: wgpu::BindingResource::TextureView(&textures[0].view),
-            },
-            wgpu::BindGroupEntry {
-                binding: 4,
-                resource: wgpu::BindingResource::TextureView(&textures[1].view),
+                resource: wgpu::BindingResource::TextureView(&water_texture.atlas_texture.view),
             },
         ];
-
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &water_pipeline.bind_group_layouts.mesh,
