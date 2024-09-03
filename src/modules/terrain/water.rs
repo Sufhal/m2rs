@@ -50,7 +50,7 @@ impl Water {
         let mut indices_positions = FxHashMap::default();
 
         let size = f32::sqrt(water_height.len() as f32);
-        let uv_factor = 1.0 / size;
+        let uv_factor = (1.0 / size) / 2.0;
         let mut vertex_offset = 0;
 
         for i in 0..water_height.len() {
@@ -136,8 +136,6 @@ impl WaterTexture {
     }
     pub fn update(&mut self, elapsed_time: f32) {
         let texture_index = (elapsed_time * 1000.0 / 70.0) % 30.0;
-        let current = f32::floor(texture_index);
-        let next = if current as usize == TEXTURES_COUNT - 1 { 0.0 } else { f32::ceil(texture_index) };
         self.uniform.time = elapsed_time;
         self.uniform.texture_index = texture_index;
     }

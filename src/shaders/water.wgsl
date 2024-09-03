@@ -70,19 +70,14 @@ fn normalize_value_between(value: f32, min: f32, max: f32) -> f32 {
 }
 
 fn get_uv_in_atlas(uv: vec2<f32>, texture_index: u32, atlas_size: vec2<u32>) -> vec2<f32> {
-    let line = u32(floor(f32(texture_index) / f32(atlas_size.y)));
-    let column = u32(f32(texture_index) % f32(atlas_size.x));
-    let texture_size = 1.0 / f32(atlas_size.y);
-
-    // Taille de chaque sous-texture dans l'atlas
-    let texture_size = vec2<f32>(1.0) / vec2<f32>(atlas_size);
-
-    // Position de la texture indexée dans l'atlas
-    let texel_index = vec2<u32>(texture_index % atlas_size.x, texture_index / atlas_size.x);
-    let base_uv = vec2<f32>(texel_index) * texture_size;
-
-    // UV dans la sous-région correspondante
-    return base_uv + uv * texture_size;
+    let column: f32 = f32(texture_index) % f32(atlas_size.x);
+    let line: f32 = floor(f32(texture_index) / f32(atlas_size.y));
+    let texture_size: f32 = 1.0 / f32(atlas_size.y);
+    let repeated_uv = fract(uv * vec2<f32>(40.0, 40.0));
+    return vec2<f32>(
+        (column * texture_size) + (repeated_uv.x * texture_size),
+        (line * texture_size) + (repeated_uv.y * texture_size),
+    );
 }
 
 @fragment
@@ -101,39 +96,22 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let opaque_depth_limit = 1.;
     var alpha = min_transparency;
 
-    // let water_color = mix(
-    //     textureSample(tex_0, sampler_tex, uv),
-    //     textureSample(tex_1, sampler_tex, uv),
-    //     water.factor
-    // );
-
     let current: u32 = u32(floor(water.texture_index));
     var next: u32 = current + 1u;
-    if current != water.count {
-        next = u32(ceil(water.texture_index));
-    }
-    // if current as usize == TEXTURES_COUNT - 1 { 0.0 } else { f32::ceil(texture_index) };
-
-    // let water_color = mix(
-    //     textureSample(tex_atlas, sampler_tex, get_uv_in_atlas(in.tex_coords, current, vec2<u32>(8, 8))),
-    //     textureSample(tex_atlas, sampler_tex, get_uv_in_atlas(in.tex_coords, next, vec2<u32>(8, 8))),
-    //     water.texture_index - f32(current)
-    // );
-
-    var water_color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    if current < 30 {
-    } else {
-        water_color.r = 1.0;
+    if next == water.count {
+        next = 0u;
     }
 
-    // let water_color = textureSample(tex_atlas, sampler_tex, get_uv_in_atlas(in.tex_coords, current, vec2<u32>(8, 8)));
+    let water_color: vec3<f32> = mix(
+        textureSample(tex_atlas, sampler_tex, get_uv_in_atlas(in.tex_coords, current, vec2<u32>(8, 8))).rgb,
+        textureSample(tex_atlas, sampler_tex, get_uv_in_atlas(in.tex_coords, next, vec2<u32>(8, 8))).rgb,
+        water.texture_index - f32(current)
+    );
 
     if in.depth < opaque_depth_limit {
         alpha = mix(max_transparency, min_transparency, normalize_value_between(in.depth, 0., opaque_depth_limit));
     }
-    // if (waterDepth < opaqueDepthLimit)
-	// 	transparency = mix(maxTransparency, minTransparency, normalizeValueBetween(waterDepth, 0., opaqueDepthLimit));
 
-    return vec4<f32>(water_color.rgb, alpha);
+    return vec4<f32>(water_color, alpha);
 }
  

@@ -214,6 +214,7 @@ impl Plane {
         position: [f32; 3],
         water_texture: &WaterTexture,
     ) -> (CustomMesh, wgpu::Buffer) {
+        // dbg!(&self.vertices.iter().map(|v| v.tex_coords).collect::<Vec<_>>());
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Water Vertex Buffer"),
             contents: bytemuck::cast_slice(&self.vertices),
