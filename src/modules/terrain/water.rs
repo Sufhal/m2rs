@@ -112,9 +112,8 @@ impl Water {
 #[repr(C)]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
 pub struct WaterUniform {
-    factor: f32,
+    texture_index: f32,
     time: f32,
-    current: u32,
     count: u32,
 }
 
@@ -129,9 +128,8 @@ impl WaterTexture {
         Ok(Self {
             atlas_texture,
             uniform: WaterUniform {
-                factor: 0.0,
+                texture_index: 0.0,
                 time: 0.0,
-                current: 0,
                 count: TEXTURES_COUNT as u32
             }
         })
@@ -140,8 +138,8 @@ impl WaterTexture {
         let texture_index = (elapsed_time * 1000.0 / 70.0) % 30.0;
         let current = f32::floor(texture_index);
         let next = if current as usize == TEXTURES_COUNT - 1 { 0.0 } else { f32::ceil(texture_index) };
-        self.uniform.factor = texture_index - current;
         self.uniform.time = elapsed_time;
+        self.uniform.texture_index = texture_index;
     }
 } 
 

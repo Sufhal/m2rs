@@ -132,6 +132,7 @@ impl<'a> State<'a> {
         let supported_sample_count = surface_format_features.flags.supported_sample_counts();
         // let sample_count = 1;
         let sample_count = *supported_sample_count.iter().max().unwrap_or(&1);
+        let sample_count = sample_count.min(4);
 
         let multisampled_texture = Self::create_multisampled_texture(
             &device, 
