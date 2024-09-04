@@ -17,7 +17,6 @@ use super::assets::gltf_loader::load_model_glb;
 use super::character::character::{Character, CharacterKind, NPCType};
 use super::core::object_3d::{Object3D, TranslateWithScene};
 use super::core::scene;
-use super::geometry::plane::Plane;
 use super::pipelines::common_pipeline::CommonPipeline;
 use super::pipelines::simple_models_pipeline::SimpleModelPipeline;
 use super::pipelines::skinned_models_pipeline::SkinnedModelPipeline;
@@ -26,7 +25,6 @@ use super::pipelines::water_pipeline::WaterPipeline;
 use super::terrain::terrain::Terrain;
 use super::ui::ui::UserInterface;
 use super::utils::time_factory::TimeFactory;
-// use super::utils::performance_tracker::PerformanceTracker;
 
 pub struct State<'a> {
     surface: wgpu::Surface<'a>,
@@ -206,57 +204,11 @@ impl<'a> State<'a> {
             scene.add(object);
         }
 
-        let model_objects = load_model_glb(
-            "pack/zone/c/building/c1-001-house3.glb", 
-            &device, 
-            &queue, 
-            &skinned_models_pipeline,
-            &simple_models_pipeline,
-        ).await.expect("unable to load");
-        for mut object in model_objects {
-            if let Some(object3d) = &mut object.object3d {
-                match object3d {
-                    Object3D::Simple(simple) => {
-                        for i in 0..1 {
-                            let instance = simple.request_instance(&device);
-                            instance.set_position(cgmath::Vector3::from([
-                                388.0,
-                                -113.0,
-                                641.0
-                            ]));
-                            instance.take();
-                        }
-                    },
-                    _ => ()
-                };
-            }
-            scene.add(object);
-        }
-
-        // let shaman_animations = load_animations("run.glb").await.unwrap();
-        // dbg!(&shaman_animations);
-
-
-        // let model_objects = load_model_glb("official_gltf/gltf_binary/2CylinderEngine.glb", &device, &queue, &texture_bind_group_layout, &transform_bind_group_layout).await.expect("unable to load");
-        // for mut object in model_objects {
-        //     let id = object.id.clone();
-        //     if let Some(object_3d) = &mut object.object_3d {
-        //         // dbg!(&object.matrix);
-        //         // println!("object {} have mesh", id);
-        //         let instance = object_3d.request_instance(&device);
-        //         instance.add_x_position(0.0);
-        //         instance.take();
-        //     }
-        //     scene.add(object);
-        // }
-
         scene.compute_world_matrices();
         scene.update_objects_buffers(&queue);
 
         let _ = fs::write(Path::new("trash/scene_objects.txt"), format!("{:#?}", &&scene.get_all_objects_mut().iter().map(|object| (object.name.clone(), object.matrix)).collect::<Vec<_>>()));
-
         
-
         let mut state = Self {
             surface,
             device,
@@ -299,6 +251,34 @@ impl<'a> State<'a> {
         if let Ok(terrain) = Terrain::load("c1", &state).await {
             state.terrains.push(terrain);
         }
+
+        let model_objects = load_model_glb(
+            "pack/zone/c/building/c1-001-house3.glb", 
+            &state.device, 
+            &state.queue, 
+            &state.skinned_models_pipeline,
+            &state.simple_models_pipeline,
+        ).await.expect("unable to load");
+        for mut object in model_objects {
+            if let Some(object3d) = &mut object.object3d {
+                match object3d {
+                    Object3D::Simple(simple) => {
+                        for i in 0..1 {
+                            let instance = simple.request_instance(&state.device);
+                            instance.set_position(cgmath::Vector3::from([
+                                388.0,
+                                -113.0,
+                                641.0
+                            ]));
+                            instance.take();
+                        }
+                    },
+                    _ => ()
+                };
+            }
+            state.scene.add(object);
+        }
+
 
         state
     }
