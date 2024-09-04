@@ -47,7 +47,7 @@ impl AreaData {
                 let offset = lines.next().unwrap()
                     .parse::<f32>().unwrap();
                 objects.push(AreaObject {
-                    position,
+                    position: [position[0], position[2], f32::abs(position[1])],
                     id,
                     rotation: [rotation[0], rotation[2], rotation[1]],
                     offset

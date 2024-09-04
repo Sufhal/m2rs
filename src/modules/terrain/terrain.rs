@@ -10,7 +10,7 @@ pub struct Terrain {
 
 impl Terrain {
 
-    pub async fn load(name: &str, state: &State<'_>) -> anyhow::Result<Self> {
+    pub async fn load(name: &str, state: &mut State<'_>) -> anyhow::Result<Self> {
         let path = format!("pack/map/{name}");
         let setting = Setting::read(&path).await?;
         let texture_set = TextureSet::read(&path).await?;

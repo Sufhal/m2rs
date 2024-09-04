@@ -22,6 +22,7 @@ use super::pipelines::simple_models_pipeline::SimpleModelPipeline;
 use super::pipelines::skinned_models_pipeline::SkinnedModelPipeline;
 use super::pipelines::terrain_pipeline::TerrainPipeline;
 use super::pipelines::water_pipeline::WaterPipeline;
+use super::terrain;
 use super::terrain::terrain::Terrain;
 use super::ui::ui::UserInterface;
 use super::utils::time_factory::TimeFactory;
@@ -144,7 +145,7 @@ impl<'a> State<'a> {
         let mut ui = UserInterface::new(&device, &config, &multisampled_texture, window.scale_factor() as f32);
         ui.std_out.push(format!("MSAA set to {sample_count}, supported values are {:?}", supported_sample_count));
 
-        let camera = camera::Camera::new((515.0, 5.0, 643.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        let camera = camera::Camera::new((376.0, 182.0, 641.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
         let camera_controller = camera::CameraController::new(4.0, 0.4);
@@ -248,36 +249,40 @@ impl<'a> State<'a> {
         state.characters.push(character);
 
 
-        if let Ok(terrain) = Terrain::load("c1", &state).await {
-            state.terrains.push(terrain);
-        }
+        let terrain = Terrain::load("c1", &mut state).await.unwrap();
+        state.terrains.push(terrain);
+            
+            // for chunk in &terrain.chunks {
+                
+            // }
+        
 
-        let model_objects = load_model_glb(
-            "pack/zone/c/building/c1-001-house3.glb", 
-            &state.device, 
-            &state.queue, 
-            &state.skinned_models_pipeline,
-            &state.simple_models_pipeline,
-        ).await.expect("unable to load");
-        for mut object in model_objects {
-            if let Some(object3d) = &mut object.object3d {
-                match object3d {
-                    Object3D::Simple(simple) => {
-                        for i in 0..1 {
-                            let instance = simple.request_instance(&state.device);
-                            instance.set_position(cgmath::Vector3::from([
-                                388.0,
-                                -113.0,
-                                641.0
-                            ]));
-                            instance.take();
-                        }
-                    },
-                    _ => ()
-                };
-            }
-            state.scene.add(object);
-        }
+        // let model_objects = load_model_glb(
+        //     "pack/zone/c/building/c1-001-house3.glb", 
+        //     &state.device, 
+        //     &state.queue, 
+        //     &state.skinned_models_pipeline,
+        //     &state.simple_models_pipeline,
+        // ).await.expect("unable to load");
+        // for mut object in model_objects {
+        //     if let Some(object3d) = &mut object.object3d {
+        //         match object3d {
+        //             Object3D::Simple(simple) => {
+        //                 for i in 0..1 {
+        //                     let instance = simple.request_instance(&state.device);
+        //                     instance.set_position(cgmath::Vector3::from([
+        //                         388.0,
+        //                         -113.0,
+        //                         641.0
+        //                     ]));
+        //                     instance.take();
+        //                 }
+        //             },
+        //             _ => ()
+        //         };
+        //     }
+        //     state.scene.add(object);
+        // }
 
 
         state

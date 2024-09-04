@@ -28,13 +28,14 @@ impl SimpleObject3D {
     }
     pub fn update_instances(&mut self, queue: &wgpu::Queue) {
         let size = std::mem::size_of::<InstanceRaw>();
-        for (index, instance) in self.instances.iter().enumerate() {
+        for (index, instance) in self.instances.iter_mut().enumerate() {
             if instance.needs_update == true {
                 queue.write_buffer(
                     &self.instances_buffer,
                     (index * size) as wgpu::BufferAddress,
                     bytemuck::cast_slice(&[instance.to_instance_raw()]),
                 );
+                instance.needs_update = false;
             }
         }
     }
