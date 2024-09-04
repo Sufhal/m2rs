@@ -14,10 +14,12 @@ impl Raycast {
         }
     }
     /// Based on [Möller–Trumbore intersection algorithm](https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm)
+    /// Returns the distance between the origin and the intersection point
     pub fn intersects(&self, triangle: [SimpleVertex; 3]) -> Option<f32> {
         let t0 = Vector3::from(triangle[0].position);
         let t1 = Vector3::from(triangle[1].position);
         let t2 = Vector3::from(triangle[2].position);
+
         let e1 = t1 - t0;
         let e2 = t2 - t0;
     

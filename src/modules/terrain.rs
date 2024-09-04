@@ -5,3 +5,4 @@ pub mod envrionment;
 pub mod chunk;
 pub mod height;
 pub mod water;
+pub mod areadata;

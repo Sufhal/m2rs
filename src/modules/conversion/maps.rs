@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use image::GrayImage;
 use crate::modules::conversion::common::write;
+use crate::modules::terrain::areadata::AreaData;
 use crate::modules::terrain::texture_set::{ChunkTextureSet, TextureSet};
 
 pub fn convert_maps() {
@@ -26,6 +27,14 @@ pub fn convert_maps() {
                         else {
                             if element.file_type().unwrap().is_dir() {
                                 // this path is a chunk
+                                if let Ok(areadata) = fs::read_to_string(Path::new(&format!("{}/areadata.txt", element.path().to_str().unwrap()))) {
+                                    let parsed = AreaData::from_txt(&areadata);
+                                    write(
+                                        &format!("{}/areadata.json", element.path().to_str().unwrap()), 
+                                        serde_json::to_string(&parsed).unwrap()
+                                    );
+                                }
+
                                 let tile_indices = fs::read(&format!("{}/tile.raw", element.path().to_str().unwrap())).unwrap();
 
                                 // Colors are counted because only 8 textures are allowed in a chunk
@@ -182,7 +191,6 @@ pub fn convert_maps() {
 
                                 for i in 0..colors.len() {
                                     let (index, _) = colors.get(i).unwrap();
-                                    println!("for color index {i}, writing color {index}");
                                     let alpha_map = tile_indices
                                         .iter()
                                         .fold(Vec::new(), |mut acc, v| {
