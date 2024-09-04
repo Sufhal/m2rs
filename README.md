@@ -99,3 +99,8 @@ All DDS files should be converted to PNG files. I usually do this with [imagemag
 ```bash
 find . -type f -name "*.dds" -exec mogrify -format png {} +
 ```
+
+## FBX to GLTF
+To convert FBX files to GLTF:
+- [w/ skinning](https://github.com/BabylonJS/Exporters/releases)
+- [w/o skinning](https://github.com/facebookincubator/FBX2glTF/releases)
