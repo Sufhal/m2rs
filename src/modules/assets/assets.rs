@@ -2,7 +2,7 @@ use std::io::{BufReader, Cursor};
 use cfg_if::cfg_if;
 use wgpu::util::DeviceExt;
 
-use crate::modules::{core::{model::{self, TransformUniform}, object::Object, object_3d::Object3D, texture::{self}}, pipelines::render_pipeline::RenderBindGroupLayouts};
+use crate::modules::{core::{model::{self, TransformUniform}, object::Object, object_3d::Object3D, texture::{self}}, pipelines::skinned_models_pipeline::SkinnedModelBindGroupLayouts};
 
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> reqwest::Url {
@@ -75,7 +75,7 @@ pub async fn load_model(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    bind_group_layouts: &RenderBindGroupLayouts,
+    bind_group_layouts: &SkinnedModelBindGroupLayouts,
 ) -> anyhow::Result<Object> {
     let obj_text = load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
@@ -167,7 +167,7 @@ pub async fn load_model(
 
     let model = model::SkinnedModel { meshes, skeleton: todo!(), animations: todo!(), materials, meshes_bind_groups: Vec::new() };
     let mut object = Object::new();
-    object.set_object_3d(Object3D::new(device, bind_group_layouts, model));
+    object.set_object_3d(Object3D::from_skinned_model(device, bind_group_layouts, model));
     Ok(object)
 }
 

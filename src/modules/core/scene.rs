@@ -1,9 +1,11 @@
 use std::collections::{HashMap, VecDeque};
 use cgmath::SquareMatrix;
 use crate::modules::pipelines::common_pipeline::CommonPipeline;
-use crate::modules::pipelines::render_pipeline::RenderPipeline;
+use crate::modules::pipelines::simple_models_pipeline::SimpleModelPipeline;
+use crate::modules::pipelines::skinned_models_pipeline::{self, SkinnedModelPipeline};
 use super::object::Object;
-use super::model::{DrawSkinnedModel, TransformUniform};
+use super::model::{DrawSimpleModel, DrawSkinnedModel, TransformUniform};
+use super::object_3d::Object3D;
 
 pub struct Scene {
     objects: HashMap<String, Object>,
@@ -40,7 +42,13 @@ impl Scene {
     pub fn get_root(&mut self) -> &mut Object {
         self.objects.get_mut(&self.root).unwrap()
     }
-    pub fn get_all_objects(&mut self) -> Vec<&mut Object> {
+    pub fn get_all_objects(&self) -> Vec<&Object> {
+        self.objects
+            .iter()
+            .map(|(_, object)| object)
+            .collect::<Vec<_>>()
+    }
+    pub fn get_all_objects_mut(&mut self) -> Vec<&mut Object> {
         self.objects
             .iter_mut()
             .map(|(_, object)| object)
@@ -81,22 +89,34 @@ impl Scene {
     }
     pub fn update_objects_buffers(&mut self, queue: &wgpu::Queue) {
         for (_, object) in &mut self.objects {
-            if let Some(object_3d) = &object.object_3d {
-                for mesh in &object_3d.model.meshes {
-                    // dbg!(&object.matrix_world);
-                    queue.write_buffer(&mesh.transform_buffer, 0, bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]));
+            if let Some(object3d) = &object.object3d {
+                match object3d {
+                    Object3D::Simple(simple) => {
+                        for mesh in &simple.model.meshes {
+                            queue.write_buffer(&mesh.transform_buffer, 0, bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]));
+                        }
+                    },
+                    Object3D::Skinned(skinned) => {
+                        for mesh in &skinned.model.meshes {
+                            queue.write_buffer(&mesh.transform_buffer, 0, bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]));
+                        }
+                    }
                 }
+                
             }
         }
     }
 }
 
 pub trait DrawScene<'a> {
-    fn draw_scene(
+    fn draw_scene_simple_models(
         &mut self,
-        queue: &wgpu::Queue,
-        scene: &'a mut Scene,
-        render_pipeline: &'a RenderPipeline,
+        scene: &'a Scene,
+        common_pipeline: &'a CommonPipeline,
+    );
+    fn draw_scene_skinned_models(
+        &mut self,
+        scene: &'a Scene,
         common_pipeline: &'a CommonPipeline,
     );
 }
@@ -105,25 +125,53 @@ impl<'a, 'b> DrawScene<'b> for wgpu::RenderPass<'a>
 where 
     'b: 'a,
 {
-    fn draw_scene(
+
+    fn draw_scene_simple_models(
         &mut self,
-        queue: &wgpu::Queue,
-        scene: &'b mut Scene,
-        render_pipeline: &'a RenderPipeline,
+        scene: &'b Scene,
         common_pipeline: &'a CommonPipeline,
     ) {
         for object in scene.get_all_objects() {
-            if let Some(object_3d) = object.get_object_3d() {
-                object_3d.update_instances(queue);
-                self.set_vertex_buffer(1, object_3d.get_instance_buffer_slice());
-                self.draw_model_instanced(
-                    &object_3d.model, 
-                    &object_3d.instances_bind_group,
-                    0..object_3d.get_taken_instances_count() as u32, 
-                    render_pipeline,
-                    common_pipeline
-                );
+            if let Some(object3d) = &object.object3d {
+                match object3d {
+                    Object3D::Simple(simple) => {
+                        // simple.update_instances(queue);
+                        self.set_vertex_buffer(1, simple.get_instance_buffer_slice());
+                        self.draw_simple_model_instanced(
+                            &simple.model, 
+                            &simple.instances_bind_group,
+                            0..simple.get_taken_instances_count() as u32, 
+                            common_pipeline
+                        );
+                    },
+                    _ => ()
+                }
             }
         }
     }
+
+    fn draw_scene_skinned_models(
+        &mut self,
+        scene: &'b Scene,
+        common_pipeline: &'a CommonPipeline,
+    ) {
+        for object in scene.get_all_objects() {
+            if let Some(object3d) = &object.object3d {
+                match object3d {
+                    Object3D::Skinned(skinning) => {
+                        // skinning.update_instances(queue);
+                        self.set_vertex_buffer(1, skinning.get_instance_buffer_slice());
+                        self.draw_skinned_model_instanced(
+                            &skinning.model, 
+                            &skinning.instances_bind_group,
+                            0..skinning.get_taken_instances_count() as u32, 
+                            common_pipeline
+                        );
+                    },
+                    _ => ()
+                }
+            }
+        }
+    }
+
 }

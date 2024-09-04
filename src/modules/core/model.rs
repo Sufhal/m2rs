@@ -1,5 +1,5 @@
 use cgmath::SquareMatrix;
-use crate::modules::{core::texture, pipelines::{common_pipeline::CommonPipeline, render_pipeline::RenderPipeline}};
+use crate::modules::{core::texture, pipelines::{common_pipeline::CommonPipeline, simple_models_pipeline::SimpleModelPipeline, skinned_models_pipeline::{self, SkinnedModelPipeline}}};
 use std::ops::Range;
 
 use super::skinning::{AnimationClip, Skeleton};
@@ -127,34 +127,32 @@ impl Vertex for SimpleVertex {
     }
 }
 
-#[derive(Debug)]
-pub struct SkinnedModel {
-    pub meshes: Vec<Mesh>,
-    pub skeleton: Skeleton,
-    pub animations: Vec<AnimationClip>,
-    pub materials: Vec<Material>,
-    pub meshes_bind_groups: Vec<wgpu::BindGroup>,
-}
-
-impl SkinnedModel {
+pub trait BindGroupCreation {
     /// Creates one BindGroup per Mesh
-    pub fn create_bind_groups(&mut self, device: &wgpu::Device, render_pipeline: &RenderPipeline) {
-        self.meshes_bind_groups.clear();
-        for mesh in &self.meshes {
-            self.meshes_bind_groups.push(
+    fn create_bind_groups(
+        &self,
+        meshes: &Vec<Mesh>,
+        materials: &Vec<Material>,
+        device: &wgpu::Device, 
+        render_pipeline: &SkinnedModelPipeline
+    ) -> Vec<wgpu::BindGroup>
+    {
+        let mut bind_groups = Vec::new();
+        for mesh in meshes {
+            bind_groups.push(
                 device.create_bind_group(&wgpu::BindGroupDescriptor {
                     layout: &render_pipeline.bind_group_layouts.mesh,
                     entries: &[
                         wgpu::BindGroupEntry {
                             binding: 0,
                             resource: wgpu::BindingResource::TextureView(
-                                &self.materials[mesh.material].diffuse_texture.view
+                                &materials[mesh.material].diffuse_texture.view
                             )
                         },
                         wgpu::BindGroupEntry {
                             binding: 1,
                             resource:  wgpu::BindingResource::Sampler(
-                                &self.materials[mesh.material].diffuse_texture.sampler
+                                &materials[mesh.material].diffuse_texture.sampler
                             )
                         },
                         wgpu::BindGroupEntry {
@@ -166,9 +164,28 @@ impl SkinnedModel {
                 })
             )
         }
-        
+        bind_groups
     }
 }
+
+#[derive(Debug)]
+pub struct SimpleModel {
+    pub meshes: Vec<Mesh>,
+    pub materials: Vec<Material>,
+    pub meshes_bind_groups: Vec<wgpu::BindGroup>,
+}
+
+#[derive(Debug)]
+pub struct SkinnedModel {
+    pub meshes: Vec<Mesh>,
+    pub skeleton: Skeleton,
+    pub animations: Vec<AnimationClip>,
+    pub materials: Vec<Material>,
+    pub meshes_bind_groups: Vec<wgpu::BindGroup>,
+}
+
+impl BindGroupCreation for SkinnedModel {}
+impl BindGroupCreation for SimpleModel {}
 
 #[derive(Debug)]
 pub struct Material {
@@ -222,7 +239,6 @@ pub trait DrawMesh<'a> {
         mesh_bind_group: &'a wgpu::BindGroup,
         instances_bind_group: &'a wgpu::BindGroup,
         instances: Range<u32>,
-        render_pipeline: &'a RenderPipeline,
         common_pipeline: &'a CommonPipeline,
     );
 }
@@ -237,7 +253,6 @@ where
         mesh_bind_group: &'b wgpu::BindGroup,
         instances_bind_group: &'b wgpu::BindGroup,
         instances: Range<u32>,
-        _render_pipeline: &'a RenderPipeline,
         common_pipeline: &'a CommonPipeline,
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
@@ -251,12 +266,11 @@ where
 
 
 pub trait DrawSkinnedModel<'a> {
-    fn draw_model_instanced(
+    fn draw_skinned_model_instanced(
         &mut self,
         model: &'a SkinnedModel,
         instances_bind_group: &'a wgpu::BindGroup,
         instances: Range<u32>,
-        render_pipeline: &'a RenderPipeline,
         common_pipeline: &'a CommonPipeline,
     );
 }
@@ -265,18 +279,46 @@ impl<'a, 'b> DrawSkinnedModel<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn draw_model_instanced(
+    fn draw_skinned_model_instanced(
         &mut self,
         model: &'b SkinnedModel,
         instances_bind_group: &'b wgpu::BindGroup,
         instances: Range<u32>,
-        render_pipeline: &'a RenderPipeline,
         common_pipeline: &'a CommonPipeline,
     ) {
         for i in 0..model.meshes.len() {
             let mesh = &model.meshes[i];
             let mesh_bind_group = &model.meshes_bind_groups[i];
-            self.draw_mesh_instanced(mesh, mesh_bind_group, instances_bind_group, instances.clone(), render_pipeline, common_pipeline);
+            self.draw_mesh_instanced(mesh, mesh_bind_group, instances_bind_group, instances.clone(), common_pipeline);
+        }
+    }
+}
+
+pub trait DrawSimpleModel<'a> {
+    fn draw_simple_model_instanced(
+        &mut self,
+        model: &'a SimpleModel,
+        instances_bind_group: &'a wgpu::BindGroup,
+        instances: Range<u32>,
+        common_pipeline: &'a CommonPipeline,
+    );
+}
+
+impl<'a, 'b> DrawSimpleModel<'b> for wgpu::RenderPass<'a>
+where
+    'b: 'a,
+{
+    fn draw_simple_model_instanced(
+        &mut self,
+        model: &'b SimpleModel,
+        instances_bind_group: &'b wgpu::BindGroup,
+        instances: Range<u32>,
+        common_pipeline: &'a CommonPipeline,
+    ) {
+        for i in 0..model.meshes.len() {
+            let mesh = &model.meshes[i];
+            let mesh_bind_group = &model.meshes_bind_groups[i];
+            self.draw_mesh_instanced(mesh, mesh_bind_group, instances_bind_group, instances.clone(), common_pipeline);
         }
     }
 }

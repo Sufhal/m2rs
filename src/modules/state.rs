@@ -12,15 +12,15 @@ use crate::modules::core::model::DrawCustomMesh;
 use crate::modules::core::texture::{self, Texture};
 use crate::modules::camera::camera;
 use crate::modules::ui::ui::{MetricData};
-use crate::modules::utils::functions::calculate_fps;
 use crate::modules::utils::time_factory::TimeFragment;
 use super::assets::gltf_loader::load_model_glb;
 use super::character::character::{Character, CharacterKind, NPCType};
-use super::core::object_3d::{Transform, TranslateWithScene};
+use super::core::object_3d::{Object3D, TranslateWithScene};
 use super::core::scene;
 use super::geometry::plane::Plane;
 use super::pipelines::common_pipeline::CommonPipeline;
-use super::pipelines::render_pipeline::RenderPipeline;
+use super::pipelines::simple_models_pipeline::SimpleModelPipeline;
+use super::pipelines::skinned_models_pipeline::SkinnedModelPipeline;
 use super::pipelines::terrain_pipeline::TerrainPipeline;
 use super::pipelines::water_pipeline::WaterPipeline;
 use super::terrain::terrain::Terrain;
@@ -37,7 +37,8 @@ pub struct State<'a> {
     supported_sample_count: Vec<u32>,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub common_pipeline: CommonPipeline,
-    pub new_render_pipeline: RenderPipeline,
+    pub skinned_models_pipeline: SkinnedModelPipeline,
+    pub simple_models_pipeline: SimpleModelPipeline,
     pub terrain_pipeline: TerrainPipeline,
     pub water_pipeline: WaterPipeline,
     camera: camera::Camera,
@@ -158,7 +159,8 @@ impl<'a> State<'a> {
         let common_pipeline = CommonPipeline::new(&device);
         let terrain_pipeline = TerrainPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let water_pipeline = WaterPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
-        let new_render_pipeline = RenderPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
+        let skinned_models_pipeline = SkinnedModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
+        let simple_models_pipeline = SimpleModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
 
         let mut scene = scene::Scene::new();
 
@@ -169,10 +171,11 @@ impl<'a> State<'a> {
             // "fox.glb", 
             &device, 
             &queue, 
-            &new_render_pipeline
+            &skinned_models_pipeline,
+            &simple_models_pipeline,
         ).await.expect("unable to load");
         for mut object in model_objects {
-            if let Some(object_3d) = &mut object.object_3d {
+            if let Some(object3d) = &mut object.object3d {
                 // let clips = load_animations(
                 //     "shaman_wait_1.glb", 
                 //     // "shaman_cheonryun.glb", 
@@ -185,13 +188,47 @@ impl<'a> State<'a> {
   
                 // dbg!(&object.matrix);
                 // println!("object {} have mesh", id);
-                for i in 0..10 {
-                    let instance = object_3d.request_instance(&device);
-                    instance.add_x_position(0.5 + (i as f32 / 2.0));
-                    instance.take();
-                    // dbg!(&instance.id);
-                }
-                
+                match object3d {
+                    Object3D::Skinned(skinned) => {
+                        for i in 0..10 {
+                            let instance = skinned.request_instance(&device);
+                            instance.set_position(cgmath::Vector3::from([
+                                0.5 + (i as f32 / 2.0),
+                                0.0,
+                                0.0
+                            ]));
+                            instance.take();
+                        }
+                    },
+                    _ => ()
+                };
+            }
+            scene.add(object);
+        }
+
+        let model_objects = load_model_glb(
+            "pack/zone/c/building/c1-001-house3.glb", 
+            &device, 
+            &queue, 
+            &skinned_models_pipeline,
+            &simple_models_pipeline,
+        ).await.expect("unable to load");
+        for mut object in model_objects {
+            if let Some(object3d) = &mut object.object3d {
+                match object3d {
+                    Object3D::Simple(simple) => {
+                        for i in 0..1 {
+                            let instance = simple.request_instance(&device);
+                            instance.set_position(cgmath::Vector3::from([
+                                388.0,
+                                -113.0,
+                                641.0
+                            ]));
+                            instance.take();
+                        }
+                    },
+                    _ => ()
+                };
             }
             scene.add(object);
         }
@@ -216,7 +253,7 @@ impl<'a> State<'a> {
         scene.compute_world_matrices();
         scene.update_objects_buffers(&queue);
 
-        let _ = fs::write(Path::new("trash/scene_objects.txt"), format!("{:#?}", &&scene.get_all_objects().iter().map(|object| (object.name.clone(), object.matrix)).collect::<Vec<_>>()));
+        let _ = fs::write(Path::new("trash/scene_objects.txt"), format!("{:#?}", &&scene.get_all_objects_mut().iter().map(|object| (object.name.clone(), object.matrix)).collect::<Vec<_>>()));
 
         
 
@@ -227,7 +264,8 @@ impl<'a> State<'a> {
             config,
             size,
             common_pipeline,
-            new_render_pipeline,
+            skinned_models_pipeline,
+            simple_models_pipeline,
             terrain_pipeline,
             water_pipeline,
             camera,
@@ -354,12 +392,20 @@ impl<'a> State<'a> {
             character.update(&mut self.scene);
         }
 
-        for object in self.scene.get_all_objects() {
-            if let Some(object_3d) = &mut object.object_3d {
-                for instance in object_3d.get_instances() {
-                    instance.update(delta_ms);
-                }
-                object_3d.update_skeleton(&self.queue);
+        for object in self.scene.get_all_objects_mut() {
+            if let Some(object3d) = &mut object.object3d {
+                match object3d {
+                    Object3D::Skinned(skinned) => {
+                        for instance in skinned.get_instances() {
+                            instance.update(delta_ms);
+                        }
+                        skinned.update_skeleton(&self.queue);
+                        skinned.update_instances(&self.queue);
+                    },
+                    Object3D::Simple(simple) => {
+                        simple.update_instances(&self.queue);
+                    }
+                };
             }
         }
 
@@ -368,6 +414,7 @@ impl<'a> State<'a> {
         }
 
         self.ui.metrics.push_data(MetricData::UpdateCallTime(update_call_fragment.elapsed_ms()));
+        self.ui.informations.position = [self.camera.position.x as i32, self.camera.position.y as i32, self.camera.position.z as i32];
 
     }
 
@@ -423,12 +470,16 @@ impl<'a> State<'a> {
             });
 
             use scene::DrawScene;
-            render_pass.set_pipeline(&self.new_render_pipeline.pipeline);
 
-            render_pass.draw_scene(
-                &self.queue,
-                &mut self.scene, 
-                &self.new_render_pipeline,
+            render_pass.set_pipeline(&self.simple_models_pipeline.pipeline);
+            render_pass.draw_scene_simple_models(
+                &self.scene, 
+                &self.common_pipeline
+            );
+            
+            render_pass.set_pipeline(&self.skinned_models_pipeline.pipeline);
+            render_pass.draw_scene_skinned_models(
+                &self.scene, 
                 &self.common_pipeline
             );
 

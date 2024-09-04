@@ -2,7 +2,7 @@ use std::fmt::{self};
 use crate::modules::assets::gltf_loader::{load_animation, load_model_glb};
 use crate::modules::core::motions::MotionsGroups;
 use crate::modules::core::object::Object;
-use crate::modules::core::object_3d::{Object3DInstance, Translate, TranslateWithScene};
+use crate::modules::core::object_3d::{Object3D, Translate, TranslateWithScene};
 use crate::modules::core::scene::Scene;
 use crate::modules::state::State;
 
@@ -101,10 +101,19 @@ impl Character {
             let mut objects = Vec::new();
             for children in childrens {
                 if let Some(object) = state.scene.get_mut(&children) {
-                    if let Some(object3d) = &mut object.object_3d {
-                        let instance = object3d.request_instance(&state.device);
-                        instance.take();
-                        objects.push((object.id.clone(), instance.id.clone()));
+                    if let Some(object3d) = &mut object.object3d {
+                        match object3d {
+                            Object3D::Simple(simple) => {
+                                let instance = simple.request_instance(&state.device);
+                                instance.take();
+                                objects.push((object.id.clone(), instance.id.clone()));
+                            },
+                            Object3D::Skinned(skinned) => {
+                                let instance = skinned.request_instance(&state.device);
+                                instance.take();
+                                objects.push((object.id.clone(), instance.id.clone()));
+                            },
+                        };
                     }
                 }
             }
@@ -126,38 +135,49 @@ impl Character {
                 &filename,
                 &state.device,
                 &state.queue,
-                &state.new_render_pipeline
+                &state.skinned_models_pipeline,
+                &state.simple_models_pipeline,
             ).await.expect("unable to load");
             let mut group = Object::new();
             group.name = Some(name.to_string());
             for mut object in model_objects {
                 group.add_child(&mut object);
-                if let Some(object3d) = &mut object.object_3d {
-                    // loading animations clips attached to motions
-                    for group in &motions.groups {
-                        for motion in &group.motions {
-                            let animations_path = match &kind {
-                                CharacterKind::NPC(npc) => {
-                                    match npc {
-                                        NPCType::Monster => {
-                                            let npc_type = npc.to_string();
-                                            format!("pack/{npc_type}/{name}")
+                if let Some(object3d) = &mut object.object3d {
+                    match object3d {
+                        Object3D::Simple(simple) => {
+                            // create instance
+                            let instance = simple.request_instance(&state.device);
+                            instance.take();
+                            objects.push((object.id.clone(), instance.id.clone()));
+                        },
+                        Object3D::Skinned(skinned) => {
+                            // loading animations clips attached to motions
+                            for group in &motions.groups {
+                                for motion in &group.motions {
+                                    let animations_path = match &kind {
+                                        CharacterKind::NPC(npc) => {
+                                            match npc {
+                                                NPCType::Monster => {
+                                                    let npc_type = npc.to_string();
+                                                    format!("pack/{npc_type}/{name}")
+                                                },
+                                                NPCType::Normal => todo!()
+                                            }
                                         },
-                                        NPCType::Normal => todo!()
-                                    }
-                                },
-                                CharacterKind::PC(_) => todo!()
-                            };
-                            let name = &motion.file;
-                            let path = format!("{animations_path}/{name}.glb");
-                            let clip = load_animation(&path, name).await.unwrap();
-                            object3d.add_animation(clip);
-                        }
+                                        CharacterKind::PC(_) => todo!()
+                                    };
+                                    let name = &motion.file;
+                                    let path = format!("{animations_path}/{name}.glb");
+                                    let clip = load_animation(&path, name).await.unwrap();
+                                    skinned.add_animation(clip);
+                                }
+                            }
+                            // create instance
+                            let instance = skinned.request_instance(&state.device);
+                            instance.take();
+                            objects.push((object.id.clone(), instance.id.clone()));
+                        },
                     }
-                    // create instance
-                    let instance = object3d.request_instance(&state.device);
-                    instance.take();
-                    objects.push((object.id.clone(), instance.id.clone()));
                 }
                 state.scene.add(object);
             }
@@ -175,32 +195,41 @@ impl Character {
     pub fn update(&self, scene: &mut Scene) {
         for (object_id, instance_id) in &self.objects {
             if let Some(object) = scene.get_mut(object_id) {
-                if let Some(object3d) = &mut object.object_3d {
-                    if let Some(instance) = object3d.get_instance(&instance_id) {
-                        self.motions.update_mixer(&mut instance.mixer);
-                    }
+                if let Some(object3d) = &mut object.object3d {
+                    match object3d {
+                        Object3D::Skinned(skinned) => {
+                            if let Some(instance) = skinned.get_instance(&instance_id) {
+                                self.motions.update_mixer(&mut instance.mixer);
+                            }
+                        },
+                        _ => ()
+                    };
                 }
             }
         }
     }
 
-    fn for_each_instances(&self, scene: &mut Scene, closure: Box<dyn Fn(&mut Object3DInstance)>) {
-        for (object_id, instance_id) in &self.objects {
-            if let Some(object) = scene.get_mut(object_id) {
-                if let Some(object3d) = &mut object.object_3d {
-                    if let Some(instance) = object3d.get_instance(&instance_id) {
-                        closure(instance);
-                    }
-                }
-            }
-        }
-    }
 }
 
 impl TranslateWithScene for Character {
     fn translate(&mut self, x: f32, y: f32, z: f32, scene: &mut Scene) {
-        self.for_each_instances(scene, Box::new(move |instance| {
-            instance.translate(&[x, y, z]);
-        }))
+        for (object_id, instance_id) in &self.objects {
+            if let Some(object) = scene.get_mut(object_id) {
+                if let Some(object3d) = &mut object.object3d {
+                    match object3d {
+                        Object3D::Simple(simple) => {
+                            if let Some(instance) = simple.get_instance(&instance_id) {
+                                instance.translate(&[x, y, z]);
+                            }
+                        },
+                        Object3D::Skinned(skinned) => {
+                            if let Some(instance) = skinned.get_instance(&instance_id) {
+                                instance.translate(&[x, y, z]);
+                            }
+                        }
+                    };
+                }
+            }
+        }
     }
 }

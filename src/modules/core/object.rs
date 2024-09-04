@@ -18,7 +18,7 @@ pub struct Object {
     pub matrix_world: [[f32; 4]; 4],
     #[allow(dead_code)]
     matrix_world_needs_update: bool,
-    pub object_3d: Option<Object3D>,
+    pub object3d: Option<Object3D>,
     pub metadata: Option<Metadata>,
 }
 
@@ -32,15 +32,15 @@ impl Object {
             matrix: cgmath::Matrix4::identity().into(),
             matrix_world: cgmath::Matrix4::identity().into(),
             matrix_world_needs_update: false,
-            object_3d: None,
+            object3d: None,
             metadata: None,
         }
     }
     pub fn set_object_3d(&mut self, object_3d: Object3D) {
-        self.object_3d = Some(object_3d);
+        self.object3d = Some(object_3d);
     }
     pub fn get_object_3d(&mut self) -> Option<&mut Object3D> {
-        self.object_3d.as_mut()
+        self.object3d.as_mut()
     }
     pub fn add_child(&mut self, child: &mut Object) {
         child.parent = Some(self.id.clone());

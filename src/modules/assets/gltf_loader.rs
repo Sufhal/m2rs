@@ -2,7 +2,7 @@ use std::{collections::HashMap, io::{BufReader, Cursor}};
 use cgmath::Matrix4;
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{Material, Mesh, SkinnedModel, SkinnedMeshVertex, TransformUniform}, object::Object, object_3d::Object3D, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::render_pipeline::{RenderBindGroupLayouts, RenderPipeline}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{BindGroupCreation, Material, Mesh, SimpleModel, SimpleVertex, SkinnedMeshVertex, SkinnedModel, TransformUniform}, object::Object, object_3d::Object3D, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::{simple_models_pipeline::SimpleModelPipeline, skinned_models_pipeline::{SkinnedModelBindGroupLayouts, SkinnedModelPipeline}}};
 use super::assets::load_binary;
 
 pub async fn load_animation(path: &str, name: &str) -> anyhow::Result<AnimationClip> {
@@ -93,7 +93,8 @@ pub async fn load_model_glb(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    render_pipeline: &RenderPipeline,
+    skinned_models_pipeline: &SkinnedModelPipeline,
+    simple_models_pipeline: &SimpleModelPipeline,
 ) -> anyhow::Result<Vec<Object>> {
     let gltf_bin = load_binary(file_name).await?;
     let gltf_cursor = Cursor::new(gltf_bin);
@@ -104,7 +105,8 @@ pub async fn load_model_glb(
     let materials = extract_materials(device, queue, gltf.materials(), &buffer_data).await?;
     let mut objects = extract_objects(
         device, 
-        &render_pipeline.bind_group_layouts, 
+        skinned_models_pipeline,
+        simple_models_pipeline,
         file_name, 
         &gltf, 
         &buffer_data
@@ -118,16 +120,42 @@ pub async fn load_model_glb(
     // dbg!(&materials_per_idx.iter().map(|(idx, material)| (idx, material.name.clone())).collect::<Vec<_>>());
 
     objects.iter_mut().for_each(|object| {
-        if let Some(object_3d) = &mut object.object_3d {
-            for mesh in &mut object_3d.model.meshes {
-                if let Some(material) = materials_per_idx.remove(&mesh.material) {
-                    mesh.material = object_3d.model.materials.len();
-                    object_3d.model.materials.push(material);
-                } else {
-                    panic!("no more material")
+        if let Some(object_3d) = &mut object.object3d {
+            match object_3d {
+                Object3D::Simple(simple) => {
+                    for mesh in &mut simple.model.meshes {
+                        if let Some(material) = materials_per_idx.remove(&mesh.material) {
+                            mesh.material = simple.model.materials.len();
+                            simple.model.materials.push(material);
+                        } else {
+                            panic!("no more material")
+                        }
+                    }
+                    simple.model.meshes_bind_groups = simple.model.create_bind_groups(
+                        &simple.model.meshes,
+                        &simple.model.materials,
+                        device, 
+                        skinned_models_pipeline
+                    );
+                },
+                Object3D::Skinned(skinned) => {
+                    for mesh in &mut skinned.model.meshes {
+                        if let Some(material) = materials_per_idx.remove(&mesh.material) {
+                            mesh.material = skinned.model.materials.len();
+                            skinned.model.materials.push(material);
+                        } else {
+                            panic!("no more material")
+                        }
+                    }
+                    skinned.model.meshes_bind_groups = skinned.model.create_bind_groups(
+                        &skinned.model.meshes,
+                        &skinned.model.materials,
+                        device, 
+                        skinned_models_pipeline
+                    );
                 }
             }
-            object_3d.model.create_bind_groups(device, render_pipeline);
+                       
         }
     });
 
@@ -326,7 +354,8 @@ async fn extract_buffer_data(
 
 fn extract_objects(
     device: &wgpu::Device, 
-    bind_group_layouts: &RenderBindGroupLayouts,
+    skinned_models_pipeline: &SkinnedModelPipeline,
+    simple_models_pipeline: &SimpleModelPipeline,
     file_name: &str, 
     model: &gltf::Gltf,
     buffer_data: &Vec<Vec<u8>>
@@ -339,7 +368,8 @@ fn extract_objects(
     fn extract_from_node(
         node: &gltf::Node<'_>, 
         device: &wgpu::Device, 
-        bind_group_layouts: &RenderBindGroupLayouts,
+        skinned_models_pipeline: &SkinnedModelPipeline,
+        simple_models_pipeline: &SimpleModelPipeline,
         objects: &mut Vec<Object>,
         bones_map: &HashMap<usize, usize>,
         skin_joints_map: &HashMap<usize, usize>,
@@ -349,6 +379,7 @@ fn extract_objects(
         file_name: &str
     ) -> Option<String> {
         if let Some(_) = bones_map.get(&node.index()) {
+            // don't create Object from bone
             return None;
         }
         let object = Object::new();
@@ -360,15 +391,18 @@ fn extract_objects(
         if let Some(name) = node.name() {
             object.name = Some(name.to_string());
         }
-        // let (translation, rotation, scale) = node.transform().decomposed();
-        // object.matrix = (Matrix4::from_translation(translation.into()) * Matrix4::from(Quaternion::from([rotation[3], rotation[0], rotation[1], rotation[2]])) * Matrix4::from_nonuniform_scale(scale[0], scale[1], scale[2])).into();
+
         object.matrix = node.transform().matrix();
+
         if let Some(mesh) = node.mesh() {
+
             let mut meshes = Vec::new();
             let primitives = mesh.primitives();
+            
             primitives.for_each(|primitive| {
                 let reader = primitive.reader(|buffer| Some(&buffer_data[buffer.index()]));
-                let mut vertices = Vec::new();
+                let mut vertices_simple: Vec<SimpleVertex> = Vec::new();
+                let mut vertices_skinned: Vec<SkinnedMeshVertex> = Vec::new();
 
                 let positions: Vec<[f32; 3]> = reader.read_positions()
                     .map(|positions| positions.collect())
@@ -389,37 +423,47 @@ fn extract_objects(
                 let joints: Vec<[u16; 4]> = reader.read_joints(0)
                     .map(|joints| joints.into_u16().collect())
                     .unwrap_or_default();
-                    
-                
 
+                let is_skinned = weights.len() > 0 && joints.len() > 0;
+                
                 for i in 0..positions.len() {
+
                     let position = positions.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
                     let tex_coord = tex_coords.get(i).unwrap_or(&[0.0, 0.0]);
                     let normal = normals.get(i).unwrap_or(&[0.0, 0.0, 0.0]);
-                    let weight = weights.get(i).unwrap_or(&[0.0, 0.0, 0.0, 0.0]);
-                    let joint = joints.get(i).unwrap_or(&[0, 1, 2, 3]);
-                    // let converted_joint: [u32; 4] = core::array::from_fn(|i| *(joints[i] as u32));
-                    let converted_joint: [u32; 4] = core::array::from_fn(|i| {
-                        match skin_joints_map.get(&(joint[i] as usize)) {
-                            Some(index) => {
-                                *index as u32
-                            },
-                            None => {
-                                panic!()
-                            }
-                        }
-                    });
-                    vertices.push(SkinnedMeshVertex::new(
-                        *position,
-                        *tex_coord,
-                        *normal,
-                        converted_joint,
-                        *weight
-                    ));
-                }
 
-                // dbg!(&skeleton.as_ref().unwrap().bones[6].name);
-                // dbg!(&bones_map);
+                    match is_skinned {
+                        true => {
+                            let weight = weights.get(i).unwrap_or(&[0.0, 0.0, 0.0, 0.0]);
+                            let joint = joints.get(i).unwrap_or(&[0, 1, 2, 3]);
+                            let converted_joint: [u32; 4] = core::array::from_fn(|i| {
+                                match skin_joints_map.get(&(joint[i] as usize)) {
+                                    Some(index) => {
+                                        *index as u32
+                                    },
+                                    None => {
+                                        panic!()
+                                    }
+                                }
+                            });
+                            vertices_skinned.push(SkinnedMeshVertex::new(
+                                *position,
+                                *tex_coord,
+                                *normal,
+                                converted_joint,
+                                *weight
+                            ));
+                        },
+                        false => {
+                            vertices_simple.push(SimpleVertex::new(
+                                *position,
+                                *tex_coord,
+                                *normal,
+                            ));
+                        }
+                    }
+
+                }
 
                 let mut indices = Vec::new();
                 if let Some(indices_raw) = reader.read_indices() {
@@ -428,7 +472,10 @@ fn extract_objects(
 
                 let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("{:?} Vertex Buffer", file_name)),
-                    contents: bytemuck::cast_slice(&vertices),
+                    contents: match is_skinned {
+                        true => bytemuck::cast_slice(&vertices_skinned),
+                        false => bytemuck::cast_slice(&vertices_simple)
+                    },
                     usage: wgpu::BufferUsages::VERTEX,
                 });
                 let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -451,15 +498,27 @@ fn extract_objects(
                 });
             });
             if meshes.len() > 0 {
-                let model = SkinnedModel { 
-                    meshes, 
-                    skeleton: skeleton.clone().unwrap(), 
-                    animations: animation_clips.clone(),
-                    materials: Vec::new() ,
-                    meshes_bind_groups: Vec::new()
+                let object3d = match skeleton {
+                    Some(skeleton) => {
+                        let model = SkinnedModel { 
+                            meshes, 
+                            skeleton: skeleton.clone(), 
+                            animations: animation_clips.clone(),
+                            materials: Vec::new() ,
+                            meshes_bind_groups: Vec::new()
+                        };
+                        Object3D::from_skinned_model(device, &skinned_models_pipeline.bind_group_layouts, model)
+                    },
+                    None => {
+                        let model = SimpleModel {
+                            meshes,
+                            materials: Vec::new() ,
+                            meshes_bind_groups: Vec::new()
+                        };
+                        Object3D::from_simple_model(device, &simple_models_pipeline.bind_group_layouts, model)
+                    }
                 };
-                let object_3d = Object3D::new(device, bind_group_layouts, model);
-                object.set_object_3d(object_3d);
+                object.set_object_3d(object3d);
             }
         }
         Some(object_id)
@@ -468,7 +527,8 @@ fn extract_objects(
     fn traverse(
         node: &gltf::Node<'_>,
         device: &wgpu::Device, 
-        bind_group_layouts: &RenderBindGroupLayouts,
+        skinned_models_pipeline: &SkinnedModelPipeline,
+        simple_models_pipeline: &SimpleModelPipeline,
         parent_id: Option<String>,
         objects: &mut Vec<Object>,
         bones_map: &HashMap<usize, usize>,
@@ -481,7 +541,8 @@ fn extract_objects(
         let object_id = extract_from_node(
             node, 
             device, 
-            bind_group_layouts, 
+            skinned_models_pipeline,
+            simple_models_pipeline,
             objects, 
             bones_map,
             skin_joints_map,
@@ -512,7 +573,8 @@ fn extract_objects(
                 traverse(
                     &children, 
                     device, 
-                    bind_group_layouts, 
+                    skinned_models_pipeline,
+                    simple_models_pipeline,
                     Some(object_id.clone()), 
                     objects, 
                     bones_map, 
@@ -531,7 +593,8 @@ fn extract_objects(
             traverse(
                 &node, 
                 device, 
-                bind_group_layouts, 
+                skinned_models_pipeline,
+                simple_models_pipeline,
                 None, 
                 &mut objects, 
                 &bones_map, 

@@ -6,6 +6,7 @@ use crate::modules::utils::{functions::{calculate_fps, to_fixed_2}, structs::Lim
 
 pub struct UserInterface {
     pub brush: TextBrush<FontRef<'static>>,
+    pub informations: Informations,
     pub metrics: Metrics,
     pub std_out: LimitedVec<String>,
     scale_factor: f32,
@@ -31,6 +32,7 @@ impl UserInterface {
             scale_factor,
             std_out: LimitedVec::new(10),
             metrics: Metrics::new(),
+            informations: Informations::default(),
             elapsed_time: 0.0,
         }
     }
@@ -45,7 +47,9 @@ impl UserInterface {
             return;
         }
         self.elapsed_time = 0.0;
+        let informations_string = self.informations.to_string();
         let metrics_string = self.metrics.to_string();
+        let left_informations = format!("{metrics_string}\n---\n{informations_string}");
         let std_out_string = self.std_out.as_vecdeque().iter().fold(String::new(), |mut acc, v| {
             acc.insert_str(acc.len(), &v);
             acc
@@ -59,7 +63,7 @@ impl UserInterface {
                 
 
             TextSection::new()
-                .add_text(Text::new(&metrics_string).with_scale(size))
+                .add_text(Text::new(&left_informations).with_scale(size))
                 .with_screen_position((self.size(10.0), self.size(10.0))),
                 
         ];
@@ -73,6 +77,21 @@ impl UserInterface {
 
 }
 
+pub struct Informations {
+    pub position: [i32; 3]
+}
+
+impl Informations {
+    pub fn to_string(&self) -> String {
+        format!("[{}, {}, {}]", self.position[0], self.position[1], self.position[2])
+    }
+}
+
+impl Default for Informations {
+    fn default() -> Self {
+        Self { position: [0,0,0] }
+    }
+}
 
 pub struct Metrics {
     absolute_render_time: Metric,

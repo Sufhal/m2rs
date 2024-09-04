@@ -1,18 +1,18 @@
-use crate::modules::core::{instance::InstanceRaw, model::{SkinnedMeshVertex, Vertex}};
+use crate::modules::core::{instance::InstanceRaw, model::{SimpleVertex, Vertex}};
 use super::common_pipeline::CommonPipeline;
 
-pub struct RenderBindGroupLayouts {
+pub struct SimpleModelBindGroupLayouts {
     pub mesh: wgpu::BindGroupLayout,
     pub instances: wgpu::BindGroupLayout,
 }
 
-pub struct RenderPipeline {
+pub struct SimpleModelPipeline {
     pub pipeline: wgpu::RenderPipeline,
     pub pipeline_layout: wgpu::PipelineLayout,
-    pub bind_group_layouts: RenderBindGroupLayouts,
+    pub bind_group_layouts: SimpleModelBindGroupLayouts,
 }
 
-impl RenderPipeline {
+impl SimpleModelPipeline {
     pub fn new(
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
@@ -23,7 +23,7 @@ impl RenderPipeline {
         let mesh = Self::create_mesh_layout(device);
         let instances = Self::create_instances_layout(device);
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
+            label: Some("Simple Models Pipeline Layout"),
             bind_group_layouts: &[
                 &common_pipeline.global_bind_group_layout,
                 &mesh,
@@ -35,47 +35,13 @@ impl RenderPipeline {
         Self {
             pipeline,
             pipeline_layout,
-            bind_group_layouts: RenderBindGroupLayouts { mesh, instances },
+            bind_group_layouts: SimpleModelBindGroupLayouts { mesh, instances },
         }
     }
 
     fn create_instances_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                // skeletons matrices
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                // skeletons bind inverse matrices
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                // skinning informations
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },  
-            ],
+            entries: &[],
             label: Some("instances_bind_group_layout"),
         })
     }
@@ -128,18 +94,18 @@ impl RenderPipeline {
             wgpu::ShaderModuleDescriptor {
                 label: Some("Normal Shader"),
                 source: wgpu::ShaderSource::Wgsl(
-                    include_str!("../../shaders/shader_v2.wgsl").into()
+                    include_str!("../../shaders/simple_mesh.wgsl").into()
                 ),
             }
         );
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("New Render Pipeline"),
+            label: Some("Simple Models Pipeline"),
             layout: Some(layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[
-                    SkinnedMeshVertex::desc(), 
+                    SimpleVertex::desc(), 
                     InstanceRaw::desc()
                 ],
             },
