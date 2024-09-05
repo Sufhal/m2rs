@@ -6,3 +6,4 @@ pub mod chunk;
 pub mod height;
 pub mod water;
 pub mod areadata;
+pub mod property;
