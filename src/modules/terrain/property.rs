@@ -1,10 +1,9 @@
-use std::{collections::HashMap, convert::TryInto};
-
+use std::collections::HashMap;
 use crate::modules::{assets::assets::load_string, conversion::common::bye_ymir};
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Properties {
-    pub properties: Vec<Property>
+    pub properties: HashMap<String, Property>
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -22,8 +21,8 @@ pub struct Building {
 
 impl Properties {
 
-    pub async fn read(path: &str) -> anyhow::Result<Self> {
-        let filename = format!("{path}/properties.json");
+    pub async fn read() -> anyhow::Result<Self> {
+        let filename = format!("pack/property/properties.json");
         let file = load_string(&filename).await?;
         Ok(serde_json::from_str::<Self>(&file)?)
     }
@@ -32,7 +31,7 @@ impl Properties {
 
 impl Property {
     
-    pub fn from_txt(data: &str) -> Option<Self> {
+    pub fn from_txt(data: &str) -> Option<(String, Self)> {
         let mut lines = data.lines().map(str::trim);
         lines.next()?; // YPRT
         let id = lines.next()?.to_string();
@@ -49,12 +48,15 @@ impl Property {
         }
         match keyval.get("propertytype") {
             Some(&"Building") => {
-                Some(Self::Building(Building {
-                    id,
-                    file: bye_ymir(keyval.get("buildingfile")?),
-                    name: keyval.get("propertyname")?.to_string(),
-                    shadow_flag: keyval.get("shadowflag")?.to_string(),
-                }))
+                Some((
+                    id.clone(),
+                    Self::Building(Building {
+                        id,
+                        file: bye_ymir(keyval.get("buildingfile")?),
+                        name: keyval.get("propertyname")?.to_string(),
+                        shadow_flag: keyval.get("shadowflag")?.to_string(),
+                    })
+                ))
             },
             _ => None
         }

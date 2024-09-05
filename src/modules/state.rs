@@ -23,6 +23,7 @@ use super::pipelines::skinned_models_pipeline::SkinnedModelPipeline;
 use super::pipelines::terrain_pipeline::TerrainPipeline;
 use super::pipelines::water_pipeline::WaterPipeline;
 use super::terrain;
+use super::terrain::property::Properties;
 use super::terrain::terrain::Terrain;
 use super::ui::ui::UserInterface;
 use super::utils::time_factory::TimeFactory;
@@ -53,6 +54,7 @@ pub struct State<'a> {
     time_factory: TimeFactory,
     pub characters: Vec<Character>,
     pub terrains: Vec<Terrain>,
+    pub properties: Properties,
     pub ui: UserInterface
 }
 
@@ -147,7 +149,7 @@ impl<'a> State<'a> {
 
         let camera = camera::Camera::new((376.0, 182.0, 641.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
-        let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
+        let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(28.0), 0.1, 100.0);
         let camera_controller = camera::CameraController::new(4.0, 0.4);
 
         let mut camera_uniform = camera::CameraUniform::new();
@@ -208,7 +210,7 @@ impl<'a> State<'a> {
         scene.compute_world_matrices();
         scene.update_objects_buffers(&queue);
 
-        let _ = fs::write(Path::new("trash/scene_objects.txt"), format!("{:#?}", &&scene.get_all_objects_mut().iter().map(|object| (object.name.clone(), object.matrix)).collect::<Vec<_>>()));
+        let properties = Properties::read().await.unwrap();
         
         let mut state = Self {
             surface,
@@ -235,6 +237,7 @@ impl<'a> State<'a> {
             time_factory: TimeFactory::new(),
             characters: Vec::new(),
             terrains: Vec::new(),
+            properties,
             ui
         };
 

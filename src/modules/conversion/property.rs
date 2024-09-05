@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 use std::fs;
 use crate::modules::terrain::property::{Properties, Property};
 
@@ -9,11 +9,11 @@ pub fn convert_property() {
     let mut files = Vec::new();
     search_files_in_directory(directory, &mut files).unwrap();
 
-    let mut properties = Vec::new();
+    let mut properties = HashMap::new();
     for file in files {
         if let Ok(string) = fs::read_to_string(file) {
-            if let Some(property) = Property::from_txt(&string) {
-               properties.push(property);
+            if let Some((id, property)) = Property::from_txt(&string) {
+               properties.insert(id, property);
             }
         }
     }

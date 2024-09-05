@@ -1,7 +1,8 @@
+use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
 
 use crate::modules::{assets::{assets::load_binary, gltf_loader::load_model_glb}, core::{model::CustomMesh, object_3d::Object3D, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
-use super::{areadata::AreaData, height::Height, setting::Setting, texture_set::ChunkTextureSet, water::{Water, WaterTexture}};
+use super::{areadata::AreaData, height::Height, property::Property, setting::Setting, texture_set::ChunkTextureSet, water::{Water, WaterTexture}};
 
 pub struct Chunk {
     pub terrain_mesh: CustomMesh,
@@ -78,32 +79,45 @@ impl Chunk {
             &water_textures,
         );
         let areadata = AreaData::read(&chunk_path).await?;
-        let model_objects = load_model_glb(
-            "pack/zone/c/building/c1-001-house3.glb", 
-            &state.device, 
-            &state.queue, 
-            &state.skinned_models_pipeline,
-            &state.simple_models_pipeline,
-        ).await.expect("unable to load");
-        for mut object in model_objects {
-            if let Some(object3d) = &mut object.object3d {
-                match object3d {
-                    Object3D::Simple(simple) => {
-                        for object in &areadata.objects {
-                            // println!("{:?}", object.position);
-                            let instance = simple.request_instance(&state.device);
-                            instance.set_position(cgmath::Vector3::from([
-                                object.position[0],
-                                object.position[1],
-                                object.position[2]
-                            ]));
-                            instance.take();
+
+        for area_object in &areadata.objects {
+            if let Some(property) = state.properties.properties.get(&area_object.id) {
+                match property {
+                    Property::Building(building) => {
+
+                        if let Ok(model_objects) = load_model_glb(
+                            &building.file, 
+                            &state.device, 
+                            &state.queue, 
+                            &state.skinned_models_pipeline,
+                            &state.simple_models_pipeline,
+                        ).await {
+                            for mut object in model_objects {
+                                if let Some(object3d) = &mut object.object3d {
+                                    match object3d {
+                                        Object3D::Simple(simple) => {
+                                            let instance = simple.request_instance(&state.device);
+                                            instance.set_position(cgmath::Vector3::from([
+                                                area_object.position[0],
+                                                area_object.position[1] + area_object.offset,
+                                                area_object.position[2]
+                                            ]));
+                                            instance.set_rotation(cgmath::Quaternion::from_angle_y(cgmath::Rad::from(cgmath::Deg(area_object.rotation[1]))));
+                                            instance.take();
+                                        },
+                                        _ => ()
+                                    };
+                                }
+                                state.scene.add(object);
+                            }
+                        } else {
+                            println!("cannot load object {}: {}", &building.id, &building.file);
                         }
-                    },
-                    _ => ()
-                };
+                    }
+                }
+            } else {
+                println!("areaobject {} not found in properties", &area_object.id);
             }
-            state.scene.add(object);
         }
         
         Ok(Self {

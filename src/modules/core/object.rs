@@ -31,7 +31,7 @@ impl Object {
             childrens: Vec::new(),
             matrix: cgmath::Matrix4::identity().into(),
             matrix_world: cgmath::Matrix4::identity().into(),
-            matrix_world_needs_update: false,
+            matrix_world_needs_update: true,
             object3d: None,
             metadata: None,
         }

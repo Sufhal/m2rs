@@ -50,7 +50,7 @@ impl AreaData {
                     position: [position[0], position[2], f32::abs(position[1])],
                     id,
                     rotation: [rotation[0], rotation[2], rotation[1]],
-                    offset
+                    offset: offset / 100.0
                 });
             }
         }
