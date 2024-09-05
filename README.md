@@ -53,6 +53,7 @@ M2RS is an experimental projet which targets to entierly rewrite the game [Metin
   - [ ] areaambiencedata.txt
   - [x] areadata.txt
   - [ ] areaproperty.txt
+  - [ ] property
 
 ## Optimization track
 - `GLTF` loader currently produces 4 skeletons if there is 4 skinned mesh linked to the same skeleton.

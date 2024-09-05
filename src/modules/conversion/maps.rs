@@ -27,6 +27,8 @@ pub fn convert_maps() {
                         else {
                             if element.file_type().unwrap().is_dir() {
                                 // this path is a chunk
+
+                                // areadata
                                 if let Ok(areadata) = fs::read_to_string(Path::new(&format!("{}/areadata.txt", element.path().to_str().unwrap()))) {
                                     let parsed = AreaData::from_txt(&areadata);
                                     write(
