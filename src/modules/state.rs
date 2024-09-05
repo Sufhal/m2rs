@@ -363,14 +363,14 @@ impl<'a> State<'a> {
             0,
             bytemuck::cast_slice(&[self.common_pipeline.uniforms.camera]),
         );
-        // self.performance_tracker.call_end("update_camera");
-        // self.performance_tracker.call_start("update_light");
         let old_position: cgmath::Vector3<_> = self.common_pipeline.uniforms.light.position.into();
         self.common_pipeline.uniforms.light.position = (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(60.0 * dt.as_secs_f32())) * old_position).into();
         self.queue.write_buffer(&self.common_pipeline.buffers.light, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.light]));
 
         self.scene.compute_world_matrices();
         self.scene.update_objects_buffers(&self.queue);
+        // let t = TimeFragment::new();
+        // println!("t:{}", t.elapsed_ms());
 
         let delta_ms = self.time_factory.get_delta();
 

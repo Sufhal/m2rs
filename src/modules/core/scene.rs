@@ -1,5 +1,5 @@
 use std::collections::{HashMap, VecDeque};
-use cgmath::SquareMatrix;
+use cgmath::{Matrix4, SquareMatrix};
 use crate::modules::pipelines::common_pipeline::CommonPipeline;
 use crate::modules::pipelines::simple_models_pipeline::SimpleModelPipeline;
 use crate::modules::pipelines::skinned_models_pipeline::{self, SkinnedModelPipeline};
@@ -27,6 +27,7 @@ impl Scene {
     pub fn add(&mut self, mut object: Object) {
         if let None = object.parent {
             object.parent = Some(self.root.clone());
+            self.get_root().childrens.push(object.id.clone());
         }
         self.objects.insert(object.id.clone(), object);
     }
@@ -66,22 +67,24 @@ impl Scene {
         }
     }
     pub fn compute_world_matrices(&mut self) {
-        let mut queue = VecDeque::new();
-        queue.push_back(self.root.clone());
-        while let Some(current_id) = queue.pop_front() {
+        let mut queue = VecDeque::with_capacity(self.objects.len());
+        queue.push_back((self.root.clone(), false));
+        while let Some((current_id, force)) = queue.pop_front() {
             if let Some(current_object) = self.objects.get(&current_id) {
                 let parent_world_transform = if let Some(parent_id) = &current_object.parent {
-                    self.objects.get(parent_id).map_or(cgmath::Matrix4::identity(), |parent| parent.matrix_world.into())
+                    self.objects.get(parent_id).map_or(Matrix4::identity(), |parent| parent.matrix_world.into())
                 } else {
-                    cgmath::Matrix4::identity()
+                    Matrix4::identity()
                 };
                 if let Some(current_object) = self.objects.get_mut(&current_id) {
-                    current_object.matrix_world = (parent_world_transform * cgmath::Matrix4::from(current_object.matrix)).into();
-                    // Add children to the queue
-                    for (child_id, child_object) in self.objects.iter() {
-                        if child_object.parent.as_ref() == Some(&current_id) {
-                            queue.push_back(child_id.clone());
-                        }
+                    let needs_update = current_object.matrix_world_needs_update || force;
+                    if needs_update {
+                        current_object.matrix_world = (parent_world_transform * Matrix4::from(current_object.matrix)).into();
+                        current_object.matrix_world_needs_update = false;
+                        current_object.matrix_world_buffer_needs_update = true;
+                    }
+                    for children in &current_object.childrens {
+                        queue.push_back((children.clone(), needs_update));
                     }
                 }
             }
@@ -89,6 +92,8 @@ impl Scene {
     }
     pub fn update_objects_buffers(&mut self, queue: &wgpu::Queue) {
         for (_, object) in &mut self.objects {
+            if !object.matrix_world_buffer_needs_update { continue }
+            object.matrix_world_buffer_needs_update = false;
             if let Some(object3d) = &object.object3d {
                 match object3d {
                     Object3D::Simple(simple) => {
