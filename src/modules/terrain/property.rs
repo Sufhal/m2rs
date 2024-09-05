@@ -1,6 +1,6 @@
 use std::{collections::HashMap, convert::TryInto};
 
-use crate::modules::assets::assets::load_string;
+use crate::modules::{assets::assets::load_string, conversion::common::bye_ymir};
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Properties {
@@ -34,25 +34,26 @@ impl Property {
     
     pub fn from_txt(data: &str) -> Option<Self> {
         let mut lines = data.lines().map(str::trim);
-        lines.next(); // YPRT
-        let id = lines.next().unwrap().to_string();
+        lines.next()?; // YPRT
+        let id = lines.next()?.to_string();
         let mut keyval = HashMap::new();
         while let Some(line) = lines.next() {
-            let [key, val]: [&str; 2] = line
-                .split_whitespace()
-                .map(str::trim)
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
-            keyval.insert(key, val);
+            let values = line
+                .split("		")
+                .map(|v| v.trim_matches('"'))
+                .collect::<Vec<_>>();
+            if values.len() != 2 {
+                return None
+            }
+            keyval.insert(values[0], values[1]);
         }
         match keyval.get("propertytype") {
             Some(&"Building") => {
                 Some(Self::Building(Building {
                     id,
-                    file: keyval.get("buildingfile").unwrap().to_string(),
-                    name: keyval.get("propertyname").unwrap().to_string(),
-                    shadow_flag: keyval.get("shadowflag").unwrap().to_string(),
+                    file: bye_ymir(keyval.get("buildingfile")?),
+                    name: keyval.get("propertyname")?.to_string(),
+                    shadow_flag: keyval.get("shadowflag")?.to_string(),
                 }))
             },
             _ => None

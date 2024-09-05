@@ -21,3 +21,12 @@ pub fn write<T: AsRef<[u8]>>(path: &str, content: T) {
     std::fs::write(path, content).unwrap();
     println!("📝 Writing \"{path}\"");
 }
+
+pub fn bye_ymir(path: &str) -> String {
+    path
+        .trim_matches('"')
+        .replace("\\", "/")
+        .replace("d:/ymir work", "pack")
+        .replace(".dds", ".png")
+        .replace(".gr2", ".glb")
+}

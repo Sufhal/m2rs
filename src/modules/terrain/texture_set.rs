@@ -7,7 +7,7 @@
 // const std::string & c_rstrBegin		= rVector[6].c_str();
 // const std::string & c_rstrEnd		= rVector[7].c_str();
 
-use crate::modules::{assets::assets::{load_png_bytes, load_string, load_texture}, core::texture::Texture};
+use crate::modules::{assets::assets::{load_png_bytes, load_string, load_texture}, conversion::common::bye_ymir, core::texture::Texture};
 
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -70,12 +70,7 @@ impl TextureSet {
         lines.next(); // TextureCount
         while let Some(line) = lines.next() {
             if line.starts_with("Start Texture") {
-                let file = lines.next().unwrap()
-                    .trim_matches('"')
-                    .replace("\\", "/")
-                    .replace("d:/ymir work", "pack")
-                    .replace(".dds", ".png")
-                    .to_string();
+                let file = bye_ymir(lines.next().unwrap());
                 let u_scale = lines.next().unwrap()
                     .parse::<f32>().unwrap();
                 let v_scale = lines.next().unwrap()
