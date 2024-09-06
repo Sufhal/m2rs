@@ -1,11 +1,12 @@
 use std::{collections::HashSet, rc::Rc};
-use crate::modules::{assets::gltf_loader::{load_model_glb, load_model_glb_with_name}, core::{model::CustomMesh, object::Object}, state::State};
+use crate::modules::{assets::gltf_loader::{load_model_glb, load_model_glb_with_name}, core::{model::CustomMesh, object::Object}, environment::environment::Environment, state::State};
 use super::{chunk::Chunk, property::Property, setting::Setting, texture_set::TextureSet, water::WaterTexture};
 
 pub struct Terrain {
     #[allow(dead_code)]
     setting: Setting,
     water_texture: WaterTexture,
+    pub environment: Environment,
     pub chunks: Vec<Chunk>
 }
 
@@ -16,6 +17,7 @@ impl Terrain {
         let setting = Setting::read(&path).await?;
         let texture_set = TextureSet::read(&path).await?;
         let water_texture = WaterTexture::load(state).await?;
+        let environment = Environment::load(&setting.environment, state).await?;
         let textures = texture_set.load_textures(&state.device, &state.queue).await?;
         let mut chunks = Vec::new();
         for x in 0..setting.map_size[0] {
@@ -71,6 +73,7 @@ impl Terrain {
         Ok(Self {
             setting,
             chunks,
+            environment,
             water_texture
         })
     }

@@ -84,6 +84,7 @@ impl Projection {
 
     pub fn calc_matrix(&self) -> Matrix4<f32> {
         OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
+        // OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
     }
 }
 
@@ -223,6 +224,8 @@ impl CameraController {
 pub struct CameraUniform {
     view_position: [f32; 4],
     view_proj: [[f32; 4]; 4],
+    view_matrix: [[f32; 4]; 4],
+    projection_matrix: [[f32; 4]; 4],
 }
 
 impl CameraUniform {
@@ -230,11 +233,17 @@ impl CameraUniform {
         Self {
             view_position: [0.0; 4],
             view_proj: cgmath::Matrix4::identity().into(),
+            view_matrix: cgmath::Matrix4::identity().into(),
+            projection_matrix: cgmath::Matrix4::identity().into(),
         }
     }
 
     pub fn update_view_proj(&mut self, camera: &Camera, projection: &Projection) {
         self.view_position = camera.position.to_homogeneous().into();
-        self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into();
+        let projection_matrix = projection.calc_matrix();
+        let view_matrix = camera.calc_matrix();
+        self.view_proj = (projection_matrix * view_matrix).into();
+        self.view_matrix = view_matrix.into();
+        self.projection_matrix = projection_matrix.into();
     }
 }

@@ -88,21 +88,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let result = (ambient_color + diffuse_color); // disabled specular, we don't want terrain to reflect light
 
-    // let object_color: vec4<f32> = textureSample(tex_tile, tex_sampler, in.tex_coords);
-    // let tile: vec4<f32> = textureSample(tex_tile, sampler_tex, in.tex_coords);
-    // let upscaled_tile: f32 = tile.r * 255.0;
-    // let tile_texture_index_a: u32 = u32(floor(upscaled_tile));
-    // let tile_texture_index_b: u32 = u32(ceil(upscaled_tile));
-    // let alpha: f32 = upscaled_tile - floor(upscaled_tile);
-    // let uv = in.tex_coords * 40.;
-
-    // splat += get_texture_at(tile_texture_index_a, uv) * alpha;
-    // splat += get_texture_at(tile_texture_index_b, uv) * (1 - alpha);
-
     var splat = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
     let uv = in.tex_coords;
-    // let tex_uv = uv * 1.0; // TODO: map level textureset.json contains data about this factor
     let tex_uv = uv * 40.0; // TODO: map level textureset.json contains data about this factor
     let t0 = textureSample(tex_0, sampler_tex, tex_uv) * textureSample(tex_alpha_map_0, sampler_alpha, uv).r;
     let t1 = textureSample(tex_1, sampler_tex, tex_uv) * textureSample(tex_alpha_map_1, sampler_alpha, uv).r;

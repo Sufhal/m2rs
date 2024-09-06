@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, f32::consts::PI};
 
-use cgmath::Matrix4;
+use cgmath::{Matrix4, Rad};
 use rustc_hash::FxHashMap;
 use wgpu::util::DeviceExt;
-use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, pipelines::{terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::{Water, WaterTexture, WaterUniform}}};
+use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, environment::sun::SunUniform, pipelines::{sun_pipeline::{self, SunPipeline}, terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::{Water, WaterTexture, WaterUniform}}};
 
 #[derive(Debug)]
 pub struct Plane {
@@ -274,5 +274,70 @@ impl Plane {
         )
     }
 
+    pub fn to_sun_mesh(
+        &self, 
+        device: &wgpu::Device, 
+        queue: &wgpu::Queue,
+        sun_pipeline: &SunPipeline, 
+        position: [f32; 3],
+        color: [f32; 3], 
+    ) -> CustomMesh {
+        let texture = Texture::from_bytes(device, queue, include_bytes!("../../../assets/pack/environment/sun-sprite.png"), "sun").unwrap();
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Sun Vertex Buffer"),
+            contents: bytemuck::cast_slice(&self.vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Sun Index Buffer"),
+            contents: bytemuck::cast_slice(&self.indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let matrix = Matrix4::from_translation(position.into());
+        // let matrix = Matrix4::from_translation(position.into()) * Matrix4::from_angle_z(Rad(PI / 2.0));
+        let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Transform Buffer"),
+            contents: bytemuck::cast_slice(&[TransformUniform::from(matrix.into())]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let informations_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Sun Informations Buffer"),
+            contents: bytemuck::cast_slice(&[SunUniform::new(color)]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
 
+        let entries = vec![
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: transform_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: informations_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: wgpu::BindingResource::Sampler(&texture.sampler),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: wgpu::BindingResource::TextureView(&texture.view),
+            }
+        ];
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &sun_pipeline.bind_group_layouts.mesh,
+            entries: &entries,
+            label: None,
+        });
+
+        CustomMesh {
+            name: "sun".to_string(),
+            transform_buffer,
+            vertex_buffer,
+            index_buffer,
+            num_elements: self.indices.len() as u32,
+            bind_group
+        }
+    }
 }

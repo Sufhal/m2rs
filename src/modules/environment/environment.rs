@@ -1,18 +1,31 @@
-use crate::modules::assets::assets::load_string;
+use crate::modules::{assets::assets::load_string, state::State};
 
 use super::{fog::Fog, sky::Sky, sun::Sun};
 
 pub struct Environment {
     pub fog: Fog,
-    pub sky: Sky,
     pub sun: Sun,
+    // pub sky: Sky,
 }
 
 impl Environment {
 
-    pub async fn load(name: &str) -> anyhow::Result<Self> {
+    pub async fn load(name: &str, state: &State<'_>) -> anyhow::Result<Self> {
         let msenv = MsEnv::read(name).await?;
-        todo!()
+        let vec3 = |v: [f32; 4]| [v[0], v[1], v[2]];
+        Ok(Self {
+            fog: Fog::new(
+                msenv.fog.near, 
+                msenv.fog.near, 
+                vec3(msenv.fog.color)
+            ),
+            sun: Sun::new(
+                vec3(msenv.material.diffuse),
+                vec3(msenv.material.ambient),
+                vec3(msenv.material.emissive),
+                state
+            )
+        })
     }
 
 }
