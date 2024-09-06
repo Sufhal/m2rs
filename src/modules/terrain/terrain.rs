@@ -57,7 +57,7 @@ impl Terrain {
                 }
             }
         }
-        for result in pollster::block_on(futures::future::join_all(futures)) {
+        for result in futures::future::join_all(futures).await {
             if let Ok(objects) = result {
                 for object in objects {
                     state.scene.add(object);
