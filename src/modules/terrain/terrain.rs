@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::modules::{core::model::CustomMesh, state::State};
 use super::{chunk::Chunk, setting::Setting, texture_set::TextureSet, water::WaterTexture};
 
@@ -30,6 +32,18 @@ impl Terrain {
                 ).await?;
                 chunks.push(chunk);
             }
+        }
+        let mut properties = HashSet::new();
+        for chunk in &mut chunks {
+            for property in chunk.get_properties_to_preload() {
+                properties.insert(property);
+            }
+        }
+        // load all properties
+        
+        // load all objects
+        for chunk in &mut chunks {
+            chunk.load_objects_instances(state).await;
         }
         Ok(Self {
             setting,

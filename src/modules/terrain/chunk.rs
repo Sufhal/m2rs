@@ -9,6 +9,7 @@ pub struct Chunk {
     pub water_mesh: CustomMesh,
     pub depth_buffer: wgpu::Buffer,
     water_buffer: wgpu::Buffer,
+    area_data: AreaData,
 }
 
 impl Chunk {
@@ -78,54 +79,85 @@ impl Chunk {
             ],
             &water_textures,
         );
-        let areadata = AreaData::read(&chunk_path).await?;
-
-        for area_object in &areadata.objects {
-            if let Some(property) = state.properties.properties.get(&area_object.id) {
-                match property {
-                    Property::Building(building) => {
-
-                        if let Ok(model_objects) = load_model_glb(
-                            &building.file, 
-                            &state.device, 
-                            &state.queue, 
-                            &state.skinned_models_pipeline,
-                            &state.simple_models_pipeline,
-                        ).await {
-                            for mut object in model_objects {
-                                if let Some(object3d) = &mut object.object3d {
-                                    match object3d {
-                                        Object3D::Simple(simple) => {
-                                            let instance = simple.request_instance(&state.device);
-                                            instance.set_position(cgmath::Vector3::from([
-                                                area_object.position[0],
-                                                area_object.position[1] + area_object.offset,
-                                                area_object.position[2]
-                                            ]));
-                                            instance.set_rotation(cgmath::Quaternion::from_angle_y(cgmath::Rad::from(cgmath::Deg(area_object.rotation[1]))));
-                                            instance.take();
-                                        },
-                                        _ => ()
-                                    };
-                                }
-                                state.scene.add(object);
-                            }
-                        } else {
-                            println!("cannot load object {}: {}", &building.id, &building.file);
-                        }
-                    }
-                }
-            } else {
-                println!("areaobject {} not found in properties", &area_object.id);
-            }
-        }
+        let area_data = AreaData::read(&chunk_path).await?;
         
         Ok(Self {
             terrain_mesh,
             water_mesh,
+            area_data,
             water_buffer,
             depth_buffer,
         })
+    }
+
+    pub fn get_properties_to_preload(&self) -> Vec<String> {
+        self.area_data.objects
+            .iter()
+            .map(|v| v.id.clone())
+            .collect::<Vec<_>>()
+    }
+
+    pub async fn load_objects_instances(&mut self, state: &mut State<'_>) {
+        // every objects of the chunk should be loaded at this time
+        // request an instance of them using its property id as object's name
+        for area_object in &self.area_data.objects {
+            for scene_object in state.scene.get_all_objects_mut() {
+                if let Some(object3d) = &mut scene_object.object3d {
+                    if scene_object.name.as_ref() == Some(&area_object.id) {
+                        match object3d {
+                            Object3D::Simple(simple) => {
+                                let instance = simple.request_instance(&state.device);
+                                instance.set_position(cgmath::Vector3::from([
+                                    area_object.position[0],
+                                    area_object.position[1] + area_object.offset,
+                                    area_object.position[2]
+                                ]));
+                                instance.set_rotation(cgmath::Quaternion::from_angle_y(cgmath::Rad::from(cgmath::Deg(area_object.rotation[1]))));
+                                instance.take();
+                            },
+                            _ => ()
+                        };
+                    } 
+                }
+            }
+
+            // if let Some(property) = state.properties.properties.get(&area_object.id) {
+            //     match property {
+            //         Property::Building(building) => {
+
+            //             if let Ok(model_objects) = load_model_glb(
+            //                 &building.file, 
+            //                 &state.device, 
+            //                 &state.queue, 
+            //                 &state.skinned_models_pipeline,
+            //                 &state.simple_models_pipeline,
+            //             ).await {
+            //                 for mut object in model_objects {
+            //                     if let Some(object3d) = &mut object.object3d {
+            //                         match object3d {
+            //                             Object3D::Simple(simple) => {
+            //                                 let instance = simple.request_instance(&state.device);
+            //                                 instance.set_position(cgmath::Vector3::from([
+            //                                     area_object.position[0],
+            //                                     area_object.position[1] + area_object.offset,
+            //                                     area_object.position[2]
+            //                                 ]));
+            //                                 instance.set_rotation(cgmath::Quaternion::from_angle_y(cgmath::Rad::from(cgmath::Deg(area_object.rotation[1]))));
+            //                                 instance.take();
+            //                             },
+            //                             _ => ()
+            //                         };
+            //                     }
+            //                 }
+            //             } else {
+            //                 println!("cannot load object {}: {}", &building.id, &building.file);
+            //             }
+            //         }
+            //     }
+            // } else {
+            //     println!("areaobject {} not found in properties", &area_object.id);
+            // }
+        }
     }
 
     /// Something like "001002", "004005"
