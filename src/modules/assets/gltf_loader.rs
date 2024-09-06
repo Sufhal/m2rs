@@ -162,6 +162,21 @@ pub async fn load_model_glb(
     Ok(objects)
 }
 
+pub async fn load_model_glb_with_name(
+    file_name: &str,
+    name: &str,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    skinned_models_pipeline: &SkinnedModelPipeline,
+    simple_models_pipeline: &SimpleModelPipeline,
+) -> anyhow::Result<Vec<Object>> {
+    let mut objects = load_model_glb(file_name, device, queue, skinned_models_pipeline, simple_models_pipeline).await?;
+    for object in &mut objects {
+        object.name = Some(name.to_string());
+    }
+    Ok(objects)
+}
+
 fn extract_skeleton(
     model: &gltf::Gltf,
     buffer_data: &Vec<Vec<u8>>
