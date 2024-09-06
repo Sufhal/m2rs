@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use crate::modules::{core::model::CustomMesh, state::State};
-use super::{chunk::Chunk, setting::Setting, texture_set::TextureSet, water::WaterTexture};
+use crate::modules::{assets::gltf_loader::load_model_glb, core::model::CustomMesh, state::State};
+use super::{chunk::Chunk, property::Property, setting::Setting, texture_set::TextureSet, water::WaterTexture};
 
 pub struct Terrain {
     #[allow(dead_code)]
@@ -40,6 +40,24 @@ impl Terrain {
             }
         }
         // load all properties
+
+        // let mut futures = Vec::new();
+        // for property_id in &properties {
+        //     if let Some(property) = state.properties.properties.get(property_id) {
+        //         match property {
+        //             Property::Building(building) => {
+        //                 let future = load_model_glb(
+        //                     &building.file, 
+        //                     &state.device, 
+        //                     &state.queue, 
+        //                     &state.skinned_models_pipeline,
+        //                     &state.simple_models_pipeline,
+        //                 );
+        //                 futures.push(future);
+        //             }
+        //         }
+        //     }
+        // }
         
         // load all objects
         for chunk in &mut chunks {
