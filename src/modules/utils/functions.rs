@@ -102,15 +102,3 @@ pub fn calculate_fps(frame_time_ms: f64) -> f64 {
 pub fn to_fixed_2(value: f64) -> f64 {
     (value * 100.0).round() / 100.0
 }
-
-// pub fn cross_block_on<F: Future>(fut: F) -> F::Output {
-//     cfg_if::cfg_if! {
-//         if #[cfg(target_arch = "wasm32")] {
-//             wasm_bindgen_futures::spawn_local(async {
-
-//             })
-//         } else {
-//             pollster::block_on(fut)
-//         }
-//     }
-// }
