@@ -1,14 +1,18 @@
 use wgpu::util::DeviceExt;
-use crate::modules::{camera::camera::CameraUniform, core::light::LightUniform};
+use crate::modules::{camera::camera::CameraUniform, core::light::LightUniform, environment::{cycle::CycleUniform, sun::SunUniform}};
 
 pub struct Buffers {
     pub light: wgpu::Buffer,
     pub camera: wgpu::Buffer,
+    pub cycle: wgpu::Buffer,
+    pub sun: wgpu::Buffer,
 }
 
 pub struct Uniforms {
     pub light: LightUniform,
-    pub camera: CameraUniform
+    pub camera: CameraUniform,
+    pub cycle: CycleUniform,
+    pub sun: SunUniform,
 }
 
 pub struct CommonPipeline {
@@ -60,6 +64,28 @@ impl CommonPipeline {
                     },
                     count: None,
                 },
+                // cycle
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                // sun
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
             label: Some("global_bind_group_layout"),
         })
@@ -76,6 +102,14 @@ impl CommonPipeline {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: buffers.light.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: buffers.cycle.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: buffers.sun.as_entire_binding(),
                 }
             ],
             label: Some("light_bind_group"),
@@ -90,7 +124,9 @@ impl CommonPipeline {
                 color: [1.0, 1.0, 1.0],
                 _padding2: 0,
             },
-            camera: CameraUniform::new()
+            camera: CameraUniform::new(),
+            cycle: CycleUniform::default(),
+            sun: SunUniform::default()
         }
     }
 
@@ -104,6 +140,16 @@ impl CommonPipeline {
             camera: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Camera Buffer"),
                 contents: bytemuck::cast_slice(&[uniforms.camera]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }),
+            cycle: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Cycle Buffer"),
+                contents: bytemuck::cast_slice(&[uniforms.cycle]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }),
+            sun: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Sun Buffer"),
+                contents: bytemuck::cast_slice(&[uniforms.sun]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }),
         }

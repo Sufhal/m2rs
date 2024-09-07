@@ -23,7 +23,6 @@ const NIGHT_EARLY_DURATION: f32 = (NIGHT_EARLY_RANGE_MS[1] - NIGHT_EARLY_RANGE_M
 const NIGHT_LATE_DURATION: f32 = NIGHT_DURATION - NIGHT_EARLY_DURATION;
 const NIGHT_EARLY_RATIO: f32 = NIGHT_EARLY_DURATION / NIGHT_LATE_DURATION;
 
-#[derive(Debug)]
 pub struct Cycle {
     pub day_factor: f32,
     pub night_factor: f32,
@@ -91,4 +90,20 @@ impl Cycle {
             denormalize_f32(factor, NIGHT_EARLY_RATIO, 1.0)
         }
     } 
+}
+
+#[repr(C)]
+#[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
+pub struct CycleUniform {
+    pub day_factor: f32,
+    pub night_factor: f32,
+}
+
+impl Default for CycleUniform {
+    fn default() -> Self {
+        Self {
+            day_factor: 0.0,
+            night_factor: 0.0,
+        }
+    }
 }

@@ -7,14 +7,11 @@ struct CameraUniform {
 @group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
+
 struct TransformUniform {
     transform: mat4x4<f32>,
 };
 @group(1) @binding(0) var<uniform> transform: TransformUniform;
-struct SunUniform {
-    color: vec4<f32>
-}
-@group(1) @binding(1) var<uniform> sun: SunUniform;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -122,8 +119,8 @@ fn vs_main(
     return out;
 }
 
-@group(1) @binding(2) var sampler_tex: sampler;
-@group(1) @binding(3) var texture_sun: texture_2d<f32>;
+@group(1) @binding(1) var sampler_tex: sampler;
+@group(1) @binding(2) var texture_sun: texture_2d<f32>;
 
 fn normalize_value_between(value: f32, min: f32, max: f32) -> f32 {
     return (value - min) / (max - min);
@@ -140,7 +137,7 @@ fn easeOutExpo(x: f32) -> f32 {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let t = textureSample(texture_sun, sampler_tex, in.tex_coords);
-    return vec4<f32>(sun.color.rgb, t.r);
+    return vec4<f32>(1.0, 0.0, 0.0, t.r);
     // return vec4<f32>(sun.color.rgb, easeOutExpo(t.r));
     // return vec4<f32>(1.0, 0.0, 0.0, easeOutExpo(t.r));
     // return t;

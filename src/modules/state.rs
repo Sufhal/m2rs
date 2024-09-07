@@ -405,6 +405,13 @@ impl<'a> State<'a> {
             terrain.update(elapsed_time, delta_ms as f32, &self.queue);
         }
 
+        self.common_pipeline.uniforms.cycle.day_factor = self.terrains[0].environment.cycle.day_factor;
+        self.common_pipeline.uniforms.cycle.night_factor = self.terrains[0].environment.cycle.night_factor;
+        self.queue.write_buffer(&self.common_pipeline.buffers.cycle, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.cycle]));
+ 
+        self.common_pipeline.uniforms.sun.position = self.terrains[0].environment.sun.uniform.position;
+        self.queue.write_buffer(&self.common_pipeline.buffers.sun, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.sun]));
+
         self.ui.metrics.push_data(MetricData::UpdateCallTime(update_call_fragment.elapsed_ms()));
         self.ui.informations.position = [self.camera.position.x as i32, self.camera.position.y as i32, self.camera.position.z as i32];
         let current_cycle_time = self.terrains[0].environment.cycle.get_current_time();

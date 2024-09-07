@@ -2,7 +2,7 @@ use std::ops::{Add, Div};
 
 use wgpu_text::{glyph_brush::{ab_glyph::FontRef, HorizontalAlign, Layout, Section as TextSection, Text, VerticalAlign}, BrushBuilder, TextBrush};
 
-use crate::modules::utils::{functions::{calculate_fps, to_fixed_2}, structs::LimitedVec, time_factory::TimeFactory};
+use crate::modules::utils::{functions::{calculate_fps, to_fixed_2, u8_to_string_with_len}, structs::LimitedVec, time_factory::TimeFactory};
 
 pub struct UserInterface {
     pub brush: TextBrush<FontRef<'static>>,
@@ -84,7 +84,14 @@ pub struct Informations {
 
 impl Informations {
     pub fn to_string(&self) -> String {
-        format!("[{}, {}, {}]\n{}:{}", self.position[0], self.position[1], self.position[2], self.cycle_time.0, self.cycle_time.1)
+        format!(
+            "[{}, {}, {}]\n{}:{}", 
+            self.position[0], 
+            self.position[1], 
+            self.position[2], 
+            u8_to_string_with_len(self.cycle_time.0 as u8, 2),
+            u8_to_string_with_len(self.cycle_time.1 as u8, 2),
+        )
     }
 }
 

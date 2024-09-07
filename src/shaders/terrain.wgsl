@@ -50,8 +50,25 @@ struct Light {
     position: vec3<f32>,
     color: vec3<f32>,
 }
-@group(0) @binding(1)
-var<uniform> light: Light;
+@group(0) @binding(1) var<uniform> light: Light;
+
+struct Cycle {
+    day_factor: f32,
+    night_factor: f32,
+}
+@group(0) @binding(2) var<uniform> cycle: Cycle;
+
+struct Sun {
+    position: vec3<f32>,
+    material_diffuse: vec3<f32>,
+    material_ambient: vec3<f32>,
+    material_emissive: vec3<f32>,
+    background_diffuse: vec3<f32>,
+    background_ambient: vec3<f32>,
+    character_diffuse: vec3<f32>,
+    character_ambient: vec3<f32>,
+}
+@group(0) @binding(3) var<uniform> sun: Sun;
 
 struct ChunkInformations {
     textures_count: u32,
@@ -79,14 +96,6 @@ struct ChunkInformations {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    
-    let ambient_strength = 0.1;
-    let ambient_color = light.color * ambient_strength;
-    let light_dir = normalize(light.position - in.world_position);
-    let diffuse_strength = max(dot(in.world_normal, light_dir), 0.0);
-    let diffuse_color = light.color * diffuse_strength;
-
-    let result = (ambient_color + diffuse_color); // disabled specular, we don't want terrain to reflect light
 
     var splat = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
@@ -130,7 +139,18 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             default: {}
         }
     }
-    return splat;
+
+    let ambient_strength = 0.1;
+    let ambient_color = light.color * ambient_strength;
+
+    let light_dir = normalize(sun.position - in.world_position);
+
+    let diffuse_strength = max(dot(in.world_normal, light_dir), 0.0);
+    let diffuse_color = light.color * diffuse_strength;
+
+    let result = (ambient_color + diffuse_color) * splat.xyz;
+
+    return vec4<f32>(result, 1.0);
     // let alpha: vec4<f32> = textureSample(tex_alpha_map_0, sampler_tex, in.tex_coords);
     // return vec4<f32>(splat.xyz, 1.0);
     // return vec4<f32>(alpha.r, 0.0, 0.0, 1.0);

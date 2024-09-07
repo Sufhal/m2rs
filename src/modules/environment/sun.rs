@@ -1,39 +1,38 @@
 use cgmath::{Deg, Matrix4, Quaternion, Rotation3, Vector3};
 
-use crate::modules::{core::model::{CustomMesh, TransformUniform}, geometry::plane::Plane, pipelines::sun_pipeline::{self, SunPipeline}, state::State};
-use super::{cycle::Cycle, Color, Position};
+use crate::modules::{core::model::{CustomMesh, TransformUniform}, geometry::plane::Plane, pipelines::sun_pipeline::{self, SunPipeline}, state::State, utils::functions::f32x3};
+use super::{cycle::Cycle, environment::MsEnv, Color, Position};
 
-const DAY_POSITION: [f32; 3] = [2600.0, 000.0, -1000.0];
+const DAY_POSITION: [f32; 3] = [376.0, 182.0, 641.0];
+// const DAY_POSITION: [f32; 3] = [2600.0, 000.0, -1000.0];
 const NIGHT_POSITION: [f32; 3] = [1400.0, 500.0, 1400.0];
 
 pub struct Sun {
     position: Position,
-    diffuse: Color,
-    ambient: Color,
-    emissive: Color,
-    day: [Color; 3],
-    night: [Color; 3],
-    pub mesh: CustomMesh
+    pub uniform: SunUniform,
+    pub mesh: CustomMesh,
 }
 
 impl Sun {
-    pub fn new(diffuse: Color, ambient: Color, emissive: Color, state: &State<'_>) -> Self {
+    pub fn new(msenv: &MsEnv, state: &State<'_>) -> Self {
         let position = DAY_POSITION;
         let plane = Plane::new(500.0, 500.0, 1, 1);
+        let mut uniform = SunUniform::default();
+        uniform.material_diffuse = msenv.material.diffuse;
+        uniform.material_ambient = msenv.material.ambient;
+        uniform.background_diffuse = msenv.directional_light.background.diffuse;
+        uniform.background_ambient = msenv.directional_light.background.ambient;
+        uniform.character_diffuse = msenv.directional_light.character.diffuse;
+        uniform.character_ambient = msenv.directional_light.character.ambient;
         let mesh = plane.to_sun_mesh(
             &state.device, 
             &state.queue, 
             &state.sun_pipeline,
-            position, 
-            ambient
+            position,
         );
         Self {
-            diffuse,
-            ambient,
-            emissive,
             position,
-            day: Default::default(),
-            night: Default::default(),
+            uniform,
             mesh,
         }
     } 
@@ -46,6 +45,7 @@ impl Sun {
             let angle = 180.0 * cycle.day_factor;
             self.position = (Quaternion::from_axis_angle(Vector3::unit_z(), Deg(angle)) * Vector3::from(DAY_POSITION)).into();
         }
+        self.uniform.position = [self.position[0], self.position[1], self.position[2], 0.0];
         queue.write_buffer(
             &self.mesh.transform_buffer,
             0 as wgpu::BufferAddress,
@@ -54,14 +54,7 @@ impl Sun {
     }
 
     pub fn sun_uniform(&self) -> SunUniform {
-        SunUniform {
-            color: [
-                self.ambient[0],
-                self.ambient[1],
-                self.ambient[2],
-                0.0,
-            ]
-        }
+        self.uniform
     }
 
     pub fn transform_uniform(&self) -> TransformUniform {
@@ -72,18 +65,27 @@ impl Sun {
 #[repr(C)]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
 pub struct SunUniform {
-    color: [f32; 4]
+    pub position: [f32; 4],
+    pub material_diffuse: [f32; 4],
+    pub material_ambient: [f32; 4],
+    pub material_emissive: [f32; 4],
+    pub background_diffuse: [f32; 4],
+    pub background_ambient: [f32; 4],
+    pub character_diffuse: [f32; 4],
+    pub character_ambient: [f32; 4],
 }
 
-impl SunUniform {
-    pub fn new(color: Color) -> Self {
+impl Default for SunUniform {
+    fn default() -> Self {
         Self {
-            color: [
-                color[0],
-                color[1],
-                color[2],
-                0.0,
-            ]
+            position: Default::default(),
+            material_diffuse: Default::default(),
+            material_ambient: Default::default(),
+            material_emissive: Default::default(),
+            background_diffuse: Default::default(),
+            background_ambient: Default::default(),
+            character_diffuse: Default::default(),
+            character_ambient: Default::default(),
         }
     }
 }

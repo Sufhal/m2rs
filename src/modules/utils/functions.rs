@@ -106,3 +106,7 @@ pub fn calculate_fps(frame_time_ms: f64) -> f64 {
 pub fn to_fixed_2(value: f64) -> f64 {
     (value * 100.0).round() / 100.0
 }
+
+pub fn f32x3(array: &[f32; 4]) -> [f32; 3] {
+    [array[0], array[1], array[2]]
+}

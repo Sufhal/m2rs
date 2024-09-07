@@ -23,9 +23,7 @@ impl Environment {
                 vec3(msenv.fog.color)
             ),
             sun: Sun::new(
-                vec3(msenv.material.diffuse),
-                vec3(msenv.material.ambient),
-                vec3(msenv.material.emissive),
+                &msenv,
                 state
             )
         })
@@ -40,54 +38,54 @@ impl Environment {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct MsEnv {
-    directional_light: DirectionalLight,
-    material: Material,
-    fog: FogData,
-    sky_box: SkyBox
+    pub directional_light: DirectionalLight,
+    pub material: Material,
+    pub fog: FogData,
+    pub sky_box: SkyBox
 }
 
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct DirectionalLight {
-    direction: [f32; 3],
-    background: Light,
-    character: Light,
+pub struct DirectionalLight {
+    pub direction: [f32; 3],
+    pub background: Light,
+    pub character: Light,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct Light {
-    enable: bool,
-    diffuse: [f32; 4],
-    ambient: [f32; 4]
+pub struct Light {
+    pub enable: bool,
+    pub diffuse: [f32; 4],
+    pub ambient: [f32; 4]
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct Material {
-    diffuse: [f32; 4],
-    ambient: [f32; 4],
-    emissive: [f32; 4],
+pub struct Material {
+    pub diffuse: [f32; 4],
+    pub ambient: [f32; 4],
+    pub emissive: [f32; 4],
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct FogData {
-    enable: bool,
-    near: f32,
-    far: f32,
-    color: [f32; 4]
+pub struct FogData {
+    pub enable: bool,
+    pub near: f32,
+    pub far: f32,
+    pub color: [f32; 4]
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct SkyBox {
-    scale: [f32; 3],
-    gradient_level_upper: u8,
-    gradient_level_lower: u8,
-    cloud_scale: [f32; 2],
-    cloud_height: f32,
-    cloud_texture_scale: [f32; 2],
-    cloud_speed: [f32; 2],
-    cloud_texture_file: String,
-    cloud_colors: [[f32; 4]; 2],
-    cloud_gradient: [[f32; 4]; 10]
+pub struct SkyBox {
+    pub scale: [f32; 3],
+    pub gradient_level_upper: u8,
+    pub gradient_level_lower: u8,
+    pub cloud_scale: [f32; 2],
+    pub cloud_height: f32,
+    pub cloud_texture_scale: [f32; 2],
+    pub cloud_speed: [f32; 2],
+    pub cloud_texture_file: String,
+    pub cloud_colors: [[f32; 4]; 2],
+    pub cloud_gradient: [[f32; 4]; 10]
 }
 
 impl MsEnv {

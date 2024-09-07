@@ -280,7 +280,6 @@ impl Plane {
         queue: &wgpu::Queue,
         sun_pipeline: &SunPipeline, 
         position: [f32; 3],
-        color: [f32; 3], 
     ) -> CustomMesh {
         let texture = Texture::from_bytes(device, queue, include_bytes!("../../../assets/pack/environment/sun-sprite.png"), "sun").unwrap();
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -300,11 +299,6 @@ impl Plane {
             contents: bytemuck::cast_slice(&[TransformUniform::from(matrix.into())]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-        let informations_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Sun Informations Buffer"),
-            contents: bytemuck::cast_slice(&[SunUniform::new(color)]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
 
         let entries = vec![
             wgpu::BindGroupEntry {
@@ -313,14 +307,10 @@ impl Plane {
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: informations_buffer.as_entire_binding(),
-            },
-            wgpu::BindGroupEntry {
-                binding: 2,
                 resource: wgpu::BindingResource::Sampler(&texture.sampler),
             },
             wgpu::BindGroupEntry {
-                binding: 3,
+                binding: 2,
                 resource: wgpu::BindingResource::TextureView(&texture.view),
             }
         ];
