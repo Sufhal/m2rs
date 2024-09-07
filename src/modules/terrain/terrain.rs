@@ -1,5 +1,5 @@
 use std::{collections::HashSet, rc::Rc};
-use crate::modules::{assets::gltf_loader::{load_model_glb, load_model_glb_with_name}, core::{model::CustomMesh, object::Object}, environment::environment::Environment, state::State};
+use crate::modules::{assets::gltf_loader::{load_model_glb, load_model_glb_with_name}, core::{model::CustomMesh, object::Object}, environment::environment::Environment, pipelines::sun_pipeline::SunPipeline, state::State};
 use super::{chunk::Chunk, property::Property, setting::Setting, texture_set::TextureSet, water::WaterTexture};
 
 pub struct Terrain {
@@ -34,6 +34,7 @@ impl Terrain {
                 chunks.push(chunk);
             }
         }
+        
         let mut properties = HashSet::new();
         for chunk in &mut chunks {
             for property in chunk.get_properties_to_preload() {
@@ -78,8 +79,9 @@ impl Terrain {
         })
     }
 
-    pub fn update(&mut self, elapsed_time: f32, queue: &wgpu::Queue) {
+    pub fn update(&mut self, elapsed_time: f32, delta: f32, queue: &wgpu::Queue) {
         self.water_texture.update(elapsed_time);
+        self.environment.update(delta, queue);
         for chunk in &self.chunks {
             chunk.update(&self.water_texture, queue);
         }

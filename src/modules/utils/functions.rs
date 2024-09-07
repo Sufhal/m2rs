@@ -27,6 +27,10 @@ pub fn normalize_f64(value: f64, min: f64, max: f64) -> f64 {
     (value - min) / (max - min)
 }
 
+pub fn normalize_f32(value: f32, min: f32, max: f32) -> f32 {
+    (value - min) / (max - min)
+}
+
 pub fn denormalize_f64(value: f64, min: f64, max: f64) -> f64 {
     value * (max - min) + min
 }

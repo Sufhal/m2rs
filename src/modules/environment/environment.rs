@@ -1,8 +1,9 @@
 use crate::modules::{assets::assets::load_string, state::State};
 
-use super::{fog::Fog, sky::Sky, sun::Sun};
+use super::{cycle::Cycle, fog::Fog, sky::Sky, sun::Sun};
 
 pub struct Environment {
+    pub cycle: Cycle,
     pub fog: Fog,
     pub sun: Sun,
     // pub sky: Sky,
@@ -11,9 +12,11 @@ pub struct Environment {
 impl Environment {
 
     pub async fn load(name: &str, state: &State<'_>) -> anyhow::Result<Self> {
+        let cycle = Cycle::new();
         let msenv = MsEnv::read(name).await?;
         let vec3 = |v: [f32; 4]| [v[0], v[1], v[2]];
         Ok(Self {
+            cycle,
             fog: Fog::new(
                 msenv.fog.near, 
                 msenv.fog.near, 
@@ -26,6 +29,11 @@ impl Environment {
                 state
             )
         })
+    }
+
+    pub fn update(&mut self, delta: f32, queue: &wgpu::Queue) {
+        self.cycle.update(delta);
+        self.sun.update(&self.cycle, queue);
     }
 
 }

@@ -402,11 +402,13 @@ impl<'a> State<'a> {
         }
 
         for terrain in &mut self.terrains {
-            terrain.update(elapsed_time, &self.queue);
+            terrain.update(elapsed_time, delta_ms as f32, &self.queue);
         }
 
         self.ui.metrics.push_data(MetricData::UpdateCallTime(update_call_fragment.elapsed_ms()));
         self.ui.informations.position = [self.camera.position.x as i32, self.camera.position.y as i32, self.camera.position.z as i32];
+        let current_cycle_time = self.terrains[0].environment.cycle.get_current_time();
+        self.ui.informations.cycle_time = (current_cycle_time.0 as u32, current_cycle_time.1 as u32);
 
     }
 

@@ -78,18 +78,19 @@ impl UserInterface {
 }
 
 pub struct Informations {
-    pub position: [i32; 3]
+    pub position: [i32; 3],
+    pub cycle_time: (u32, u32)
 }
 
 impl Informations {
     pub fn to_string(&self) -> String {
-        format!("[{}, {}, {}]", self.position[0], self.position[1], self.position[2])
+        format!("[{}, {}, {}]\n{}:{}", self.position[0], self.position[1], self.position[2], self.cycle_time.0, self.cycle_time.1)
     }
 }
 
 impl Default for Informations {
     fn default() -> Self {
-        Self { position: [0,0,0] }
+        Self { position: [0,0,0], cycle_time: (0, 0) }
     }
 }
 
