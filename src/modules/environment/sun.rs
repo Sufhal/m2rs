@@ -3,9 +3,9 @@ use cgmath::{Deg, Matrix4, Quaternion, Rotation3, Vector3};
 use crate::modules::{core::model::{CustomMesh, TransformUniform}, geometry::plane::Plane, pipelines::sun_pipeline::{self, SunPipeline}, state::State, utils::functions::f32x3};
 use super::{cycle::Cycle, environment::MsEnv, Color, Position};
 
-const DAY_POSITION: [f32; 3] = [376.0, 182.0, 641.0];
-// const DAY_POSITION: [f32; 3] = [2600.0, 000.0, -1000.0];
-const NIGHT_POSITION: [f32; 3] = [1400.0, 500.0, 1400.0];
+// const DAY_POSITION: [f32; 3] = [376.0, 182.0, 641.0];
+const DAY_POSITION: [f32; 3] = [2600.0, 000.0, -1000.0];
+const NIGHT_POSITION: [f32; 3] = [1400.0, 1400.0, 1400.0];
 
 pub struct Sun {
     position: Position,

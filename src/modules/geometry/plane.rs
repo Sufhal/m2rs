@@ -1,6 +1,6 @@
 use std::{collections::HashMap, f32::consts::PI};
 
-use cgmath::{Matrix4, Rad};
+use cgmath::{InnerSpace, Matrix4, Rad, Vector3};
 use rustc_hash::FxHashMap;
 use wgpu::util::DeviceExt;
 use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, environment::sun::SunUniform, pipelines::{sun_pipeline::{self, SunPipeline}, terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::{Water, WaterTexture, WaterUniform}}};
@@ -102,6 +102,36 @@ impl Plane {
         }
         for i in 0..vertices_height.len() {
             self.vertices[i].position[1] = vertices_height[i];
+        }
+        self.update_normals();
+    }
+
+    fn update_normals(&mut self) {
+        for vertex in &mut self.vertices {
+            vertex.normal = [0.0, 0.0, 0.0];
+        }
+        for i in (0..self.indices.len()).step_by(3) {
+            let i0 = self.indices[i] as usize;
+            let i1 = self.indices[i + 1] as usize;
+            let i2 = self.indices[i + 2] as usize;
+
+            let v0 = Vector3::from(self.vertices[i0].position);
+            let v1 = Vector3::from(self.vertices[i1].position);
+            let v2 = Vector3::from(self.vertices[i2].position);
+
+            let edge1 = v1 - v0;
+            let edge2 = v2 - v0;
+
+            let normal = edge1.cross(edge2).normalize();
+
+            self.vertices[i0].normal = add_normals(self.vertices[i0].normal, normal);
+            self.vertices[i1].normal = add_normals(self.vertices[i1].normal, normal);
+            self.vertices[i2].normal = add_normals(self.vertices[i2].normal, normal);
+        }
+
+        for vertex in &mut self.vertices {
+            let normal = Vector3::from(vertex.normal).normalize();
+            vertex.normal = [normal.x, normal.y, normal.z];
         }
     }
 
@@ -330,4 +360,12 @@ impl Plane {
             bind_group
         }
     }
+}
+
+fn add_normals(normal: [f32; 3], additional_normal: Vector3<f32>) -> [f32; 3] {
+    [
+        normal[0] + additional_normal.x,
+        normal[1] + additional_normal.y,
+        normal[2] + additional_normal.z,
+    ]
 }
