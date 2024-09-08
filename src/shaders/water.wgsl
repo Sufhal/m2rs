@@ -5,6 +5,25 @@ struct CameraUniform {
 @group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
+struct Cycle {
+    day_factor: f32,
+    night_factor: f32,
+}
+@group(0) @binding(2) var<uniform> cycle: Cycle;
+
+struct Sun {
+    sun_position: vec4<f32>,
+    moon_position: vec4<f32>,
+    material_diffuse: vec4<f32>,
+    material_ambient: vec4<f32>,
+    material_emissive: vec4<f32>,
+    background_diffuse: vec4<f32>,
+    background_ambient: vec4<f32>,
+    character_diffuse: vec4<f32>,
+    character_ambient: vec4<f32>,
+}
+@group(0) @binding(3) var<uniform> sun: Sun;
+
 struct TransformUniform {
     transform: mat4x4<f32>,
 };
@@ -65,10 +84,6 @@ struct Light {
 @group(1) @binding(2) var sampler_tex: sampler;
 @group(1) @binding(3) var tex_atlas: texture_2d<f32>;
 
-fn normalize_value_between(value: f32, min: f32, max: f32) -> f32 {
-    return (value - min) / (max - min);
-}
-
 fn get_uv_in_atlas(uv: vec2<f32>, texture_index: u32, atlas_size: vec2<u32>) -> vec2<f32> {
     let column: f32 = f32(texture_index) % f32(atlas_size.x);
     let line: f32 = floor(f32(texture_index) / f32(atlas_size.y));
@@ -80,17 +95,24 @@ fn get_uv_in_atlas(uv: vec2<f32>, texture_index: u32, atlas_size: vec2<u32>) -> 
     );
 }
 
+fn normalize_value_between(value: f32, min: f32, max: f32) -> f32 {
+    return (value - min) / (max - min);
+}
+
+fn denormalize_value_between(value: f32, min: f32, max: f32) -> f32 {
+    return value * (max - min) + min;
+}
+
+fn ease_out_expo(x: f32) -> f32 {
+    if x == 1.0 {
+        return 1.0;
+    } else {
+        return 1.0 - pow(2.0, -10.0 * x);
+    }
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let ambient_strength = .1;
-    let ambient_color = light.color * ambient_strength;
-    let light_dir = normalize(light.position - in.world_position);
-    let diffuse_strength = max(dot(in.world_normal, light_dir), 0.0);
-    let diffuse_color = light.color * diffuse_strength;
-
-    let result = (ambient_color + diffuse_color); // disabled specular, we don't want terrain to reflect light
-
-    let uv = vec2<f32>(in.tex_coords.y, in.tex_coords.x) * 10.0;
     let min_transparency = .8;
     let max_transparency = .0;
     let opaque_depth_limit = 1.;
@@ -112,6 +134,27 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         alpha = mix(max_transparency, min_transparency, normalize_value_between(in.depth, 0., opaque_depth_limit));
     }
 
-    return vec4<f32>(water_color, alpha);
+    var sun_light_factor: f32 = 0.0;
+
+    if cycle.day_factor > 0.0 && cycle.day_factor <= 0.5  {
+        sun_light_factor = ease_out_expo(normalize_value_between(cycle.day_factor, 0.0, 0.5));
+    }
+    else if cycle.day_factor > 0.0 && cycle.day_factor <= 1.0 {
+        sun_light_factor = ease_out_expo(normalize_value_between(1.0 - cycle.day_factor, 0.0, 0.5));
+    }
+
+    let ambient_strength = 0.3;
+    let ambient_color = sun.material_ambient.rgb * ambient_strength;
+
+    let sun_light_dir = normalize(sun.sun_position.xyz - in.world_position);
+    let sun_diffuse_strength = max(dot(in.world_normal, sun_light_dir), 0.0);
+    let sun_diffuse_color = sun.material_diffuse.rgb * sun.background_diffuse.rgb * sun_diffuse_strength * sun_light_factor;
+
+    let moon_light_dir = normalize(sun.moon_position.xyz - in.world_position);
+    let moon_diffuse_strength = max(dot(in.world_normal, moon_light_dir), 0.0);
+    let moon_diffuse_color = sun.material_diffuse.rgb * sun.background_diffuse.rgb * moon_diffuse_strength * 0.2;
+
+    let result = (ambient_color + sun_diffuse_color + moon_diffuse_color + sun.material_emissive.rgb) * water_color.xyz;
+
+    return vec4<f32>(result, alpha);
 }
- 

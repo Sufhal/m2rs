@@ -105,8 +105,26 @@ struct Light {
     position: vec3<f32>,
     color: vec3<f32>,
 }
-@group(0) @binding(1)
-var<uniform> light: Light;
+@group(0) @binding(1) var<uniform> light: Light;
+
+struct Cycle {
+    day_factor: f32,
+    night_factor: f32,
+}
+@group(0) @binding(2) var<uniform> cycle: Cycle;
+
+struct Sun {
+    sun_position: vec4<f32>,
+    moon_position: vec4<f32>,
+    material_diffuse: vec4<f32>,
+    material_ambient: vec4<f32>,
+    material_emissive: vec4<f32>,
+    background_diffuse: vec4<f32>,
+    background_ambient: vec4<f32>,
+    character_diffuse: vec4<f32>,
+    character_ambient: vec4<f32>,
+}
+@group(0) @binding(3) var<uniform> sun: Sun;
 
 fn wireframePattern(uv: vec2<f32>) -> f32 {
     let lineWidth = 0.05; // Width of the wireframe lines
@@ -115,35 +133,51 @@ fn wireframePattern(uv: vec2<f32>) -> f32 {
     return clamp(edge, 0.0, 1.0);
 }
 
+
+fn normalize_value_between(value: f32, min: f32, max: f32) -> f32 {
+    return (value - min) / (max - min);
+}
+
+fn denormalize_value_between(value: f32, min: f32, max: f32) -> f32 {
+    return value * (max - min) + min;
+}
+
+fn ease_out_expo(x: f32) -> f32 {
+    if x == 1.0 {
+        return 1.0;
+    } else {
+        return 1.0 - pow(2.0, -10.0 * x);
+    }
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let object_color: vec4<f32> = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    
-    // We don't need (or want) much ambient light, so 0.1 is fine
-    let ambient_strength = 1.0;
-    // let ambient_strength = 0.1;
-    let ambient_color = light.color * ambient_strength;
 
-    let light_dir = normalize(light.position - in.world_position);
+    var sun_light_factor: f32 = 0.0;
 
-    let diffuse_strength = max(dot(in.world_normal, light_dir), 0.0);
-    let diffuse_color = light.color * diffuse_strength;
-
-    let view_dir = normalize(camera.view_pos.xyz - in.world_position);
-    let reflect_dir = reflect(-light_dir, in.world_normal);
-    let specular_strength = pow(max(dot(view_dir, reflect_dir), 0.0), 32.0);
-    let specular_color = specular_strength * light.color;
-
-    let result = (ambient_color + diffuse_color + specular_color) * object_color.xyz;
-
-    let wireframeEnabled = false;
-
-    if wireframeEnabled {
-        let final_color = vec4<f32>(result, object_color.a);
-        let wireframe = wireframePattern(in.tex_coords);
-        return mix(final_color, vec4<f32>(1.0, 0.0, 0.0, 1.0), wireframe);
+    if cycle.day_factor > 0.0 && cycle.day_factor <= 0.5  {
+        sun_light_factor = ease_out_expo(normalize_value_between(cycle.day_factor, 0.0, 0.5));
+    }
+    else if cycle.day_factor > 0.0 && cycle.day_factor <= 1.0 {
+        sun_light_factor = ease_out_expo(normalize_value_between(1.0 - cycle.day_factor, 0.0, 0.5));
     }
 
-    return vec4<f32>(result * in.color.xyz, object_color.a);
+    let ambient_strength = 0.3;
+    let ambient_color = sun.material_ambient.rgb * ambient_strength;
+
+    // let fake_position = vec3<f32>(383.0, 187.0, 693.0);
+    let sun_light_dir = normalize(sun.sun_position.xyz - in.world_position);
+    let sun_diffuse_strength = max(dot(in.world_normal, sun_light_dir), 0.0);
+    let sun_diffuse_color = sun.material_diffuse.rgb * sun.background_diffuse.rgb * sun_diffuse_strength * sun_light_factor;
+
+    let moon_light_dir = normalize(sun.moon_position.xyz - in.world_position);
+    let moon_diffuse_strength = max(dot(in.world_normal, moon_light_dir), 0.0);
+    let moon_diffuse_color = sun.material_diffuse.rgb * sun.background_diffuse.rgb * moon_diffuse_strength * 0.2;
+
+    // let result = (ambient_color + sun_diffuse_color + moon_diffuse_color + sun.material_emissive.rgb) * vec3<f32>(1.0, 1.0, 1.0);
+    let result = (ambient_color + sun_diffuse_color + moon_diffuse_color + sun.material_emissive.rgb) * object_color.xyz;
+
+    return vec4<f32>(result, object_color.a);
 }
  

@@ -4,9 +4,13 @@ struct CameraUniform {
     view_matrix: mat4x4<f32>,
     projection_matrix: mat4x4<f32>,
 };
-@group(0) @binding(0)
-var<uniform> camera: CameraUniform;
+@group(0) @binding(0) var<uniform> camera: CameraUniform;
 
+struct Cycle {
+    day_factor: f32,
+    night_factor: f32,
+}
+@group(0) @binding(2) var<uniform> cycle: Cycle;
 
 struct TransformUniform {
     transform: mat4x4<f32>,
@@ -126,7 +130,7 @@ fn normalize_value_between(value: f32, min: f32, max: f32) -> f32 {
     return (value - min) / (max - min);
 }
 
-fn easeOutExpo(x: f32) -> f32 {
+fn ease_out_expo(x: f32) -> f32 {
     if x == 1.0 {
         return 1.0;
     } else {
@@ -136,8 +140,25 @@ fn easeOutExpo(x: f32) -> f32 {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    // 1. cacher le soleil avec le factor day/night
+    var opacity: f32 = 0.0;
+
+    if cycle.day_factor > 0.0 && cycle.day_factor <= 0.5  {
+        opacity = ease_out_expo(normalize_value_between(cycle.day_factor, 0.0, 0.5));
+    }
+    else if cycle.day_factor > 0.0 && cycle.day_factor <= 1.0 {
+        opacity = ease_out_expo(normalize_value_between(1.0 - cycle.day_factor, 0.0, 0.5));
+    }
+    else if cycle.night_factor > 0.0 && cycle.night_factor <= 0.5  {
+        opacity = ease_out_expo(normalize_value_between(cycle.night_factor, 0.0, 0.5));
+    }
+    else if cycle.night_factor > 0.0 && cycle.night_factor <= 1.0 {
+        opacity = ease_out_expo(normalize_value_between(1.0 - cycle.night_factor, 0.0, 0.5));
+    }
+    // 2. changer la texture soleil/lune
+
     let t = textureSample(texture_sun, sampler_tex, in.tex_coords);
-    return vec4<f32>(1.0, 0.0, 0.0, t.r);
+    return vec4<f32>(1.0, 1.0, 1.0, t.r * opacity);
     // return vec4<f32>(sun.color.rgb, easeOutExpo(t.r));
     // return vec4<f32>(1.0, 0.0, 0.0, easeOutExpo(t.r));
     // return t;

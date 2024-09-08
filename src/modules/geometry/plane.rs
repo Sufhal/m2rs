@@ -3,7 +3,7 @@ use std::{collections::HashMap, f32::consts::PI};
 use cgmath::{InnerSpace, Matrix4, Rad, Vector3};
 use rustc_hash::FxHashMap;
 use wgpu::util::DeviceExt;
-use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, environment::sun::SunUniform, pipelines::{sun_pipeline::{self, SunPipeline}, terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::{Water, WaterTexture, WaterUniform}}};
+use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, environment::sun::SunUniform, pipelines::{sun_pipeline::{self, SunPipeline}, terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::{Water, WaterTexture, WaterUniform}}, utils::functions::add_normals};
 
 #[derive(Debug)]
 pub struct Plane {
@@ -362,10 +362,3 @@ impl Plane {
     }
 }
 
-fn add_normals(normal: [f32; 3], additional_normal: Vector3<f32>) -> [f32; 3] {
-    [
-        normal[0] + additional_normal.x,
-        normal[1] + additional_normal.y,
-        normal[2] + additional_normal.z,
-    ]
-}

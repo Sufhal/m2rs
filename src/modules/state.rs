@@ -1,6 +1,6 @@
 use std::path::Path;
 use std::{fs, iter};
-use cgmath::Rotation3;
+use cgmath::{Deg, Quaternion, Rotation3};
 use log::info;
 use winit::keyboard::KeyCode;
 use winit::{
@@ -15,7 +15,7 @@ use crate::modules::ui::ui::{MetricData};
 use crate::modules::utils::time_factory::TimeFragment;
 use super::assets::gltf_loader::load_model_glb;
 use super::character::character::{Character, CharacterKind, NPCType};
-use super::core::object_3d::{Object3D, TranslateWithScene};
+use super::core::object_3d::{Object3D, RotateWithScene, TranslateWithScene};
 use super::core::scene;
 use super::pipelines::common_pipeline::CommonPipeline;
 use super::pipelines::simple_models_pipeline::SimpleModelPipeline;
@@ -245,15 +245,27 @@ impl<'a> State<'a> {
             ui
         };
 
-        let character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
-        // character.translate(0.0, -0.5, 0.0, &mut state.scene);
-        // dbg!(&character.objects);
+        let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        character.translate(384.0, 186.0, 640.0, &mut state.scene);
+        let q = Quaternion::from_angle_y(Deg(45.0));
+        character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
         state.characters.push(character);
         let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
-        // dbg!(&character.objects);
-        // panic!();
-        character.translate(0.0, -0.5, 0.0, &mut state.scene);
+        character.translate(385.0, 186.0, 640.0, &mut state.scene);
+        let q = Quaternion::from_angle_y(Deg(90.0));
+        character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
         state.characters.push(character);
+        let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        character.translate(384.0, 186.0, 641.0, &mut state.scene);
+        let q = Quaternion::from_angle_y(Deg(135.0));
+        character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
+        state.characters.push(character);
+        let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        character.translate(385.0, 186.0, 641.0, &mut state.scene);
+        let q = Quaternion::from_angle_y(Deg(180.0));
+        character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
+        state.characters.push(character);
+        
 
 
         let terrain = Terrain::load("c1", &mut state).await.unwrap();
@@ -265,7 +277,7 @@ impl<'a> State<'a> {
         
 
         // let model_objects = load_model_glb(
-        //     "pack/zone/c/building/c1-001-house3.glb", 
+        //     "pack/zone/c/building/c1-034-stonedoor.glb", 
         //     &state.device, 
         //     &state.queue, 
         //     &state.skinned_models_pipeline,

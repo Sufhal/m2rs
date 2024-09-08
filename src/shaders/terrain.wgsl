@@ -114,8 +114,7 @@ fn ease_out_quart(x: f32) -> f32 {
 fn ease_out_expo(x: f32) -> f32 {
     if x == 1.0 {
         return 1.0;
-    }
-    else {
+    } else {
         return 1.0 - pow(2.0, -10.0 * x);
     }
 }
@@ -176,18 +175,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         sun_light_factor = ease_out_expo(normalize_value_between(1.0 - cycle.day_factor, 0.0, 0.5));
     }
 
-
-    // Contribution diffuse
-    // let diffuse_factor = max(dot(frag_normal, -light_dir), 0.0);
-    // let diffuse_color = material.diffuse * dirLight.background_diffuse * diffuse_factor;
-    // // Contribution ambiante
-    // let ambient_color = material.ambient * dirLight.background_ambient;
-    // // Contribution émissive
-    // let emissive_color = material.emissive;
-    // // Couleur finale
-    // let final_color = diffuse_color + ambient_color + emissive_color;
-
-    let ambient_strength = 0.1;
+    let ambient_strength = 0.3;
     let ambient_color = sun.material_ambient.rgb * ambient_strength;
 
     let sun_light_dir = normalize(sun.sun_position.xyz - in.world_position);
@@ -198,15 +186,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let moon_diffuse_strength = max(dot(in.world_normal, moon_light_dir), 0.0);
     let moon_diffuse_color = sun.material_diffuse.rgb * sun.background_diffuse.rgb * moon_diffuse_strength * 0.2;
 
-    // let diffuse_color = light.color * diffuse_strength * light_factor;
-
     let result = (ambient_color + sun_diffuse_color + moon_diffuse_color + sun.material_emissive.rgb) * splat.xyz;
 
     return vec4<f32>(result, 1.0);
-    // let alpha: vec4<f32> = textureSample(tex_alpha_map_0, sampler_tex, in.tex_coords);
-    // return vec4<f32>(splat.xyz, 1.0);
-    // return vec4<f32>(alpha.r, 0.0, 0.0, 1.0);
-    // return debug;
-    // return vec4<f32>(object_color.xyz, 1.0);
 }
  

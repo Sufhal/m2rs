@@ -1,5 +1,7 @@
 use std::future::Future;
 
+use cgmath::Vector3;
+
 use super::time_factory::TimeFactory;
 
 pub fn debug_using_trash_file(
@@ -109,4 +111,12 @@ pub fn to_fixed_2(value: f64) -> f64 {
 
 pub fn f32x3(array: &[f32; 4]) -> [f32; 3] {
     [array[0], array[1], array[2]]
+}
+
+pub fn add_normals(normal: [f32; 3], additional_normal: Vector3<f32>) -> [f32; 3] {
+    [
+        normal[0] + additional_normal.x,
+        normal[1] + additional_normal.y,
+        normal[2] + additional_normal.z,
+    ]
 }

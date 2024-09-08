@@ -2,7 +2,7 @@ use std::fmt::{self};
 use crate::modules::assets::gltf_loader::{load_animation, load_model_glb};
 use crate::modules::core::motions::MotionsGroups;
 use crate::modules::core::object::Object;
-use crate::modules::core::object_3d::{Object3D, Translate, TranslateWithScene};
+use crate::modules::core::object_3d::{Object3D, Rotate, RotateWithScene, Translate, TranslateWithScene};
 use crate::modules::core::scene::Scene;
 use crate::modules::state::State;
 
@@ -225,6 +225,29 @@ impl TranslateWithScene for Character {
                         Object3D::Skinned(skinned) => {
                             if let Some(instance) = skinned.get_instance(&instance_id) {
                                 instance.translate(&[x, y, z]);
+                            }
+                        }
+                    };
+                }
+            }
+        }
+    }
+}
+
+impl RotateWithScene for Character {
+    fn rotate(&mut self, w: f32, xi: f32, yj: f32, zk: f32, scene: &mut Scene) {
+        for (object_id, instance_id) in &self.objects {
+            if let Some(object) = scene.get_mut(object_id) {
+                if let Some(object3d) = &mut object.object3d {
+                    match object3d {
+                        Object3D::Simple(simple) => {
+                            if let Some(instance) = simple.get_instance(&instance_id) {
+                                
+                            }
+                        },
+                        Object3D::Skinned(skinned) => {
+                            if let Some(instance) = skinned.get_instance(&instance_id) {
+                                instance.rotate(&[w, xi, yj, zk]);
                             }
                         }
                     };

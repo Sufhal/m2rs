@@ -364,6 +364,10 @@ pub trait TranslateWithScene {
     fn translate(&mut self, x: f32, y: f32, z: f32, scene: &mut Scene);
 }
 
+pub trait RotateWithScene {
+    fn rotate(&mut self, w: f32, xi: f32, yj: f32, zk: f32, scene: &mut Scene);
+}
+
 pub trait Translate {
     fn translate(&mut self, value: &[f32; 3]);
 }
@@ -393,6 +397,12 @@ impl Translate for SimpleObject3DInstance {
             y: value[1], 
             z: value[2] 
         });
+    }
+}
+
+impl Rotate for SkinnedObject3DInstance {
+    fn rotate(&mut self, value: &[f32; 4]) {
+        self.set_rotation(cgmath::Quaternion::new(value[0], value[1], value[2], value[3]));
     }
 }
 
