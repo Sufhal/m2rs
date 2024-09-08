@@ -19,7 +19,7 @@ impl Environment {
             cycle,
             fog: Fog::new(
                 msenv.fog.near, 
-                msenv.fog.near, 
+                msenv.fog.far, 
                 vec3(msenv.fog.color)
             ),
             sun: Sun::new(
@@ -223,13 +223,14 @@ impl MsEnv {
                 "FarDistance" => {
                     fog.far = parts[1].parse().unwrap();
                 }
-                "Color" => {
-                    fog.color = [
+                "Color" => match current_group.as_str() {
+                    "Fog" => fog.color = [
                         parts[1].parse().unwrap(),
                         parts[2].parse().unwrap(),
                         parts[3].parse().unwrap(),
                         parts[4].parse().unwrap(),
-                    ];
+                    ],
+                    _ => {}
                 }
                 "Scale" => match current_group.as_str() {
                     "SkyBox" => {

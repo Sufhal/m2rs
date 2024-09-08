@@ -120,3 +120,25 @@ pub fn add_normals(normal: [f32; 3], additional_normal: Vector3<f32>) -> [f32; 3
         normal[2] + additional_normal.z,
     ]
 }
+
+pub fn srgb_to_linear(color: [f32; 3]) -> [f32; 3] {
+    let r = if color[0] <= 0.04045 {
+        color[0] / 12.92
+    } else {
+        ((color[0] + 0.055) / 1.055).powf(2.4)
+    };
+
+    let g = if color[1] <= 0.04045 {
+        color[1] / 12.92
+    } else {
+        ((color[1] + 0.055) / 1.055).powf(2.4)
+    };
+
+    let b = if color[2] <= 0.04045 {
+        color[2] / 12.92
+    } else {
+        ((color[2] + 0.055) / 1.055).powf(2.4)
+    };
+
+    [r, g, b] // Retourne la couleur convertie en espace linéaire
+}

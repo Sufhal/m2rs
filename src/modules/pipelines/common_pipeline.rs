@@ -1,11 +1,12 @@
 use wgpu::util::DeviceExt;
-use crate::modules::{camera::camera::CameraUniform, core::light::LightUniform, environment::{cycle::CycleUniform, sun::SunUniform}};
+use crate::modules::{camera::camera::CameraUniform, core::light::LightUniform, environment::{cycle::CycleUniform, fog::FogUniform, sun::SunUniform}};
 
 pub struct Buffers {
     pub light: wgpu::Buffer,
     pub camera: wgpu::Buffer,
     pub cycle: wgpu::Buffer,
     pub sun: wgpu::Buffer,
+    pub fog: wgpu::Buffer,
 }
 
 pub struct Uniforms {
@@ -13,6 +14,7 @@ pub struct Uniforms {
     pub camera: CameraUniform,
     pub cycle: CycleUniform,
     pub sun: SunUniform,
+    pub fog: FogUniform,
 }
 
 pub struct CommonPipeline {
@@ -86,6 +88,17 @@ impl CommonPipeline {
                     },
                     count: None,
                 },
+                // fog
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
             label: Some("global_bind_group_layout"),
         })
@@ -110,6 +123,10 @@ impl CommonPipeline {
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: buffers.sun.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: buffers.fog.as_entire_binding(),
                 }
             ],
             label: Some("light_bind_group"),
@@ -126,7 +143,8 @@ impl CommonPipeline {
             },
             camera: CameraUniform::new(),
             cycle: CycleUniform::default(),
-            sun: SunUniform::default()
+            sun: SunUniform::default(),
+            fog: FogUniform::default(),
         }
     }
 
@@ -150,6 +168,11 @@ impl CommonPipeline {
             sun: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Sun Buffer"),
                 contents: bytemuck::cast_slice(&[uniforms.sun]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }),
+            fog: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Fog Buffer"),
+                contents: bytemuck::cast_slice(&[uniforms.fog]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }),
         }

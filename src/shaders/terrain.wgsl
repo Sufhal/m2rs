@@ -71,6 +71,16 @@ struct Sun {
 }
 @group(0) @binding(3) var<uniform> sun: Sun;
 
+struct Fog {
+    near: f32,
+    padding1: f32,
+    far: f32,
+    padding2: f32,
+    color: vec3<f32>,
+    padding3: f32,
+}
+@group(0) @binding(4) var<uniform> fog: Fog;
+
 struct ChunkInformations {
     textures_count: u32,
 }
@@ -117,6 +127,14 @@ fn ease_out_expo(x: f32) -> f32 {
     } else {
         return 1.0 - pow(2.0, -10.0 * x);
     }
+}
+
+fn srgb_to_linear(color: vec3<f32>) -> vec3<f32> {
+    let r = select(color.r / 12.92, pow((color.r + 0.055) / 1.055, 2.4), color.r > 0.04045);
+    let g = select(color.g / 12.92, pow((color.g + 0.055) / 1.055, 2.4), color.g > 0.04045);
+    let b = select(color.b / 12.92, pow((color.b + 0.055) / 1.055, 2.4), color.b > 0.04045);
+    
+    return vec3<f32>(r, g, b);
 }
 
 
@@ -188,6 +206,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let result = (ambient_color + sun_diffuse_color + moon_diffuse_color + sun.material_emissive.rgb) * splat.xyz;
 
-    return vec4<f32>(result, 1.0);
+    // fog
+    let distance_to_camera = length(camera.view_pos.xyz - in.world_position);
+    let fog_factor = clamp((distance_to_camera - fog.near) / (fog.far - fog.near), 0.0, 1.0);
+    let final_color = mix(result.rgb, fog.color, fog_factor);
+
+    return vec4<f32>(final_color, 1.0);
 }
  

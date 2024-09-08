@@ -424,6 +424,9 @@ impl<'a> State<'a> {
         self.common_pipeline.uniforms.sun = self.terrains[0].environment.sun.uniform;
         self.queue.write_buffer(&self.common_pipeline.buffers.sun, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.sun]));
 
+        self.common_pipeline.uniforms.fog = self.terrains[0].environment.fog.uniform();
+        self.queue.write_buffer(&self.common_pipeline.buffers.fog, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.fog]));
+
         self.ui.metrics.push_data(MetricData::UpdateCallTime(update_call_fragment.elapsed_ms()));
         self.ui.informations.position = [self.camera.position.x as i32, self.camera.position.y as i32, self.camera.position.z as i32];
         let current_cycle_time = self.terrains[0].environment.cycle.get_current_time();
