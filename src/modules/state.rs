@@ -409,7 +409,7 @@ impl<'a> State<'a> {
         self.common_pipeline.uniforms.cycle.night_factor = self.terrains[0].environment.cycle.night_factor;
         self.queue.write_buffer(&self.common_pipeline.buffers.cycle, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.cycle]));
  
-        self.common_pipeline.uniforms.sun.position = self.terrains[0].environment.sun.uniform.position;
+        self.common_pipeline.uniforms.sun = self.terrains[0].environment.sun.uniform;
         self.queue.write_buffer(&self.common_pipeline.buffers.sun, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.sun]));
 
         self.ui.metrics.push_data(MetricData::UpdateCallTime(update_call_fragment.elapsed_ms()));

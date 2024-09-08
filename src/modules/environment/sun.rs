@@ -40,12 +40,13 @@ impl Sun {
     pub fn update(&mut self, cycle: &Cycle, queue: &wgpu::Queue) {
         if cycle.night_factor > 0.0 {
             self.position = NIGHT_POSITION;
+            self.uniform.moon_position = [self.position[0], self.position[1], self.position[2], 0.0];
         }
-        else {
+        if cycle.day_factor > 0.0 {
             let angle = 180.0 * cycle.day_factor;
             self.position = (Quaternion::from_axis_angle(Vector3::unit_z(), Deg(angle)) * Vector3::from(DAY_POSITION)).into();
+            self.uniform.sun_position = [self.position[0], self.position[1], self.position[2], 0.0];
         }
-        self.uniform.position = [self.position[0], self.position[1], self.position[2], 0.0];
         queue.write_buffer(
             &self.mesh.transform_buffer,
             0 as wgpu::BufferAddress,
@@ -65,7 +66,8 @@ impl Sun {
 #[repr(C)]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
 pub struct SunUniform {
-    pub position: [f32; 4],
+    pub sun_position: [f32; 4],
+    pub moon_position: [f32; 4],
     pub material_diffuse: [f32; 4],
     pub material_ambient: [f32; 4],
     pub material_emissive: [f32; 4],
@@ -78,7 +80,8 @@ pub struct SunUniform {
 impl Default for SunUniform {
     fn default() -> Self {
         Self {
-            position: Default::default(),
+            sun_position: [DAY_POSITION[0], DAY_POSITION[1], DAY_POSITION[2], 0.0],
+            moon_position: [NIGHT_POSITION[0], NIGHT_POSITION[1], NIGHT_POSITION[2], 0.0],
             material_diffuse: Default::default(),
             material_ambient: Default::default(),
             material_emissive: Default::default(),

@@ -3,8 +3,8 @@ use crate::modules::utils::functions::{denormalize_f32, normalize_f32};
 const REAL_TIME: bool = false; 
 const MS_IN_DAY: u64 = 24 * 3600 * 1000;
 const UTC: u64 = 2;
-const DAY_START_HOUR: u64 = 8;
-const DAY_END_HOUR: u64 = 22;
+const DAY_START_HOUR: u64 = 5;
+const DAY_END_HOUR: u64 = 23;
 const DAY_RANGE_MS: [f32; 2] = [
     (DAY_START_HOUR * 60 * 60 * 1000) as f32, 
     (DAY_END_HOUR * 60 * 60 * 1000) as f32
