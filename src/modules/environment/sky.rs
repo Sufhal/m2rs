@@ -2,7 +2,7 @@ use crate::modules::{core::model::CustomMesh, geometry::sphere::Sphere, state::S
 
 use super::environment::MsEnv;
 
-type Gradient = [[f32; 4]; 5];
+type Gradient = [[f32; 4]; 6];
 
 pub struct Sky {
     gradient: Gradient,
@@ -17,6 +17,7 @@ impl Sky {
             d_c2: msenv.sky_box.gradient[2],
             d_c3: msenv.sky_box.gradient[3],
             d_c4: msenv.sky_box.gradient[4],   
+            d_c5: msenv.sky_box.gradient[5],   
         };
         let sphere = Sphere::new(10000.0, 50, 50);
         let mesh = sphere.to_sky_mesh(
@@ -42,4 +43,5 @@ pub struct SkyUniform {
     pub d_c2: [f32; 4],
     pub d_c3: [f32; 4],
     pub d_c4: [f32; 4],
+    pub d_c5: [f32; 4],
 }

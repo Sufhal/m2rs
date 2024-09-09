@@ -63,8 +63,43 @@ fn ease_out_expo(x: f32) -> f32 {
     }
 }
 
+struct Sky {
+    d_c0: vec4<f32>,
+    d_c1: vec4<f32>,
+    d_c2: vec4<f32>,
+    d_c3: vec4<f32>,
+    d_c4: vec4<f32>,
+    d_c5: vec4<f32>,
+}
+@group(1) @binding(1) var<uniform> sky: Sky;
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+
+	let p = 1.0 / 5.0;
+	let n = ((in.tex_coords.y) * 1.6) / p;
+	let c1 = n - 1.0;
+	let c2 = n - 2.0;
+	let c3 = n - 3.0;
+	let c4 = n - 4.0;
+
+    // return sky.d_c0;
+
+	if (n >= 0.0 && n <= 1.0) {
+		return mix(sky.d_c0, sky.d_c1, n);
+    }
+	if (c1 >= 0.0 && c1 <= 1.0) {
+		return mix(sky.d_c1, sky.d_c2, c1);
+    }
+	if (c2 >= 0.0 && c2 <= 1.0) {
+		return mix(sky.d_c2, sky.d_c3, c2);
+    }
+	if (c3 >= 0.0 && c3 <= 1.0) {
+		return mix(sky.d_c3, sky.d_c4, c3);
+    }
+	if (c4 >= 0.0 && c4 <= 1.0) {
+		return mix(sky.d_c4, sky.d_c5, c4);
+    }
 
     return vec4<f32>(1.0, 1.0, 0.0, 1.0);
 }

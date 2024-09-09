@@ -142,3 +142,8 @@ pub fn srgb_to_linear(color: [f32; 3]) -> [f32; 3] {
 
     [r, g, b] // Retourne la couleur convertie en espace linéaire
 }
+
+pub fn correct_color(colors: [f32; 4]) -> [f32; 4] {
+    let rgb = srgb_to_linear([colors[0], colors[1], colors[2]]);
+    [rgb[0], rgb[1], rgb[2], colors[3]]
+}

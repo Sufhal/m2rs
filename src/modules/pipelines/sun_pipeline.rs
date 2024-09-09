@@ -133,7 +133,7 @@ impl SunPipeline {
             },
             depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
                 format,
-                depth_write_enabled: true,
+                depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),

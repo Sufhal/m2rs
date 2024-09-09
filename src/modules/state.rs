@@ -249,26 +249,26 @@ impl<'a> State<'a> {
             ui
         };
 
-        let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
-        character.translate(384.0, 186.0, 640.0, &mut state.scene);
-        let q = Quaternion::from_angle_y(Deg(45.0));
-        character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
-        state.characters.push(character);
-        let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
-        character.translate(385.0, 186.0, 640.0, &mut state.scene);
-        let q = Quaternion::from_angle_y(Deg(90.0));
-        character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
-        state.characters.push(character);
-        let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
-        character.translate(384.0, 186.0, 641.0, &mut state.scene);
-        let q = Quaternion::from_angle_y(Deg(135.0));
-        character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
-        state.characters.push(character);
-        let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
-        character.translate(385.0, 186.0, 641.0, &mut state.scene);
-        let q = Quaternion::from_angle_y(Deg(180.0));
-        character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
-        state.characters.push(character);
+        // let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        // character.translate(384.0, 186.0, 640.0, &mut state.scene);
+        // let q = Quaternion::from_angle_y(Deg(45.0));
+        // character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
+        // state.characters.push(character);
+        // let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        // character.translate(385.0, 186.0, 640.0, &mut state.scene);
+        // let q = Quaternion::from_angle_y(Deg(90.0));
+        // character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
+        // state.characters.push(character);
+        // let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        // character.translate(384.0, 186.0, 641.0, &mut state.scene);
+        // let q = Quaternion::from_angle_y(Deg(135.0));
+        // character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
+        // state.characters.push(character);
+        // let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        // character.translate(385.0, 186.0, 641.0, &mut state.scene);
+        // let q = Quaternion::from_angle_y(Deg(180.0));
+        // character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
+        // state.characters.push(character);
         
 
 
@@ -469,9 +469,9 @@ impl<'a> State<'a> {
                     resolve_target: Some(&output_view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
                             a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,
@@ -518,14 +518,14 @@ impl<'a> State<'a> {
                 } 
             }
 
-            render_pass.set_pipeline(&self.sun_pipeline.pipeline);
-            for terrain in &self.terrains {
-                render_pass.draw_custom_mesh(&terrain.environment.sun.mesh, &self.common_pipeline);
-            }
-
             render_pass.set_pipeline(&self.sky_pipeline.pipeline);
             for terrain in &self.terrains {
                 render_pass.draw_custom_mesh(&terrain.environment.sky.mesh, &self.common_pipeline);
+            }
+
+            render_pass.set_pipeline(&self.sun_pipeline.pipeline);
+            for terrain in &self.terrains {
+                render_pass.draw_custom_mesh(&terrain.environment.sun.mesh, &self.common_pipeline);
             }
         }
 

@@ -12,7 +12,7 @@ impl Fog {
         Self {
             near: near / 100.0,
             far: far / 100.0,
-            color: srgb_to_linear(color),
+            color,
         }
     }
 

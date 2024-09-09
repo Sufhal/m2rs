@@ -1,4 +1,4 @@
-use crate::modules::{assets::assets::load_string, state::State};
+use crate::modules::{assets::assets::load_string, state::State, utils::functions::{correct_color, srgb_to_linear}};
 
 use super::{cycle::Cycle, fog::Fog, sky::Sky, sun::Sun};
 
@@ -83,7 +83,7 @@ pub struct SkyBox {
     pub scale: [f32; 3],
     pub gradient_level_upper: u8,
     pub gradient_level_lower: u8,
-    pub gradient: [[f32; 4]; 5],
+    pub gradient: [[f32; 4]; 6],
     pub cloud_scale: [f32; 2],
     pub cloud_height: f32,
     pub cloud_texture_scale: [f32; 2],
@@ -132,7 +132,7 @@ impl MsEnv {
             scale: [0.0; 3],
             gradient_level_upper: 0,
             gradient_level_lower: 0,
-            gradient: [[0.0; 4]; 5],
+            gradient: [[0.0; 4]; 6],
             cloud_scale: [0.0; 2],
             cloud_height: 0.0,
             cloud_texture_scale: [0.0; 2],
@@ -172,54 +172,54 @@ impl MsEnv {
                     _ => {}
                 },
                 "Diffuse" => match current_group.as_str() {
-                    "Background" => directional_light.background.diffuse = [
+                    "Background" => directional_light.background.diffuse = correct_color([
                         parts[1].parse().unwrap(),
                         parts[2].parse().unwrap(),
                         parts[3].parse().unwrap(),
                         parts[4].parse().unwrap(),
-                    ],
-                    "Character" => directional_light.character.diffuse = [
+                    ]),
+                    "Character" => directional_light.character.diffuse = correct_color([
                         parts[1].parse().unwrap(),
                         parts[2].parse().unwrap(),
                         parts[3].parse().unwrap(),
                         parts[4].parse().unwrap(),
-                    ],
-                    "Material" => material.diffuse = [
+                    ]),
+                    "Material" => material.diffuse = correct_color([
                         parts[1].parse().unwrap(),
                         parts[2].parse().unwrap(),
                         parts[3].parse().unwrap(),
                         parts[4].parse().unwrap(),
-                    ],
+                    ]),
                     _ => {}
                 },
                 "Ambient" => match current_group.as_str() {
-                    "Background" => directional_light.background.ambient = [
+                    "Background" => directional_light.background.ambient = correct_color([
                         parts[1].parse().unwrap(),
                         parts[2].parse().unwrap(),
                         parts[3].parse().unwrap(),
                         parts[4].parse().unwrap(),
-                    ],
-                    "Character" => directional_light.character.ambient = [
+                    ]),
+                    "Character" => directional_light.character.ambient = correct_color([
                         parts[1].parse().unwrap(),
                         parts[2].parse().unwrap(),
                         parts[3].parse().unwrap(),
                         parts[4].parse().unwrap(),
-                    ],
-                    "Material" => material.ambient = [
+                    ]),
+                    "Material" => material.ambient = correct_color([
                         parts[1].parse().unwrap(),
                         parts[2].parse().unwrap(),
                         parts[3].parse().unwrap(),
                         parts[4].parse().unwrap(),
-                    ],
+                    ]),
                     _ => {}
                 },
                 "Emissive" => {
-                    material.emissive = [
+                    material.emissive = correct_color([
                         parts[1].parse().unwrap(),
                         parts[2].parse().unwrap(),
                         parts[3].parse().unwrap(),
                         parts[4].parse().unwrap(),
-                    ];
+                    ]);
                 }
                 "NearDistance" => {
                     fog.near = parts[1].parse().unwrap();
@@ -228,12 +228,12 @@ impl MsEnv {
                     fog.far = parts[1].parse().unwrap();
                 }
                 "Color" => match current_group.as_str() {
-                    "Fog" => fog.color = [
+                    "Fog" => fog.color = correct_color([
                         parts[1].parse().unwrap(),
                         parts[2].parse().unwrap(),
                         parts[3].parse().unwrap(),
                         parts[4].parse().unwrap(),
-                    ],
+                    ]),
                     _ => {}
                 }
                 "Scale" => match current_group.as_str() {
@@ -279,12 +279,19 @@ impl MsEnv {
                         lines.next();
                         lines.next();
                         let c4 = to_colors(lines.next().unwrap());
+                        let c5 = to_colors(lines.next().unwrap());
+
+                        let to_adapted = |v: Vec<f32>| {
+                            let c = srgb_to_linear([v[0], v[1], v[2]]);
+                            [c[0], c[1], c[2], 1.0]
+                        };
                         sky_box.gradient = [
-                            [c0[0], c0[1], c0[2], c0[3]],
-                            [c1[0], c1[1], c1[2], c1[3]],
-                            [c2[0], c2[1], c2[2], c2[3]],
-                            [c3[0], c3[1], c3[2], c3[3]],
-                            [c4[0], c4[1], c4[2], c4[3]],
+                            to_adapted(c0),
+                            to_adapted(c1),
+                            to_adapted(c2),
+                            to_adapted(c3),
+                            to_adapted(c4),
+                            to_adapted(c5),
                         ];
                     }
                     _ => {}
