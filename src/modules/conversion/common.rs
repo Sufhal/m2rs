@@ -24,6 +24,7 @@ pub fn write<T: AsRef<[u8]>>(path: &str, content: T) {
 
 pub fn bye_ymir(path: &str) -> String {
     path
+        .to_lowercase()
         .trim_matches('"')
         .replace("\\", "/")
         .replace("d:/ymir work", "pack")

@@ -2,7 +2,7 @@ use crate::modules::utils::functions::srgb_to_linear;
 use super::Color;
 
 const DISTANCE_MULTIPLIER: f32 = 1.0;
-
+// night ? 0.122, 0.122, 0.153
 pub struct Fog {
     near: f32,
     far: f32,
