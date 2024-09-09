@@ -79,7 +79,7 @@ struct Clouds {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let uv = in.tex_coords;
-    let t = textureSample(texture_clouds, sampler_tex, uv * clouds.scale.x);
+    let t = textureSample(texture_clouds, sampler_tex, (uv * clouds.scale.x) + clouds.time * (clouds.speed));
     var alpha = t.r;
     if uv.x < 0.25 {
         alpha = alpha * normalize_value_between(uv.x, 0.0, 0.25);

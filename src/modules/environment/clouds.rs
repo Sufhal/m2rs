@@ -6,8 +6,8 @@ const SIZE_MULTIPLIER: f32 = 2.0;
 pub struct Clouds {
     texture: Texture,
     uniform: CloudsUniform,
+    buffer: wgpu::Buffer,
     pub mesh: CustomMesh,
-    pub buffer: wgpu::Buffer,
 }
 
 impl Clouds {
@@ -48,6 +48,11 @@ impl Clouds {
             mesh,
             buffer,
         })
+    }
+
+    pub fn update(&mut self, delta_ms: f32, queue: &wgpu::Queue) {
+        self.uniform.time += delta_ms / (1000.0 * SIZE_MULTIPLIER);
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
     }
 }
 

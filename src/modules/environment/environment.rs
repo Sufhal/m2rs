@@ -32,6 +32,7 @@ impl Environment {
     pub fn update(&mut self, delta: f32, queue: &wgpu::Queue) {
         self.cycle.update(delta);
         self.sun.update(&self.cycle, queue);
+        self.clouds.update(delta, queue);
     }
 
 }
