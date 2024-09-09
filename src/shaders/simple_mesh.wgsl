@@ -61,7 +61,6 @@ fn vs_main(
     var world_position: vec4<f32> = transformed_model_matrix * vec4<f32>(model.position, 1.0);
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
-    // out.world_normal = model.normal;
     out.world_normal = normal_matrix * model.normal;
     out.world_position = world_position.xyz;
     out.position = model.position;

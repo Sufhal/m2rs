@@ -6,7 +6,7 @@ pub struct Environment {
     pub cycle: Cycle,
     pub fog: Fog,
     pub sun: Sun,
-    // pub sky: Sky,
+    pub sky: Sky,
 }
 
 impl Environment {
@@ -26,9 +26,10 @@ impl Environment {
                 &msenv,
                 state
             ),
-            // sky: Sky::new(
-            //     msenv.sky_box.cloud_gradient
-            // )
+            sky: Sky::new(
+                &msenv,
+                state
+            )
         })
     }
 
@@ -257,7 +258,13 @@ impl MsEnv {
                 "List" => match parts[1] {
                     "CloudColor" => (),
                     "Gradient" => {
-                        let to_colors = |line: &str| line.split_whitespace().map(|v| v.parse().unwrap()).collect::<Vec<f32>>();
+                        let to_colors = |line: &str| {
+                            let mut colors = line.split_whitespace().map(|v| v.parse().unwrap_or(0.0)).collect::<Vec<f32>>();
+                            while colors.len() < 4 {
+                                colors.push(0.0);
+                            }
+                            colors
+                        };
                         lines.next();
                         let c0 = to_colors(lines.next().unwrap());
                         lines.next();

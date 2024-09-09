@@ -20,6 +20,7 @@ use super::core::scene;
 use super::pipelines::common_pipeline::CommonPipeline;
 use super::pipelines::simple_models_pipeline::SimpleModelPipeline;
 use super::pipelines::skinned_models_pipeline::SkinnedModelPipeline;
+use super::pipelines::sky_pipeline::SkyPipeline;
 use super::pipelines::sun_pipeline::SunPipeline;
 use super::pipelines::terrain_pipeline::TerrainPipeline;
 use super::pipelines::water_pipeline::WaterPipeline;
@@ -43,6 +44,7 @@ pub struct State<'a> {
     pub terrain_pipeline: TerrainPipeline,
     pub water_pipeline: WaterPipeline,
     pub sun_pipeline: SunPipeline,
+    pub sky_pipeline: SkyPipeline,
     camera: camera::Camera,
     projection: camera::Projection,
     pub camera_controller: camera::CameraController,
@@ -163,6 +165,7 @@ impl<'a> State<'a> {
         let terrain_pipeline = TerrainPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let water_pipeline = WaterPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let sun_pipeline = SunPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
+        let sky_pipeline = SkyPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let skinned_models_pipeline = SkinnedModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let simple_models_pipeline = SimpleModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
 
@@ -227,6 +230,7 @@ impl<'a> State<'a> {
             terrain_pipeline,
             water_pipeline,
             sun_pipeline,
+            sky_pipeline,
             camera,
             projection,
             camera_controller,
@@ -517,6 +521,11 @@ impl<'a> State<'a> {
             render_pass.set_pipeline(&self.sun_pipeline.pipeline);
             for terrain in &self.terrains {
                 render_pass.draw_custom_mesh(&terrain.environment.sun.mesh, &self.common_pipeline);
+            }
+
+            render_pass.set_pipeline(&self.sky_pipeline.pipeline);
+            for terrain in &self.terrains {
+                render_pass.draw_custom_mesh(&terrain.environment.sky.mesh, &self.common_pipeline);
             }
         }
 

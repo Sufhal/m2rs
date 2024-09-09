@@ -1,9 +1,10 @@
+use cgmath::Matrix4;
 use wgpu::util::DeviceExt;
-use crate::modules::{core::model::{CustomMesh, Mesh, SkinnedMeshVertex, TransformUniform}, environment::sky::Sky};
+use crate::modules::{core::model::{CustomMesh, Mesh, SimpleVertex, TransformUniform}, environment::sky::{Sky, SkyUniform}, pipelines::sky_pipeline::SkyPipeline};
 use super::buffer::ToMesh;
 
 pub struct Sphere {
-    vertices: Vec<SkinnedMeshVertex>,
+    vertices: Vec<SimpleVertex>,
     indices: Vec<u32>,
 }
 
@@ -39,12 +40,10 @@ impl Sphere {
                     y as f32 / rings as f32,
                 ];
                 
-                vertices.push(SkinnedMeshVertex::new(
+                vertices.push(SimpleVertex::new(
                     position,
                     tex_coords,
                     normal,
-                    [0,0,0,0],
-                    [0.0, 0.0, 0.0, 0.0],
                 ));
             }
         }
@@ -72,14 +71,60 @@ impl Sphere {
         }
     }
 
-    // pub fn to_sky_mesh(
-    //     &self, 
-    //     device: &wgpu::Device, 
-    //     terrain_pipeline: &TerrainPipeline,
-    //     sky: Sky,
-    // ) -> CustomMesh {
+    pub fn to_sky_mesh(
+        &self, 
+        device: &wgpu::Device, 
+        sky_pipeline: &SkyPipeline,
+        position: [f32; 3],
+        sky_uniform: SkyUniform,
+    ) -> CustomMesh {
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Sky Vertex Buffer"),
+            contents: bytemuck::cast_slice(&self.vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Sky Index Buffer"),
+            contents: bytemuck::cast_slice(&self.indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Transform Buffer"),
+            contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation(position.into()).into())]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let sky_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Sky Buffer"),
+            contents: bytemuck::cast_slice(&[sky_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
 
-    // }
+        let entries = vec![
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: transform_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: sky_buffer.as_entire_binding(),
+            },
+        ];
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &sky_pipeline.bind_group_layouts.mesh,
+            entries: &entries,
+            label: None,
+        });
+
+        CustomMesh {
+            name: "sky".to_string(),
+            transform_buffer,
+            vertex_buffer,
+            index_buffer,
+            num_elements: self.indices.len() as u32,
+            bind_group
+        }
+    }
 }
 
 impl ToMesh for Sphere {

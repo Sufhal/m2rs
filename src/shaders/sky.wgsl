@@ -12,8 +12,6 @@ struct Cycle {
 }
 @group(0) @binding(2) var<uniform> cycle: Cycle;
 
-
-
 struct TransformUniform {
     transform: mat4x4<f32>,
 };
@@ -47,7 +45,6 @@ fn vs_main(
     out.position = model.position;
 
     var transformed_model_view_matrix = camera.view_matrix * transformed_model_matrix;
-
     let model_view_position: vec4<f32> = transformed_model_view_matrix * vec4<f32>(model.position, 1.0); 
     out.clip_position = camera.projection_matrix *  model_view_position;
 

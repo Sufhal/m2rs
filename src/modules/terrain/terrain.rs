@@ -18,7 +18,6 @@ impl Terrain {
         let texture_set = TextureSet::read(&path).await?;
         let water_texture = WaterTexture::load(state).await?;
         let environment = Environment::load(&setting.environment, state).await?;
-        dbg!(&environment.fog.uniform());
         let textures = texture_set.load_textures(&state.device, &state.queue).await?;
         let mut chunks = Vec::new();
         for x in 0..setting.map_size[0] {
