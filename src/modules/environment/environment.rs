@@ -1,12 +1,13 @@
-use crate::modules::{assets::assets::load_string, state::State, utils::functions::{correct_color, srgb_to_linear}};
+use crate::modules::{assets::assets::load_string, conversion::common::bye_ymir, state::State, utils::functions::{correct_color, srgb_to_linear}};
 
-use super::{cycle::Cycle, fog::Fog, sky::Sky, sun::Sun};
+use super::{clouds::Clouds, cycle::Cycle, fog::Fog, sky::Sky, sun::Sun};
 
 pub struct Environment {
     pub cycle: Cycle,
     pub fog: Fog,
     pub sun: Sun,
     pub sky: Sky,
+    pub clouds: Clouds,
 }
 
 impl Environment {
@@ -22,14 +23,9 @@ impl Environment {
                 msenv.fog.far, 
                 vec3(msenv.fog.color)
             ),
-            sun: Sun::new(
-                &msenv,
-                state
-            ),
-            sky: Sky::new(
-                &msenv,
-                state
-            )
+            sun: Sun::new(&msenv, state),
+            sky: Sky::new(&msenv, state),
+            clouds: Clouds::new(&msenv, state).await?
         })
     }
 
@@ -222,10 +218,10 @@ impl MsEnv {
                     ]);
                 }
                 "NearDistance" => {
-                    fog.near = parts[1].parse().unwrap();
+                    fog.near = parts[1].parse::<f32>().unwrap() / 100.0;
                 }
                 "FarDistance" => {
-                    fog.far = parts[1].parse().unwrap();
+                    fog.far = parts[1].parse::<f32>().unwrap() / 100.0;
                 }
                 "Color" => match current_group.as_str() {
                     "Fog" => fog.color = correct_color([
@@ -252,8 +248,33 @@ impl MsEnv {
                 "GradientLevelLower" => {
                     sky_box.gradient_level_lower = parts[1].parse().unwrap();
                 }
+                "CloudScale" => {
+                    sky_box.cloud_scale = [
+                        parts[1].parse::<f32>().unwrap() / 100.0,
+                        parts[2].parse::<f32>().unwrap() / 100.0,
+                    ];
+                }
+                "CloudHeight" => {
+                    sky_box.cloud_height = parts[1].parse::<f32>().unwrap() / 100.0;
+                }
+                "CloudSpeed" => {
+                    sky_box.cloud_speed = [
+                        parts[1].parse().unwrap(),
+                        parts[2].parse().unwrap(),
+                    ];
+                }
+                "CloudTextureScale" => {
+                    sky_box.cloud_texture_scale = [
+                        parts[1].parse().unwrap(),
+                        parts[2].parse().unwrap(),
+                    ];
+                }
                 "CloudTextureFileName" => {
-                    sky_box.cloud_texture_file = parts[1].to_string();
+                    sky_box.cloud_texture_file = {
+                        let mut parts = parts.clone();
+                        parts.remove(0);
+                        bye_ymir(&parts.join(""))
+                    };
                 }
                 "List" => match parts[1] {
                     "CloudColor" => (),

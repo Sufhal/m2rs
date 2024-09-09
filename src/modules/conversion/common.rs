@@ -27,6 +27,8 @@ pub fn bye_ymir(path: &str) -> String {
         .trim_matches('"')
         .replace("\\", "/")
         .replace("d:/ymir work", "pack")
+        .replace("d:/ymirwork", "pack")
         .replace(".dds", ".png")
+        .replace(".tga", ".png")
         .replace(".gr2", ".glb")
 }

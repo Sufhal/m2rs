@@ -3,9 +3,8 @@ use crate::modules::{assets::gltf_loader::{load_model_glb, load_model_glb_with_n
 use super::{chunk::Chunk, property::Property, setting::Setting, texture_set::TextureSet, water::WaterTexture};
 
 pub struct Terrain {
-    #[allow(dead_code)]
-    setting: Setting,
     water_texture: WaterTexture,
+    pub setting: Setting,
     pub environment: Environment,
     pub chunks: Vec<Chunk>
 }

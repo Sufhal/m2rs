@@ -17,6 +17,7 @@ use super::assets::gltf_loader::load_model_glb;
 use super::character::character::{Character, CharacterKind, NPCType};
 use super::core::object_3d::{Object3D, RotateWithScene, TranslateWithScene};
 use super::core::scene;
+use super::pipelines::clouds_pipeline::CloudsPipeline;
 use super::pipelines::common_pipeline::CommonPipeline;
 use super::pipelines::simple_models_pipeline::SimpleModelPipeline;
 use super::pipelines::skinned_models_pipeline::SkinnedModelPipeline;
@@ -24,7 +25,6 @@ use super::pipelines::sky_pipeline::SkyPipeline;
 use super::pipelines::sun_pipeline::SunPipeline;
 use super::pipelines::terrain_pipeline::TerrainPipeline;
 use super::pipelines::water_pipeline::WaterPipeline;
-use super::terrain;
 use super::terrain::property::Properties;
 use super::terrain::terrain::Terrain;
 use super::ui::ui::UserInterface;
@@ -45,6 +45,7 @@ pub struct State<'a> {
     pub water_pipeline: WaterPipeline,
     pub sun_pipeline: SunPipeline,
     pub sky_pipeline: SkyPipeline,
+    pub clouds_pipeline: CloudsPipeline,
     camera: camera::Camera,
     projection: camera::Projection,
     pub camera_controller: camera::CameraController,
@@ -166,8 +167,10 @@ impl<'a> State<'a> {
         let water_pipeline = WaterPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let sun_pipeline = SunPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let sky_pipeline = SkyPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
+        let clouds_pipeline = CloudsPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let skinned_models_pipeline = SkinnedModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let simple_models_pipeline = SimpleModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
+
 
         let mut scene = scene::Scene::new();
 
@@ -231,6 +234,7 @@ impl<'a> State<'a> {
             water_pipeline,
             sun_pipeline,
             sky_pipeline,
+            clouds_pipeline,
             camera,
             projection,
             camera_controller,
@@ -521,6 +525,11 @@ impl<'a> State<'a> {
             render_pass.set_pipeline(&self.sky_pipeline.pipeline);
             for terrain in &self.terrains {
                 render_pass.draw_custom_mesh(&terrain.environment.sky.mesh, &self.common_pipeline);
+            }
+
+            render_pass.set_pipeline(&self.clouds_pipeline.pipeline);
+            for terrain in &self.terrains {
+                render_pass.draw_custom_mesh(&terrain.environment.clouds.mesh, &self.common_pipeline);
             }
 
             render_pass.set_pipeline(&self.sun_pipeline.pipeline);

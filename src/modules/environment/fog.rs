@@ -1,6 +1,8 @@
 use crate::modules::utils::functions::srgb_to_linear;
 use super::Color;
 
+const DISTANCE_MULTIPLIER: f32 = 1.0;
+
 pub struct Fog {
     near: f32,
     far: f32,
@@ -10,8 +12,8 @@ pub struct Fog {
 impl Fog {
     pub fn new(near: f32, far: f32, color: Color) -> Self {
         Self {
-            near: near / 100.0,
-            far: far / 100.0,
+            near: near * DISTANCE_MULTIPLIER,
+            far: far * DISTANCE_MULTIPLIER,
             color,
         }
     }
