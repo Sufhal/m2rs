@@ -1,5 +1,5 @@
 use wgpu::util::DeviceExt;
-use crate::modules::core::model::{Mesh, SkinnedMeshVertex, TransformUniform};
+use crate::modules::{core::model::{CustomMesh, Mesh, SkinnedMeshVertex, TransformUniform}, environment::sky::Sky};
 use super::buffer::ToMesh;
 
 pub struct Sphere {
@@ -71,6 +71,15 @@ impl Sphere {
             indices,
         }
     }
+
+    // pub fn to_sky_mesh(
+    //     &self, 
+    //     device: &wgpu::Device, 
+    //     terrain_pipeline: &TerrainPipeline,
+    //     sky: Sky,
+    // ) -> CustomMesh {
+
+    // }
 }
 
 impl ToMesh for Sphere {

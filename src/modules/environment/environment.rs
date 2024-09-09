@@ -25,7 +25,10 @@ impl Environment {
             sun: Sun::new(
                 &msenv,
                 state
-            )
+            ),
+            // sky: Sky::new(
+            //     msenv.sky_box.cloud_gradient
+            // )
         })
     }
 
@@ -79,13 +82,13 @@ pub struct SkyBox {
     pub scale: [f32; 3],
     pub gradient_level_upper: u8,
     pub gradient_level_lower: u8,
+    pub gradient: [[f32; 4]; 5],
     pub cloud_scale: [f32; 2],
     pub cloud_height: f32,
     pub cloud_texture_scale: [f32; 2],
     pub cloud_speed: [f32; 2],
     pub cloud_texture_file: String,
     pub cloud_colors: [[f32; 4]; 2],
-    pub cloud_gradient: [[f32; 4]; 10]
 }
 
 impl MsEnv {
@@ -128,13 +131,13 @@ impl MsEnv {
             scale: [0.0; 3],
             gradient_level_upper: 0,
             gradient_level_lower: 0,
+            gradient: [[0.0; 4]; 5],
             cloud_scale: [0.0; 2],
             cloud_height: 0.0,
             cloud_texture_scale: [0.0; 2],
             cloud_speed: [0.0; 2],
             cloud_texture_file: String::new(),
             cloud_colors: [[0.0; 4]; 2],
-            cloud_gradient: [[0.0; 4]; 10],
         };
     
         let mut current_group = String::new();
@@ -250,6 +253,34 @@ impl MsEnv {
                 }
                 "CloudTextureFileName" => {
                     sky_box.cloud_texture_file = parts[1].to_string();
+                }
+                "List" => match parts[1] {
+                    "CloudColor" => (),
+                    "Gradient" => {
+                        let to_colors = |line: &str| line.split_whitespace().map(|v| v.parse().unwrap()).collect::<Vec<f32>>();
+                        lines.next();
+                        let c0 = to_colors(lines.next().unwrap());
+                        lines.next();
+                        lines.next();
+                        let c1 = to_colors(lines.next().unwrap());
+                        lines.next();
+                        lines.next();
+                        let c2 = to_colors(lines.next().unwrap());
+                        lines.next();
+                        lines.next();
+                        let c3 = to_colors(lines.next().unwrap());
+                        lines.next();
+                        lines.next();
+                        let c4 = to_colors(lines.next().unwrap());
+                        sky_box.gradient = [
+                            [c0[0], c0[1], c0[2], c0[3]],
+                            [c1[0], c1[1], c1[2], c1[3]],
+                            [c2[0], c2[1], c2[2], c2[3]],
+                            [c3[0], c3[1], c3[2], c3[3]],
+                            [c4[0], c4[1], c4[2], c4[3]],
+                        ];
+                    }
+                    _ => {}
                 }
                 _ => {}
             }
