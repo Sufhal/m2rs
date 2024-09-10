@@ -1,0 +1,17 @@
+{
+  "name": "m2rs",
+  "collaborators": [
+    "Sufhal"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "m2rs_bg.wasm",
+    "m2rs.js",
+    "m2rs.d.ts"
+  ],
+  "module": "m2rs.js",
+  "types": "m2rs.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
