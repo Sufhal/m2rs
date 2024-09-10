@@ -26,6 +26,7 @@ const NIGHT_EARLY_RATIO: f32 = NIGHT_EARLY_DURATION / NIGHT_LATE_DURATION;
 pub struct Cycle {
     pub day_factor: f32,
     pub night_factor: f32,
+    pub delta: f32,
     todays_ms: f32,
 }
 
@@ -35,15 +36,17 @@ impl Cycle {
         Self {
             day_factor: Self::compute_day_factor(todays_ms),
             night_factor: Self::compute_night_factor(todays_ms),
+            delta: 0.0,
             todays_ms
         }
     }
 
     pub fn update(&mut self, mut delta: f32) {
         if REAL_TIME == false {
-            delta *= (86_400_000.0 / 60_000.0) * 4.0; // 24h in 1min
+            delta *= (86_400_000.0 / 60_000.0) * 2.0; // 24h in 1min
             // delta *= 86_400_000.0 / 60_000.0; // 24h in 1min
         }
+        self.delta = delta;
         self.todays_ms += delta;
         if self.todays_ms > MS_IN_DAY as f32 {
             self.todays_ms = 0.0;

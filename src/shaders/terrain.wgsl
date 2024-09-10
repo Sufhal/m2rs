@@ -63,13 +63,20 @@ struct Cycle {
 struct Sun {
     sun_position: vec4<f32>,
     moon_position: vec4<f32>,
-    material_diffuse: vec4<f32>,
-    material_ambient: vec4<f32>,
-    material_emissive: vec4<f32>,
-    background_diffuse: vec4<f32>,
-    background_ambient: vec4<f32>,
-    character_diffuse: vec4<f32>,
-    character_ambient: vec4<f32>,
+    day_material_diffuse: vec4<f32>,
+    day_material_ambient: vec4<f32>,
+    day_material_emissive: vec4<f32>,
+    day_background_diffuse: vec4<f32>,
+    day_background_ambient: vec4<f32>,
+    day_character_diffuse: vec4<f32>,
+    day_character_ambient: vec4<f32>,
+    night_material_diffuse: vec4<f32>,
+    night_material_ambient: vec4<f32>,
+    night_material_emissive: vec4<f32>,
+    night_background_diffuse: vec4<f32>,
+    night_background_ambient: vec4<f32>,
+    night_character_diffuse: vec4<f32>,
+    night_character_ambient: vec4<f32>,
 }
 @group(0) @binding(3) var<uniform> sun: Sun;
 
@@ -198,33 +205,31 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         sun_light_factor = ease_out_expo(normalize_value_between(1.0 - cycle.day_factor, 0.0, 0.5));
     }
 
+    let material_ambient: vec3<f32> = mix(sun.night_material_ambient.rgb, sun.day_material_ambient.rbg, sun_light_factor);
+    let material_diffuse: vec3<f32> = mix(sun.night_material_diffuse.rgb, sun.day_material_diffuse.rbg, sun_light_factor);
+    let material_emissive: vec3<f32> = mix(sun.night_material_emissive.rgb, sun.day_material_emissive.rbg, sun_light_factor);
+    let background_diffuse: vec3<f32> = mix(sun.night_background_diffuse.rgb, sun.day_background_diffuse.rbg, sun_light_factor);
 
-    let ambient_strength = 0.3;
-    let ambient_color = sun.material_ambient.rgb * ambient_strength;
+    let ambient_strength = mix(0.6, 0.3, sun_light_factor);
+    let ambient_color = material_ambient * ambient_strength;
 
     let sun_light_dir = normalize(sun.sun_position.xyz - in.world_position);
     let sun_diffuse_strength = max(dot(in.world_normal, sun_light_dir), 0.0);
-    let sun_diffuse_color = sun.material_diffuse.rgb * sun.background_diffuse.rgb * sun_diffuse_strength * sun_light_factor;
+    let sun_diffuse_color = material_diffuse * background_diffuse * sun_diffuse_strength * sun_light_factor;
 
     let moon_light_dir = normalize(sun.moon_position.xyz - in.world_position);
     let moon_diffuse_strength = max(dot(in.world_normal, moon_light_dir), 0.0);
-    let moon_diffuse_color = sun.material_diffuse.rgb * sun.background_diffuse.rgb * moon_diffuse_strength * (1.0 - sun_light_factor);
+    let moon_diffuse_color = material_diffuse * background_diffuse * moon_diffuse_strength * (1.0 - sun_light_factor);
 
-    let result = (ambient_color + sun_diffuse_color + moon_diffuse_color + sun.material_emissive.rgb) * splat.xyz;
+    let result = (ambient_color + sun_diffuse_color + moon_diffuse_color + material_emissive) * splat.xyz;
 
     // fog
-
     let fog_color = mix(fog.night_color, fog.day_color, sun_light_factor);
     let fog_near = mix(fog.night_near, fog.day_near, sun_light_factor);
     let fog_far = mix(fog.night_far, fog.day_far, sun_light_factor);
     let distance_to_camera = length(camera.view_pos.xyz - in.world_position);
     let fog_factor = clamp((distance_to_camera - fog_near) / (fog_far - fog_near), 0.0, 1.0);
     let final_color = mix(result.rgb, fog_color.rgb, fog_factor);
-
-
-    // let distance_to_camera = length(camera.view_pos.xyz - in.world_position);
-    // let fog_factor = clamp((distance_to_camera - fog.day_near) / (fog.day_far - fog.day_near), 0.0, 1.0);
-    // let final_color = mix(result.rgb, fog.night_color.rgb, fog_factor);
 
     return vec4<f32>(final_color, 1.0);
 }

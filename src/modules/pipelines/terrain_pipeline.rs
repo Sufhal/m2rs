@@ -1,5 +1,4 @@
 use crate::modules::core::model::{SimpleVertex, Vertex};
-
 use super::common_pipeline::CommonPipeline;
 
 pub struct TerrainBindGroupLayouts {

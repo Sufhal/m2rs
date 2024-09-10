@@ -16,11 +16,10 @@ impl Environment {
         let cycle = Cycle::new();
         let day_msenv = MsEnv::read(name).await?;
         let night_msenv = MsEnv::read("moonlight04").await?;
-        let vec3 = |v: [f32; 4]| [v[0], v[1], v[2]];
         Ok(Self {
             cycle,
             fog: Fog::new(&day_msenv, &night_msenv),
-            sun: Sun::new(&day_msenv, state),
+            sun: Sun::new(&day_msenv, &night_msenv, state),
             sky: Sky::new(&day_msenv, &night_msenv, state),
             clouds: Clouds::new(&day_msenv, state).await?
         })
@@ -29,7 +28,7 @@ impl Environment {
     pub fn update(&mut self, delta: f32, queue: &wgpu::Queue) {
         self.cycle.update(delta);
         self.sun.update(&self.cycle, queue);
-        self.clouds.update(delta, queue);
+        self.clouds.update(&self.cycle, queue);
     }
 
 }

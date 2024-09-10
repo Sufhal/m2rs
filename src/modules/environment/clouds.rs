@@ -1,5 +1,5 @@
 use crate::modules::{assets::assets::load_texture, core::{model::CustomMesh, texture::Texture}, geometry::plane::Plane, state::State};
-use super::environment::MsEnv;
+use super::{cycle::{self, Cycle}, environment::MsEnv};
 
 const SIZE_MULTIPLIER: f32 = 2.0;
 
@@ -50,8 +50,8 @@ impl Clouds {
         })
     }
 
-    pub fn update(&mut self, delta_ms: f32, queue: &wgpu::Queue) {
-        self.uniform.time += delta_ms / (1000.0 / SIZE_MULTIPLIER);
+    pub fn update(&mut self, cycle: &Cycle, queue: &wgpu::Queue) {
+        self.uniform.time += cycle.delta / (1000.0 / SIZE_MULTIPLIER);
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
     }
 }

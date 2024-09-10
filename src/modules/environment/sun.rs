@@ -14,16 +14,22 @@ pub struct Sun {
 }
 
 impl Sun {
-    pub fn new(msenv: &MsEnv, state: &State<'_>) -> Self {
+    pub fn new(day_msenv: &MsEnv, night_msenv: &MsEnv, state: &State<'_>) -> Self {
         let position = DAY_POSITION;
         let plane = Plane::new(500.0, 500.0, 1, 1);
         let mut uniform = SunUniform::default();
-        uniform.material_diffuse = msenv.material.diffuse;
-        uniform.material_ambient = msenv.material.ambient;
-        uniform.background_diffuse = msenv.directional_light.background.diffuse;
-        uniform.background_ambient = msenv.directional_light.background.ambient;
-        uniform.character_diffuse = msenv.directional_light.character.diffuse;
-        uniform.character_ambient = msenv.directional_light.character.ambient;
+        uniform.day_material_diffuse = day_msenv.material.diffuse;
+        uniform.day_material_ambient = day_msenv.material.ambient;
+        uniform.day_background_diffuse = day_msenv.directional_light.background.diffuse;
+        uniform.day_background_ambient = day_msenv.directional_light.background.ambient;
+        uniform.day_character_diffuse = day_msenv.directional_light.character.diffuse;
+        uniform.day_character_ambient = day_msenv.directional_light.character.ambient;
+        uniform.night_material_diffuse = night_msenv.material.diffuse;
+        uniform.night_material_ambient = night_msenv.material.ambient;
+        uniform.night_background_diffuse = night_msenv.directional_light.background.diffuse;
+        uniform.night_background_ambient = night_msenv.directional_light.background.ambient;
+        uniform.night_character_diffuse = night_msenv.directional_light.character.diffuse;
+        uniform.night_character_ambient = night_msenv.directional_light.character.ambient;
         let mesh = plane.to_sun_mesh(
             &state.device, 
             &state.queue, 
@@ -68,13 +74,20 @@ impl Sun {
 pub struct SunUniform {
     pub sun_position: [f32; 4],
     pub moon_position: [f32; 4],
-    pub material_diffuse: [f32; 4],
-    pub material_ambient: [f32; 4],
-    pub material_emissive: [f32; 4],
-    pub background_diffuse: [f32; 4],
-    pub background_ambient: [f32; 4],
-    pub character_diffuse: [f32; 4],
-    pub character_ambient: [f32; 4],
+    pub day_material_diffuse: [f32; 4],
+    pub day_material_ambient: [f32; 4],
+    pub day_material_emissive: [f32; 4],
+    pub day_background_diffuse: [f32; 4],
+    pub day_background_ambient: [f32; 4],
+    pub day_character_diffuse: [f32; 4],
+    pub day_character_ambient: [f32; 4],
+    pub night_material_diffuse: [f32; 4],
+    pub night_material_ambient: [f32; 4],
+    pub night_material_emissive: [f32; 4],
+    pub night_background_diffuse: [f32; 4],
+    pub night_background_ambient: [f32; 4],
+    pub night_character_diffuse: [f32; 4],
+    pub night_character_ambient: [f32; 4],
 }
 
 impl Default for SunUniform {
@@ -82,13 +95,20 @@ impl Default for SunUniform {
         Self {
             sun_position: [DAY_POSITION[0], DAY_POSITION[1], DAY_POSITION[2], 0.0],
             moon_position: [NIGHT_POSITION[0], NIGHT_POSITION[1], NIGHT_POSITION[2], 0.0],
-            material_diffuse: Default::default(),
-            material_ambient: Default::default(),
-            material_emissive: Default::default(),
-            background_diffuse: Default::default(),
-            background_ambient: Default::default(),
-            character_diffuse: Default::default(),
-            character_ambient: Default::default(),
+            day_material_diffuse: Default::default(),
+            day_material_ambient: Default::default(),
+            day_material_emissive: Default::default(),
+            day_background_diffuse: Default::default(),
+            day_background_ambient: Default::default(),
+            day_character_diffuse: Default::default(),
+            day_character_ambient: Default::default(),
+            night_material_diffuse: Default::default(),
+            night_material_ambient: Default::default(),
+            night_material_emissive: Default::default(),
+            night_background_diffuse: Default::default(),
+            night_background_ambient: Default::default(),
+            night_character_diffuse: Default::default(),
+            night_character_ambient: Default::default(),
         }
     }
 }
