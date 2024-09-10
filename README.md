@@ -33,17 +33,17 @@ M2RS is an experimental projet which targets to entierly rewrite the game [Metin
   - [x] parse and generate terrain chunks
   - [x] shader
   - [ ] shadows
-  - [-] raycast to make characters walk above the ground
-  - [-] objects
+  - [ ] raycast to make characters walk above the ground
+  - [ ] objects
   - [ ] trees
   - [x] water geometry
   - [x] water shader
 - `Environment`
-  - [ ] sun light that follow a realistic path between day and night 
-  - [ ] environment colors
-  - [ ] fog
-  - [ ] clouds
-  - [ ] skybox
+  - [x] sun light that follow a realistic path between day and night 
+  - [x] environment colors
+  - [x] fog
+  - [x] clouds
+  - [x] skybox
 - `Particle system`
   - [ ] ???
 
@@ -54,6 +54,7 @@ M2RS is an experimental projet which targets to entierly rewrite the game [Metin
   - [x] areadata.txt
   - [ ] areaproperty.txt
   - [ ] property
+  - [x] environment
 
 ## Optimization track
 - `GLTF` loader currently produces 4 skeletons if there is 4 skinned mesh linked to the same skeleton.
