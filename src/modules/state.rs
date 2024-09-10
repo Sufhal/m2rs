@@ -27,6 +27,7 @@ use super::pipelines::water_pipeline::WaterPipeline;
 use super::terrain::property::Properties;
 use super::terrain::terrain::Terrain;
 use super::ui::ui::UserInterface;
+use super::utils::structs::KeyDebouncer;
 use super::utils::time_factory::TimeFactory;
 
 pub struct State<'a> {
@@ -60,7 +61,8 @@ pub struct State<'a> {
     pub characters: Vec<Character>,
     pub terrains: Vec<Terrain>,
     pub properties: Properties,
-    pub ui: UserInterface
+    pub ui: UserInterface,
+    pub key_debouncer: KeyDebouncer,
 }
 
 impl<'a> State<'a> {
@@ -250,7 +252,8 @@ impl<'a> State<'a> {
             characters: Vec::new(),
             terrains: Vec::new(),
             properties,
-            ui
+            ui,
+            key_debouncer: KeyDebouncer::new(200.0)
         };
 
         // let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
@@ -354,6 +357,14 @@ impl<'a> State<'a> {
                 match key {
                     KeyCode::KeyP => {
                         // dbg!(self.performance_tracker.get_report());
+                    },
+                    KeyCode::KeyI => {
+                        if self.key_debouncer.hit(KeyCode::KeyI) {
+                            self.ui.std_out.push("[I] pressed, environment toggle requested".to_string());
+                            self.terrains.iter_mut().for_each(|terrain| {
+                                terrain.environment.fog.toggle()
+                            });
+                        }
                     },
                     _ => {},
                 };

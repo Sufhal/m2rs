@@ -1,4 +1,8 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
+
+use winit::keyboard::KeyCode;
+
+use super::time_factory::TimeFragment;
 
 #[derive(Debug, Clone)]
 /// This Set replace HashSet when data order matters
@@ -64,3 +68,30 @@ impl<T> LimitedVec<T> {
         self.deque.clear()
     }
 }
+
+pub struct KeyDebouncer {
+    delay_between_hit_ms: f64, 
+    last_hits: HashMap<KeyCode, TimeFragment>,
+}
+
+impl KeyDebouncer {
+
+    pub fn new(delay: f64) -> Self {
+        Self {
+            delay_between_hit_ms: delay,
+            last_hits: HashMap::new(),
+        }
+    }
+
+    pub fn hit(&mut self, keycode: KeyCode) -> bool {
+        if let Some(last_hit) = self.last_hits.get(&keycode) {
+            if last_hit.elapsed_ms() < self.delay_between_hit_ms {
+                return false;
+            }
+        }
+        self.last_hits.insert(keycode, TimeFragment::new());
+        true
+    }
+
+}
+

@@ -10,20 +10,20 @@ pub struct Fog {
     night_near: f32,
     night_far: f32,
     night_color: [f32; 4],
+    enabled: bool,
 }
 
 impl Fog {
     pub fn new(day_msenv: &MsEnv, night_msenv: &MsEnv) -> Self {
-        let s = Self {
+        Self {
             day_near: day_msenv.fog.near * DISTANCE_MULTIPLIER,
             day_far: day_msenv.fog.far * DISTANCE_MULTIPLIER,
             day_color: day_msenv.fog.color,
             night_near: night_msenv.fog.near * DISTANCE_MULTIPLIER,
             night_far: night_msenv.fog.far * DISTANCE_MULTIPLIER,
             night_color: night_msenv.fog.color,
-        };
-        dbg!(&s);
-        s
+            enabled: true,
+        }
     }
 
     pub fn uniform(&self) -> FogUniform {
@@ -36,9 +36,13 @@ impl Fog {
             night_color: self.night_color, 
             padding3: 0.0,
             night_near: self.night_near, 
-            padding4: 0.0,
             night_far: self.night_far, 
+            enabled: if self.enabled { 1.0 } else { 0.0 },
         }
+    }
+
+    pub fn toggle(&mut self) {
+        self.enabled = !self.enabled;
     }
 }
 
@@ -54,8 +58,7 @@ pub struct FogUniform {
     pub night_near: f32,
     pub night_far: f32,
     pub padding3: f32,
-    pub padding4: f32,
-    // pub _padding: [f32; 4],
+    pub enabled: f32,
 }
 
 impl Default for FogUniform {
@@ -70,11 +73,7 @@ impl Default for FogUniform {
             night_near: Default::default(),
             night_far: Default::default(),
             padding3: Default::default(),
-            padding4: Default::default(), 
-            // night_near: 0.0, 
-            // night_far: 0.0, 
-            // night_color: Default::default(), 
-            // _padding: Default::default()
+            enabled: Default::default(),
         }
     }
 }

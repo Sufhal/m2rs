@@ -49,6 +49,7 @@ impl UserInterface {
         let left_informations = format!("{metrics_string}\n---\n{informations_string}");
         let std_out_string = self.std_out.as_vecdeque().iter().fold(String::new(), |mut acc, v| {
             acc.insert_str(acc.len(), &v);
+            acc.insert_str(acc.len(), "\n");
             acc
         });
         let size = self.size(14.0);
