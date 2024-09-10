@@ -51,7 +51,7 @@ impl Clouds {
     }
 
     pub fn update(&mut self, delta_ms: f32, queue: &wgpu::Queue) {
-        self.uniform.time += delta_ms / (1000.0 * SIZE_MULTIPLIER);
+        self.uniform.time += delta_ms / (1000.0 / SIZE_MULTIPLIER);
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
     }
 }

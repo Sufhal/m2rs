@@ -111,7 +111,9 @@ var s_diffuse: sampler;
 
 struct Light {
     position: vec3<f32>,
+    _padding1: f32,
     color: vec3<f32>,
+    _padding2: f32,
 }
 @group(0) @binding(1)
 var<uniform> light: Light;

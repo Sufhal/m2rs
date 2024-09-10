@@ -63,6 +63,11 @@ fn ease_out_expo(x: f32) -> f32 {
     }
 }
 
+fn ease_out_quart(x: f32) -> f32 {
+    return 1.0 - pow(1.0 - x, 4.0);
+}
+
+
 struct Sky {
     d_c0: vec4<f32>,
     d_c1: vec4<f32>,
@@ -70,11 +75,26 @@ struct Sky {
     d_c3: vec4<f32>,
     d_c4: vec4<f32>,
     d_c5: vec4<f32>,
+    n_c0: vec4<f32>,
+    n_c1: vec4<f32>,
+    n_c2: vec4<f32>,
+    n_c3: vec4<f32>,
+    n_c4: vec4<f32>,
+    n_c5: vec4<f32>,
 }
 @group(1) @binding(1) var<uniform> sky: Sky;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+
+    var sun_light_factor: f32 = 0.0;
+
+    if cycle.day_factor > 0.0 && cycle.day_factor <= 0.5  {
+        sun_light_factor = ease_out_expo(normalize_value_between(cycle.day_factor, 0.0, 0.5));
+    } 
+    else if cycle.day_factor > 0.5 && cycle.day_factor <= 1.0 {
+        sun_light_factor = ease_out_expo(normalize_value_between(1.0 - cycle.day_factor, 0.0, 0.5));
+    }
 
 	let p = 1.0 / 5.0;
 	let n = ((in.tex_coords.y) * 1.6) / p;
@@ -86,20 +106,40 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // return sky.d_c0;
 
 	if (n >= 0.0 && n <= 1.0) {
-		return mix(sky.d_c0, sky.d_c1, n);
+		return mix(
+            mix(sky.n_c0, sky.n_c1, n),
+            mix(sky.d_c0, sky.d_c1, n),
+            sun_light_factor
+        );
     }
 	if (c1 >= 0.0 && c1 <= 1.0) {
-		return mix(sky.d_c1, sky.d_c2, c1);
+		return mix(
+            mix(sky.n_c1, sky.n_c2, c1),
+            mix(sky.d_c1, sky.d_c2, c1),
+            sun_light_factor
+        );
     }
 	if (c2 >= 0.0 && c2 <= 1.0) {
-		return mix(sky.d_c2, sky.d_c3, c2);
+		return mix(
+            mix(sky.n_c2, sky.n_c3, c2),
+            mix(sky.d_c2, sky.d_c3, c2),
+            sun_light_factor
+        );
     }
 	if (c3 >= 0.0 && c3 <= 1.0) {
-		return mix(sky.d_c3, sky.d_c4, c3);
+		return mix(
+            mix(sky.n_c3, sky.n_c4, c3),
+            mix(sky.d_c3, sky.d_c4, c3),
+            sun_light_factor
+        );
     }
 	if (c4 >= 0.0 && c4 <= 1.0) {
-		return mix(sky.d_c4, sky.d_c5, c4);
+		return mix(
+            mix(sky.n_c4, sky.n_c5, c4),
+            mix(sky.d_c4, sky.d_c5, c4),
+            sun_light_factor
+        );
     }
 
-    return vec4<f32>(1.0, 1.0, 0.0, 1.0);
+    return vec4<f32>(mix(sky.n_c5, sky.d_c5, sun_light_factor).rgb, 1.0);
 }

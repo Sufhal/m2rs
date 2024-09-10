@@ -98,6 +98,7 @@ impl Cycle {
 pub struct CycleUniform {
     pub day_factor: f32,
     pub night_factor: f32,
+    pub padding: [f32; 2],
 }
 
 impl Default for CycleUniform {
@@ -105,6 +106,7 @@ impl Default for CycleUniform {
         Self {
             day_factor: 0.0,
             night_factor: 0.0,
+            padding: Default::default(),
         }
     }
 }

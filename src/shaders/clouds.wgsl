@@ -78,6 +78,16 @@ struct Clouds {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+
+    var sun_light_factor: f32 = 0.0;
+
+    if cycle.day_factor > 0.0 && cycle.day_factor <= 0.5  {
+        sun_light_factor = ease_out_expo(normalize_value_between(cycle.day_factor, 0.0, 0.5));
+    } 
+    else if cycle.day_factor > 0.5 && cycle.day_factor <= 1.0 {
+        sun_light_factor = ease_out_expo(normalize_value_between(1.0 - cycle.day_factor, 0.0, 0.5));
+    }
+
     let uv = in.tex_coords;
     let t = textureSample(texture_clouds, sampler_tex, (uv * clouds.scale.x) + clouds.time * (clouds.speed));
     var alpha = t.r;
@@ -93,5 +103,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     else if uv.y > 0.75 {
         alpha = alpha * (1.0 - normalize_value_between(uv.y, 0.75, 1.0));
     }
-    return vec4<f32>(1.0, 1.0, 1.0, alpha);
+    return vec4<f32>(1.0, 1.0, 1.0, alpha * sun_light_factor);
 }

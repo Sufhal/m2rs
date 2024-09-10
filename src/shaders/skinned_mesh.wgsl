@@ -103,7 +103,9 @@ var s_diffuse: sampler;
 
 struct Light {
     position: vec3<f32>,
+    _padding1: f32,
     color: vec3<f32>,
+    _padding2: f32,
 }
 @group(0) @binding(1) var<uniform> light: Light;
 
@@ -127,12 +129,16 @@ struct Sun {
 @group(0) @binding(3) var<uniform> sun: Sun;
 
 struct Fog {
+    day_color: vec4<f32>,
     day_near: f32,
     day_far: f32,
-    day_color: vec4<f32>,
+    padding1: f32,
+    padding2: f32,
+    night_color: vec4<f32>,
     night_near: f32,
     night_far: f32,
-    night_color: vec4<f32>,
+    padding3: f32,
+    padding4: f32,
 }
 @group(0) @binding(4) var<uniform> fog: Fog;
 
@@ -169,7 +175,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if cycle.day_factor > 0.0 && cycle.day_factor <= 0.5  {
         sun_light_factor = ease_out_expo(normalize_value_between(cycle.day_factor, 0.0, 0.5));
     }
-    else if cycle.day_factor > 0.0 && cycle.day_factor <= 1.0 {
+    else if cycle.day_factor > 0.5 && cycle.day_factor <= 1.0 {
         sun_light_factor = ease_out_expo(normalize_value_between(1.0 - cycle.day_factor, 0.0, 0.5));
     }
 
