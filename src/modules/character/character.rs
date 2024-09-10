@@ -241,7 +241,7 @@ impl RotateWithScene for Character {
                 if let Some(object3d) = &mut object.object3d {
                     match object3d {
                         Object3D::Simple(simple) => {
-                            if let Some(instance) = simple.get_instance(&instance_id) {
+                            if let Some(_instance) = simple.get_instance(&instance_id) {
                                 
                             }
                         },

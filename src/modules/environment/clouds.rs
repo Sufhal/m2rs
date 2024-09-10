@@ -1,9 +1,10 @@
 use crate::modules::{assets::assets::load_texture, core::{model::CustomMesh, texture::Texture}, geometry::plane::Plane, state::State};
-use super::{cycle::{self, Cycle}, environment::MsEnv};
+use super::{cycle::Cycle, environment::MsEnv};
 
 const SIZE_MULTIPLIER: f32 = 2.0;
 
 pub struct Clouds {
+    #[allow(unused)]
     texture: Texture,
     uniform: CloudsUniform,
     buffer: wgpu::Buffer,

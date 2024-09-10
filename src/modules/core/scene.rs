@@ -1,8 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 use cgmath::{Matrix4, SquareMatrix};
 use crate::modules::pipelines::common_pipeline::CommonPipeline;
-use crate::modules::pipelines::simple_models_pipeline::SimpleModelPipeline;
-use crate::modules::pipelines::skinned_models_pipeline::{self, SkinnedModelPipeline};
 use super::object::Object;
 use super::model::{DrawSimpleModel, DrawSkinnedModel, TransformUniform};
 use super::object_3d::Object3D;

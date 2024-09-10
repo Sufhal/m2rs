@@ -1,6 +1,6 @@
 use cgmath::Matrix4;
 use wgpu::util::DeviceExt;
-use crate::modules::{core::model::{CustomMesh, Mesh, SimpleVertex, TransformUniform}, environment::sky::{Sky, SkyUniform}, pipelines::sky_pipeline::SkyPipeline};
+use crate::modules::{core::model::{CustomMesh, Mesh, SimpleVertex, TransformUniform}, environment::sky::SkyUniform, pipelines::sky_pipeline::SkyPipeline};
 use super::buffer::ToMesh;
 
 pub struct Sphere {

@@ -1,6 +1,5 @@
-use std::path::Path;
-use std::{fs, iter};
-use cgmath::{Deg, Quaternion, Rotation3};
+use std::iter;
+use cgmath::Rotation3;
 use log::info;
 use winit::keyboard::KeyCode;
 use winit::{
@@ -11,11 +10,11 @@ use winit::{
 use crate::modules::core::model::DrawCustomMesh;
 use crate::modules::core::texture::{self, Texture};
 use crate::modules::camera::camera;
-use crate::modules::ui::ui::{MetricData};
+use crate::modules::ui::ui::MetricData;
 use crate::modules::utils::time_factory::TimeFragment;
 use super::assets::gltf_loader::load_model_glb;
-use super::character::character::{Character, CharacterKind, NPCType};
-use super::core::object_3d::{Object3D, RotateWithScene, TranslateWithScene};
+use super::character::character::Character;
+use super::core::object_3d::Object3D;
 use super::core::scene;
 use super::pipelines::clouds_pipeline::CloudsPipeline;
 use super::pipelines::common_pipeline::CommonPipeline;
@@ -36,6 +35,7 @@ pub struct State<'a> {
     pub(crate) queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     sample_count: u32,
+    #[allow(unused)]
     supported_sample_count: Vec<u32>,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub common_pipeline: CommonPipeline,

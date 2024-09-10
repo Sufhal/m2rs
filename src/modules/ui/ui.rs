@@ -1,8 +1,5 @@
-use std::ops::{Add, Div};
-
-use wgpu_text::{glyph_brush::{ab_glyph::FontRef, HorizontalAlign, Layout, Section as TextSection, Text, VerticalAlign}, BrushBuilder, TextBrush};
-
-use crate::modules::utils::{functions::{calculate_fps, to_fixed_2, u8_to_string_with_len}, structs::LimitedVec, time_factory::TimeFactory};
+use wgpu_text::{glyph_brush::{ab_glyph::FontRef, Section as TextSection, Text}, BrushBuilder, TextBrush};
+use crate::modules::utils::{functions::{calculate_fps, to_fixed_2, u8_to_string_with_len}, structs::LimitedVec};
 
 pub struct UserInterface {
     pub brush: TextBrush<FontRef<'static>>,
@@ -155,6 +152,6 @@ impl Metric {
     }
     fn add(&mut self, data: f64) {
         self.data.push(data);
-        self.mean = self.data.as_vecdeque().iter().fold(0.0, |mut acc, v| acc + *v) / self.data.len() as f64
+        self.mean = self.data.as_vecdeque().iter().fold(0.0, |acc, v| acc + *v) / self.data.len() as f64
     }
 }

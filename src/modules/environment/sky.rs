@@ -1,10 +1,8 @@
 use crate::modules::{core::model::CustomMesh, geometry::sphere::Sphere, state::State};
-
 use super::environment::MsEnv;
 
-type Gradient = [[f32; 4]; 6];
-
 pub struct Sky {
+    #[allow(unused)]
     uniform: SkyUniform,
     pub mesh: CustomMesh,
 }

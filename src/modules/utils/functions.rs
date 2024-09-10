@@ -1,7 +1,4 @@
-use std::future::Future;
-
 use cgmath::Vector3;
-
 use super::time_factory::TimeFactory;
 
 pub fn debug_using_trash_file(

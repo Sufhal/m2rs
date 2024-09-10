@@ -1,8 +1,7 @@
 use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
-
-use crate::modules::{assets::{assets::load_binary, gltf_loader::load_model_glb}, core::{model::CustomMesh, object_3d::Object3D, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
-use super::{areadata::AreaData, height::Height, property::Property, setting::Setting, texture_set::ChunkTextureSet, water::{Water, WaterTexture}};
+use crate::modules::{assets::assets::load_binary, core::{model::CustomMesh, object_3d::Object3D, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
+use super::{areadata::AreaData, height::Height, setting::Setting, texture_set::ChunkTextureSet, water::{Water, WaterTexture}};
 
 pub struct Chunk {
     pub terrain_mesh: CustomMesh,

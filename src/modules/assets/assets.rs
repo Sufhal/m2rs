@@ -75,6 +75,7 @@ pub async fn load_model(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
+    #[allow(unused)]
     bind_group_layouts: &SkinnedModelBindGroupLayouts,
 ) -> anyhow::Result<Object> {
     let obj_text = load_string(file_name).await?;
@@ -165,6 +166,7 @@ pub async fn load_model(
         })
         .collect::<Vec<_>>();
 
+    #[allow(unused)]
     let model = model::SkinnedModel { meshes, skeleton: todo!(), animations: todo!(), materials, meshes_bind_groups: Vec::new() };
     let mut object = Object::new();
     object.set_object_3d(Object3D::from_skinned_model(device, bind_group_layouts, model));

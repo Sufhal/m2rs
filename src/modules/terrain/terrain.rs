@@ -1,5 +1,5 @@
-use std::{collections::HashSet, rc::Rc};
-use crate::modules::{assets::gltf_loader::{load_model_glb, load_model_glb_with_name}, core::{model::CustomMesh, object::Object}, environment::environment::Environment, pipelines::sun_pipeline::SunPipeline, state::State};
+use std::collections::HashSet;
+use crate::modules::{assets::gltf_loader::load_model_glb_with_name, core::model::CustomMesh, environment::environment::Environment, state::State};
 use super::{chunk::Chunk, property::Property, setting::Setting, texture_set::TextureSet, water::WaterTexture};
 
 pub struct Terrain {

@@ -1,9 +1,7 @@
-use std::{collections::HashMap, f32::consts::PI};
-
-use cgmath::{InnerSpace, Matrix4, Rad, Vector3};
+use cgmath::{InnerSpace, Matrix4, Vector3};
 use rustc_hash::FxHashMap;
 use wgpu::util::DeviceExt;
-use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, environment::{clouds::CloudsUniform, sun::SunUniform}, pipelines::{clouds_pipeline::CloudsPipeline, sun_pipeline::{self, SunPipeline}, terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::{Water, WaterTexture, WaterUniform}}, utils::functions::add_normals};
+use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, environment::clouds::CloudsUniform, pipelines::{clouds_pipeline::CloudsPipeline, sun_pipeline::SunPipeline, terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::WaterTexture}, utils::functions::add_normals};
 
 #[derive(Debug)]
 pub struct Plane {

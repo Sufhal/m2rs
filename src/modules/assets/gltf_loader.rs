@@ -1,8 +1,8 @@
 use std::{collections::HashMap, io::{BufReader, Cursor}};
-use cgmath::{InnerSpace, Matrix4, Vector3};
+use cgmath::Matrix4;
 use wgpu::util::DeviceExt;
 
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{BindGroupCreation, Material, Mesh, SimpleModel, SimpleVertex, SkinnedMeshVertex, SkinnedModel, TransformUniform}, object::Object, object_3d::Object3D, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::{simple_models_pipeline::SimpleModelPipeline, skinned_models_pipeline::{SkinnedModelBindGroupLayouts, SkinnedModelPipeline}}, utils::functions::add_normals};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{BindGroupCreation, Material, Mesh, SimpleModel, SimpleVertex, SkinnedMeshVertex, SkinnedModel, TransformUniform}, object::Object, object_3d::Object3D, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::{simple_models_pipeline::SimpleModelPipeline, skinned_models_pipeline::SkinnedModelPipeline}};
 use super::assets::load_binary;
 
 pub async fn load_animation(path: &str, name: &str) -> anyhow::Result<AnimationClip> {

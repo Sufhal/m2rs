@@ -1,7 +1,6 @@
-use std::{collections::{BTreeMap, HashMap}, convert::TryInto};
+use std::convert::TryInto;
 use rustc_hash::FxHashMap;
-
-use crate::modules::{assets::assets::{load_binary, load_png_bytes, load_texture}, core::{model::SimpleVertex, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
+use crate::modules::{assets::assets::{load_binary, load_texture}, core::texture::Texture, geometry::plane::Plane, state::State};
 
 const PATCH_SIZE: f32 = 2.0;
 const TEXTURES_COUNT: usize = 30;

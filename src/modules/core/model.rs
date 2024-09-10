@@ -1,7 +1,6 @@
 use cgmath::SquareMatrix;
-use crate::modules::{core::texture, pipelines::{common_pipeline::CommonPipeline, simple_models_pipeline::SimpleModelPipeline, skinned_models_pipeline::{self, SkinnedModelPipeline}}};
+use crate::modules::{core::texture, pipelines::{common_pipeline::CommonPipeline, skinned_models_pipeline::SkinnedModelPipeline}};
 use std::ops::Range;
-
 use super::skinning::{AnimationClip, Skeleton};
 
 pub trait Vertex {
