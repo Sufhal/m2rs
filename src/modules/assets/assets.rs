@@ -9,8 +9,10 @@ fn format_url(file_name: &str) -> reqwest::Url {
     let window = web_sys::window().unwrap();
     let location = window.location();
     let mut origin = location.origin().unwrap();
+    // log::info!("requested origin {origin}");
     if origin.starts_with("https://sufhal.github.io") {
         origin = format!("{}/m2rs", origin);
+        // log::info!("translated to {origin}");
     }
     if !origin.ends_with("assets") {
         origin = format!("{}/assets", origin);
