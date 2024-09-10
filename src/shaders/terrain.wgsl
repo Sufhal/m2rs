@@ -72,12 +72,13 @@ struct Sun {
 @group(0) @binding(3) var<uniform> sun: Sun;
 
 struct Fog {
-    near: f32,
-    padding1: f32,
-    far: f32,
-    padding2: f32,
-    color: vec3<f32>,
-    padding3: f32,
+    day_near: f32,
+    day_far: f32,
+    day_color: vec4<f32>,
+    night_near: f32,
+    night_far: f32,
+    night_color: vec4<f32>,
+    padding: vec4<f32>,
 }
 @group(0) @binding(4) var<uniform> fog: Fog;
 
@@ -185,13 +186,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     var sun_light_factor: f32 = 0.0;
-
     if cycle.day_factor > 0.0 && cycle.day_factor <= 0.5  {
         sun_light_factor = ease_out_expo(normalize_value_between(cycle.day_factor, 0.0, 0.5));
     }
     else if cycle.day_factor > 0.0 && cycle.day_factor <= 1.0 {
         sun_light_factor = ease_out_expo(normalize_value_between(1.0 - cycle.day_factor, 0.0, 0.5));
     }
+
 
     let ambient_strength = 0.3;
     let ambient_color = sun.material_ambient.rgb * ambient_strength;
@@ -202,14 +203,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let moon_light_dir = normalize(sun.moon_position.xyz - in.world_position);
     let moon_diffuse_strength = max(dot(in.world_normal, moon_light_dir), 0.0);
-    let moon_diffuse_color = sun.material_diffuse.rgb * sun.background_diffuse.rgb * moon_diffuse_strength * 0.2;
+    let moon_diffuse_color = sun.material_diffuse.rgb * sun.background_diffuse.rgb * moon_diffuse_strength * (1.0 - sun_light_factor);
 
     let result = (ambient_color + sun_diffuse_color + moon_diffuse_color + sun.material_emissive.rgb) * splat.xyz;
 
     // fog
+    let fog_color = mix(fog.night_color, fog.day_color, sun_light_factor);
+    let fog_near = mix(fog.night_near, fog.day_near, sun_light_factor);
+    let fog_far = mix(fog.night_far, fog.day_far, sun_light_factor);
     let distance_to_camera = length(camera.view_pos.xyz - in.world_position);
-    let fog_factor = clamp((distance_to_camera - fog.near) / (fog.far - fog.near), 0.0, 1.0);
-    let final_color = mix(result.rgb, fog.color, fog_factor);
+    let fog_factor = clamp((distance_to_camera - fog_near) / (fog_far - fog_near), 0.0, 1.0);
+    let final_color = mix(result.rgb, fog.day_color.rgb, fog_factor);
 
     return vec4<f32>(final_color, 1.0);
 }

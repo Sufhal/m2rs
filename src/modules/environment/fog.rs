@@ -1,31 +1,40 @@
-use crate::modules::utils::functions::srgb_to_linear;
-use super::Color;
+use super::environment::MsEnv;
 
 const DISTANCE_MULTIPLIER: f32 = 1.0;
-// night ? 0.122, 0.122, 0.153
+
+#[derive(Debug)]
 pub struct Fog {
-    near: f32,
-    far: f32,
-    color: Color,
+    day_near: f32,
+    day_far: f32,
+    day_color: [f32; 4],
+    night_near: f32,
+    night_far: f32,
+    night_color: [f32; 4],
 }
 
 impl Fog {
-    pub fn new(near: f32, far: f32, color: Color) -> Self {
-        Self {
-            near: near * DISTANCE_MULTIPLIER,
-            far: far * DISTANCE_MULTIPLIER,
-            color,
-        }
+    pub fn new(day_msenv: &MsEnv, night_msenv: &MsEnv) -> Self {
+        let s = Self {
+            day_near: day_msenv.fog.near * DISTANCE_MULTIPLIER,
+            day_far: day_msenv.fog.far * DISTANCE_MULTIPLIER,
+            day_color: day_msenv.fog.color,
+            night_near: night_msenv.fog.near * DISTANCE_MULTIPLIER,
+            night_far: night_msenv.fog.far * DISTANCE_MULTIPLIER,
+            night_color: night_msenv.fog.color,
+        };
+        dbg!(&s);
+        s
     }
 
     pub fn uniform(&self) -> FogUniform {
         FogUniform { 
-            near: self.near, 
-            padding1: 0.0,
-            far: self.far, 
-            padding2: 0.0,
-            color: self.color, 
-            padding3: 0.0,
+            day_near: self.day_near, 
+            day_far: self.day_far, 
+            day_color: self.day_color, 
+            night_near: self.night_near, 
+            night_far: self.night_far, 
+            night_color: self.night_color, 
+            padding: Default::default()
         }
     }
 }
@@ -33,23 +42,25 @@ impl Fog {
 #[repr(C)]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone, Debug)]
 pub struct FogUniform {
-    pub near: f32,
-    pub padding1: f32,
-    pub far: f32,
-    pub padding2: f32,
-    pub color: [f32; 3],
-    pub padding3: f32,
+    pub day_near: f32,
+    pub day_far: f32,
+    pub day_color: [f32; 4],
+    pub night_near: f32,
+    pub night_far: f32,
+    pub night_color: [f32; 4],
+    padding: [f32; 4],
 }
 
 impl Default for FogUniform {
     fn default() -> Self {
         Self { 
-            near: 0.0, 
-            padding1: 0.0,
-            far: 0.0, 
-            padding2: 0.0,
-            color: Default::default(), 
-            padding3: 0.0,
+            day_near: 0.0, 
+            day_far: 0.0, 
+            day_color: Default::default(), 
+            night_near: 0.0, 
+            night_far: 0.0, 
+            night_color: Default::default(), 
+            padding: Default::default()
         }
     }
 }

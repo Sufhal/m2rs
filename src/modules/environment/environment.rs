@@ -14,18 +14,15 @@ impl Environment {
 
     pub async fn load(name: &str, state: &State<'_>) -> anyhow::Result<Self> {
         let cycle = Cycle::new();
-        let msenv = MsEnv::read(name).await?;
+        let day_msenv = MsEnv::read(name).await?;
+        let night_msenv = MsEnv::read("moonlight04").await?;
         let vec3 = |v: [f32; 4]| [v[0], v[1], v[2]];
         Ok(Self {
             cycle,
-            fog: Fog::new(
-                msenv.fog.near, 
-                msenv.fog.far, 
-                vec3(msenv.fog.color)
-            ),
-            sun: Sun::new(&msenv, state),
-            sky: Sky::new(&msenv, state),
-            clouds: Clouds::new(&msenv, state).await?
+            fog: Fog::new(&day_msenv, &night_msenv),
+            sun: Sun::new(&day_msenv, state),
+            sky: Sky::new(&day_msenv, &night_msenv, state),
+            clouds: Clouds::new(&day_msenv, state).await?
         })
     }
 

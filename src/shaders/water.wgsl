@@ -25,12 +25,12 @@ struct Sun {
 @group(0) @binding(3) var<uniform> sun: Sun;
 
 struct Fog {
-    near: f32,
-    padding1: f32,
-    far: f32,
-    padding2: f32,
-    color: vec3<f32>,
-    padding3: f32,
+    day_near: f32,
+    day_far: f32,
+    day_color: vec4<f32>,
+    night_near: f32,
+    night_far: f32,
+    night_color: vec4<f32>,
 }
 @group(0) @binding(4) var<uniform> fog: Fog;
 
@@ -167,9 +167,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let result = (ambient_color + sun_diffuse_color + moon_diffuse_color + sun.material_emissive.rgb) * water_color.xyz;
 
     // fog
+    let fog_color = mix(fog.night_color.rgb, fog.day_color.rgb, sun_light_factor);
+    let fog_near = mix(fog.night_near, fog.day_near, sun_light_factor);
+    let fog_far = mix(fog.night_far, fog.day_far, sun_light_factor);
     let distance_to_camera = length(camera.view_pos.xyz - in.world_position);
-    let fog_factor = clamp((distance_to_camera - fog.near) / (fog.far - fog.near), 0.0, 1.0);
-    let final_color = mix(result.rgb, fog.color, fog_factor);
+    let fog_factor = clamp((distance_to_camera - fog_near) / (fog_far - fog_near), 0.0, 1.0);
+    let final_color = mix(result.rgb, fog_color, fog_factor);
 
     return vec4<f32>(final_color, alpha);
 }
