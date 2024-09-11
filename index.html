@@ -36,6 +36,15 @@
                                                                    
         `);
     </script>
+    <script src="https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz"></script>
+    <script src="https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.6.22-min.js.gz"></script>
+    <script src="https://js-de.sentry-cdn.com/2cdd5771d388d4d3095787e843f8cba0.min.js" crossorigin="anonymous"></script>
+    <script>
+        if (window.location.protocol === 'https:') {
+            window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
+            window.amplitude.init('16e5080055432e18e171174a224f5e5e', {"serverZone":"EU","autocapture":{"elementInteractions":true}});
+        }
+    </script>
 </body>
 <!--                                                                                                                
               ░░▓▒░▒▒                  ░░                                                                        ░░ ░▒▒░░ ▒░▒           
