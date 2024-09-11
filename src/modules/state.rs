@@ -18,6 +18,7 @@ use super::core::object_3d::Object3D;
 use super::core::scene;
 use super::pipelines::clouds_pipeline::CloudsPipeline;
 use super::pipelines::common_pipeline::CommonPipeline;
+use super::pipelines::shadow_pipeline::ShadowPipeline;
 use super::pipelines::simple_models_pipeline::SimpleModelPipeline;
 use super::pipelines::skinned_models_pipeline::SkinnedModelPipeline;
 use super::pipelines::sky_pipeline::SkyPipeline;
@@ -47,6 +48,7 @@ pub struct State<'a> {
     pub sun_pipeline: SunPipeline,
     pub sky_pipeline: SkyPipeline,
     pub clouds_pipeline: CloudsPipeline,
+    pub shadow_pipeline: ShadowPipeline,
     camera: camera::Camera,
     projection: camera::Projection,
     pub camera_controller: camera::CameraController,
@@ -172,7 +174,7 @@ impl<'a> State<'a> {
         let clouds_pipeline = CloudsPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let skinned_models_pipeline = SkinnedModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let simple_models_pipeline = SimpleModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
-
+        let shadow_pipeline = ShadowPipeline::new(&device, &common_pipeline, &simple_models_pipeline);
 
         let mut scene = scene::Scene::new();
 
@@ -237,6 +239,7 @@ impl<'a> State<'a> {
             sun_pipeline,
             sky_pipeline,
             clouds_pipeline,
+            shadow_pipeline,
             camera,
             projection,
             camera_controller,
