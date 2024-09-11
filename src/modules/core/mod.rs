@@ -3,6 +3,7 @@ pub mod object;
 pub mod object_3d;
 pub mod instance;
 pub mod light;
+pub mod light_source;
 pub mod texture;
 pub mod scene;
 pub mod skinning;

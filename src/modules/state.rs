@@ -174,7 +174,7 @@ impl<'a> State<'a> {
         let clouds_pipeline = CloudsPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let skinned_models_pipeline = SkinnedModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let simple_models_pipeline = SimpleModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
-        let shadow_pipeline = ShadowPipeline::new(&device, &common_pipeline, &simple_models_pipeline);
+        let shadow_pipeline = ShadowPipeline::new(&device, &simple_models_pipeline);
 
         let mut scene = scene::Scene::new();
 
