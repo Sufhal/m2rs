@@ -1,3 +1,4 @@
+pub mod sufhal;
 pub mod functions;
 pub mod id_gen;
 pub mod time_factory;

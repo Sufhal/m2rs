@@ -29,6 +29,7 @@ use super::terrain::property::Properties;
 use super::terrain::terrain::Terrain;
 use super::ui::ui::UserInterface;
 use super::utils::structs::KeyDebouncer;
+use super::utils::sufhal::ShadowTest;
 use super::utils::time_factory::TimeFactory;
 
 pub struct State<'a> {
@@ -65,6 +66,7 @@ pub struct State<'a> {
     pub properties: Properties,
     pub ui: UserInterface,
     pub key_debouncer: KeyDebouncer,
+    pub shadow: ShadowTest,
 }
 
 impl<'a> State<'a> {
@@ -224,8 +226,12 @@ impl<'a> State<'a> {
         scene.update_objects_buffers(&queue);
 
         let properties = Properties::read().await.unwrap();
+
+
+
         
         let mut state = Self {
+            shadow: ShadowTest::new(&device),
             surface,
             device,
             queue,
@@ -256,7 +262,7 @@ impl<'a> State<'a> {
             terrains: Vec::new(),
             properties,
             ui,
-            key_debouncer: KeyDebouncer::new(200.0)
+            key_debouncer: KeyDebouncer::new(200.0),
         };
 
         // let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
@@ -284,39 +290,6 @@ impl<'a> State<'a> {
 
         let terrain = Terrain::load("c1", &mut state).await.unwrap();
         state.terrains.push(terrain);
-            
-            // for chunk in &terrain.chunks {
-                
-            // }
-        
-
-        // let model_objects = load_model_glb(
-        //     "pack/zone/c/building/c1-034-stonedoor.glb", 
-        //     &state.device, 
-        //     &state.queue, 
-        //     &state.skinned_models_pipeline,
-        //     &state.simple_models_pipeline,
-        // ).await.expect("unable to load");
-        // for mut object in model_objects {
-        //     if let Some(object3d) = &mut object.object3d {
-        //         match object3d {
-        //             Object3D::Simple(simple) => {
-        //                 for i in 0..1 {
-        //                     let instance = simple.request_instance(&state.device);
-        //                     instance.set_position(cgmath::Vector3::from([
-        //                         388.0,
-        //                         -113.0,
-        //                         641.0
-        //                     ]));
-        //                     instance.take();
-        //                 }
-        //             },
-        //             _ => ()
-        //         };
-        //     }
-        //     state.scene.add(object);
-        // }
-
 
         state
     }
@@ -328,7 +301,6 @@ impl<'a> State<'a> {
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
-            info!("new size {new_size:#?}");
             self.size = new_size;
             self.config.width = std::cmp::min(new_size.width, wgpu::Limits::default().max_texture_dimension_2d);
             self.config.height = std::cmp::min(new_size.height, wgpu::Limits::default().max_texture_dimension_2d);
@@ -439,6 +411,10 @@ impl<'a> State<'a> {
             terrain.update(elapsed_time, delta_ms as f32, &self.queue);
         }
 
+        self.shadow_pipeline.uniforms.light_source = self.shadow.light.uniform();
+        self.queue.write_buffer(&self.shadow_pipeline.buffers.light_source, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.light_source]));
+    
+
         self.common_pipeline.uniforms.cycle.day_factor = self.terrains[0].environment.cycle.day_factor;
         self.common_pipeline.uniforms.cycle.night_factor = self.terrains[0].environment.cycle.night_factor;
         self.queue.write_buffer(&self.common_pipeline.buffers.cycle, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.cycle]));
@@ -478,6 +454,48 @@ impl<'a> State<'a> {
             format: Some(self.config.format.add_srgb_suffix()),
             ..Default::default()
         });
+
+        {
+            let mut shadow_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.shadow.light.target_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+            shadow_pass.set_pipeline(&self.shadow_pipeline.pipeline);
+            shadow_pass.set_bind_group(0, &self.shadow_pipeline.bind_group, &[]);
+
+            for object in self.scene.get_all_objects() {
+                if let Some(object3d) = &object.object3d {
+                    match object3d {
+                        Object3D::Simple(simple) => {
+                            shadow_pass.set_vertex_buffer(1, simple.get_instance_buffer_slice());
+
+                            for i in 0..simple.model.meshes.len() {
+                                let mesh = &simple.model.meshes[i];
+                                let mesh_bind_group = &simple.model.meshes_bind_groups[i];
+
+                                shadow_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                                shadow_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                                shadow_pass.set_bind_group(1, &mesh_bind_group, &[]);
+                                shadow_pass.set_bind_group(2, &simple.instances_bind_group, &[]);
+                                shadow_pass.draw_indexed(0..mesh.num_elements, 0, 0..(simple.get_taken_instances_count() as u32));
+                            }
+                        },
+                        _ => ()
+                    
+                    }
+                }
+            }
+        }
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

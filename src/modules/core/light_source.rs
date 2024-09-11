@@ -7,10 +7,20 @@ pub struct LightSource {
     position: Point3<f32>,
     fov: f32,
     depth: Range<f32>,
-    target_view: wgpu::TextureView,
+    pub target_view: wgpu::TextureView,
 }
 
 impl LightSource {
+
+    pub fn new(position: [f32; 3], target_view: wgpu::TextureView) -> Self {
+        Self {
+            position: position.into(),
+            fov: 28.0,
+            depth: 0.1..100.0,
+            target_view
+        }
+    }
+
     pub fn uniform(&self) -> LightSourceUniform {
         let mx_view = Matrix4::look_at_rh(self.position, Point3::origin(), Vector3::unit_z());
         let projection = PerspectiveFov {
