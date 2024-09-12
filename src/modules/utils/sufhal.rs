@@ -7,7 +7,7 @@ use crate::modules::{camera::camera::CameraUniform, core::{light_source::LightSo
 // https://github.com/gfx-rs/wgpu-rs/blob/master/examples/shadow/main.rs#L750
 
 pub struct ShadowTest {
-    texture: wgpu::Texture,
+    pub texture: wgpu::Texture,
     pub light: LightSource,
 
     pub pipeline: wgpu::RenderPipeline,
@@ -25,8 +25,10 @@ impl ShadowTest {
     ) -> Self {
 
         let extent = wgpu::Extent3d {
-            width: 512,
-            height: 512,
+            // width: 512,
+            // height: 512,
+            width: 4096,
+            height: 4096,
             depth_or_array_layers: 1,
         };
         
@@ -37,17 +39,24 @@ impl ShadowTest {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[]
         });
         
         // Créer une vue sur la shadow map pour l'utiliser dans les shaders
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = texture.create_view(&wgpu::TextureViewDescriptor {
+            // aspect: wgpu::TextureAspect::DepthOnly,
+            ..Default::default()
+        });
+
+        let light = LightSource::new([17.0, 14.0, 2.0], view);
 
         let bgl = Self::get_bgl(device);
         let pipeline = Self::get_pipeline(device, config, multisampled_texture, &bgl);
 
-        let plane = Plane::new(30.0, 30.0, 1, 1);
+        let plane = Plane::new(300.0, 300.0, 1, 1);
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Test Vertex Buffer"),
             contents: bytemuck::cast_slice(&plane.vertices),
@@ -60,7 +69,7 @@ impl ShadowTest {
         });
         let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Test Transform Buffer"),
-            contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation([384.0, 178.0, 740.0].into()).into())]),
+            contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation([0.0, 0.0, 0.0].into()).into())]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -68,6 +77,12 @@ impl ShadowTest {
             contents: bytemuck::cast_slice(&[CameraUniform::new()]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+        let light_source_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Light Source Buffer"),
+            contents: bytemuck::cast_slice(&[light.uniform()]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
 
         let shadow_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("shadow"),
@@ -77,11 +92,14 @@ impl ShadowTest {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
-            compare: None,
+            compare: Some(wgpu::CompareFunction::LessEqual),
             ..Default::default()
         });
 
-        let shadow_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        // let shadow_view = texture.create_view(&wgpu::TextureViewDescriptor {
+        //     // aspect: wgpu::TextureAspect::DepthOnly,
+        //     ..Default::default()
+        // });
 
         let entries = vec![
             wgpu::BindGroupEntry {
@@ -94,11 +112,15 @@ impl ShadowTest {
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: wgpu::BindingResource::TextureView(&shadow_view),
+                resource: wgpu::BindingResource::TextureView(&light.target_view),
             },
             wgpu::BindGroupEntry {
                 binding: 3,
                 resource: camera_buffer.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: light_source_buffer.as_entire_binding(),
             },
         ];
 
@@ -119,7 +141,7 @@ impl ShadowTest {
 
         Self {
             texture,
-            light: LightSource::new([0.0, 0.0, 0.0], view),
+            light,
             pipeline,
             bgl,
             mesh,
@@ -147,7 +169,7 @@ impl ShadowTest {
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                     count: None,
                 },
                 // texture
@@ -165,6 +187,17 @@ impl ShadowTest {
                 wgpu::BindGroupLayoutEntry {
                     binding: 3,
                     visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                // light source
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -241,7 +274,7 @@ impl ShadowTest {
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
                 depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),

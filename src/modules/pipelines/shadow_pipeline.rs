@@ -82,20 +82,22 @@ impl ShadowPipeline {
                 polygon_mode: wgpu::PolygonMode::Fill,
                 // polygon_mode: wgpu::PolygonMode::Fill,
                 // Requires Features::DEPTH_CLIP_CONTROL
-                unclipped_depth: false,
+                unclipped_depth: true,
                 // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
+                
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState {
-                    constant: 2, // corresponds to bilinear filtering
-                    slope_scale: 2.0,
-                    clamp: 0.0,
-                },
+                bias: wgpu::DepthBiasState::default(),
+                // bias: wgpu::DepthBiasState {
+                //     constant: 2, // corresponds to bilinear filtering
+                //     slope_scale: 2.0,
+                //     clamp: 0.0,
+                // },
             }),
             multisample: wgpu::MultisampleState::default(),
             multiview: None,

@@ -22,7 +22,7 @@ impl LightSource {
     }
 
     pub fn uniform(&self) -> LightSourceUniform {
-        let mx_view = Matrix4::look_at_rh(self.position, Point3::origin(), Vector3::unit_z());
+        let mx_view = Matrix4::look_at_rh(self.position, Point3::new(0.0, 0.0, 0.0), Vector3::unit_z());
         let projection = PerspectiveFov {
             fovy: Deg(self.fov).into(),
             aspect: 1.0,

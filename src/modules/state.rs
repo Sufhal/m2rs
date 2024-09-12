@@ -104,7 +104,8 @@ impl<'a> State<'a> {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    required_features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::all_webgpu_mask(),
+                    // required_features: wgpu::Features::empty(),
                     // WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web we'll have to disable some.
                     required_limits: if cfg!(target_arch = "wasm32") {
@@ -158,10 +159,11 @@ impl<'a> State<'a> {
         let mut ui = UserInterface::new(&device, &config, &multisampled_texture, window.scale_factor() as f32);
         ui.std_out.push(format!("MSAA set to {sample_count}, supported values are {:?}", supported_sample_count));
 
-        let camera = camera::Camera::new((376.0, 182.0, 641.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        let camera = camera::Camera::new((1.0, 1.0, 1.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        // let camera = camera::Camera::new((376.0, 182.0, 641.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(28.0), 0.1, 100.0);
-        let camera_controller = camera::CameraController::new(4.0, 0.4);
+        let camera_controller = camera::CameraController::new(10.0, 0.4);
 
         let mut camera_uniform = camera::CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
@@ -288,8 +290,25 @@ impl<'a> State<'a> {
         
 
 
-        let terrain = Terrain::load("c1", &mut state).await.unwrap();
-        state.terrains.push(terrain);
+        // let terrain = Terrain::load("c1", &mut state).await.unwrap();
+        // state.terrains.push(terrain);
+
+        let mut objs = load_model_glb("pack/zone/a/building/a1-001-house3.glb", &state.device, &state.queue, &state.skinned_models_pipeline, &state.simple_models_pipeline).await.unwrap();
+        for obj in &mut objs {
+            if let Some(object3d) = &mut obj.object3d {
+                match object3d {
+                    Object3D::Simple(simple) => {
+                        let i = simple.request_instance(&state.device);
+                        i.take();
+                    },
+                    _ => ()
+                }
+            }
+        }
+
+        for obj in objs {
+            state.scene.add(obj);
+        }
 
         state
     }
@@ -420,20 +439,20 @@ impl<'a> State<'a> {
             bytemuck::cast_slice(&[self.common_pipeline.uniforms.camera]),
         );
 
-        self.common_pipeline.uniforms.cycle.day_factor = self.terrains[0].environment.cycle.day_factor;
-        self.common_pipeline.uniforms.cycle.night_factor = self.terrains[0].environment.cycle.night_factor;
-        self.queue.write_buffer(&self.common_pipeline.buffers.cycle, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.cycle]));
+        // self.common_pipeline.uniforms.cycle.day_factor = self.terrains[0].environment.cycle.day_factor;
+        // self.common_pipeline.uniforms.cycle.night_factor = self.terrains[0].environment.cycle.night_factor;
+        // self.queue.write_buffer(&self.common_pipeline.buffers.cycle, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.cycle]));
  
-        self.common_pipeline.uniforms.sun = self.terrains[0].environment.sun.uniform;
-        self.queue.write_buffer(&self.common_pipeline.buffers.sun, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.sun]));
+        // self.common_pipeline.uniforms.sun = self.terrains[0].environment.sun.uniform;
+        // self.queue.write_buffer(&self.common_pipeline.buffers.sun, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.sun]));
 
-        self.common_pipeline.uniforms.fog = self.terrains[0].environment.fog.uniform();
-        self.queue.write_buffer(&self.common_pipeline.buffers.fog, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.fog]));
+        // self.common_pipeline.uniforms.fog = self.terrains[0].environment.fog.uniform();
+        // self.queue.write_buffer(&self.common_pipeline.buffers.fog, 0, bytemuck::cast_slice(&[self.common_pipeline.uniforms.fog]));
 
-        self.ui.metrics.push_data(MetricData::UpdateCallTime(update_call_fragment.elapsed_ms()));
+        // self.ui.metrics.push_data(MetricData::UpdateCallTime(update_call_fragment.elapsed_ms()));
         self.ui.informations.position = [self.camera.position.x as i32, self.camera.position.y as i32, self.camera.position.z as i32];
-        let current_cycle_time = self.terrains[0].environment.cycle.get_current_time();
-        self.ui.informations.cycle_time = (current_cycle_time.0 as u32, current_cycle_time.1 as u32);
+        // let current_cycle_time = self.terrains[0].environment.cycle.get_current_time();
+        // self.ui.informations.cycle_time = (current_cycle_time.0 as u32, current_cycle_time.1 as u32);
 
     }
 
@@ -538,41 +557,41 @@ impl<'a> State<'a> {
                 &self.common_pipeline
             );
             
-            render_pass.set_pipeline(&self.skinned_models_pipeline.pipeline);
-            render_pass.draw_scene_skinned_models(
-                &self.scene, 
-                &self.common_pipeline
-            );
+            // render_pass.set_pipeline(&self.skinned_models_pipeline.pipeline);
+            // render_pass.draw_scene_skinned_models(
+            //     &self.scene, 
+            //     &self.common_pipeline
+            // );
 
-            render_pass.set_pipeline(&self.terrain_pipeline.pipeline);
-            for terrain in &self.terrains {
-                for chunk in terrain.get_terrain_meshes() {
-                    render_pass.draw_custom_mesh(chunk, &self.common_pipeline);
-                }
-            }
+            // render_pass.set_pipeline(&self.terrain_pipeline.pipeline);
+            // for terrain in &self.terrains {
+            //     for chunk in terrain.get_terrain_meshes() {
+            //         render_pass.draw_custom_mesh(chunk, &self.common_pipeline);
+            //     }
+            // }
 
-            render_pass.set_pipeline(&self.water_pipeline.pipeline);
-            for terrain in &self.terrains {
-                for chunk in &terrain.chunks {
-                    render_pass.set_vertex_buffer(1, chunk.depth_buffer.slice(..));
-                    render_pass.draw_custom_mesh(&chunk.water_mesh, &self.common_pipeline);
-                } 
-            }
+            // render_pass.set_pipeline(&self.water_pipeline.pipeline);
+            // for terrain in &self.terrains {
+            //     for chunk in &terrain.chunks {
+            //         render_pass.set_vertex_buffer(1, chunk.depth_buffer.slice(..));
+            //         render_pass.draw_custom_mesh(&chunk.water_mesh, &self.common_pipeline);
+            //     } 
+            // }
 
-            render_pass.set_pipeline(&self.sky_pipeline.pipeline);
-            for terrain in &self.terrains {
-                render_pass.draw_custom_mesh(&terrain.environment.sky.mesh, &self.common_pipeline);
-            }
+            // render_pass.set_pipeline(&self.sky_pipeline.pipeline);
+            // for terrain in &self.terrains {
+            //     render_pass.draw_custom_mesh(&terrain.environment.sky.mesh, &self.common_pipeline);
+            // }
 
-            render_pass.set_pipeline(&self.clouds_pipeline.pipeline);
-            for terrain in &self.terrains {
-                render_pass.draw_custom_mesh(&terrain.environment.clouds.mesh, &self.common_pipeline);
-            }
+            // render_pass.set_pipeline(&self.clouds_pipeline.pipeline);
+            // for terrain in &self.terrains {
+            //     render_pass.draw_custom_mesh(&terrain.environment.clouds.mesh, &self.common_pipeline);
+            // }
 
-            render_pass.set_pipeline(&self.sun_pipeline.pipeline);
-            for terrain in &self.terrains {
-                render_pass.draw_custom_mesh(&terrain.environment.sun.mesh, &self.common_pipeline);
-            }
+            // render_pass.set_pipeline(&self.sun_pipeline.pipeline);
+            // for terrain in &self.terrains {
+            //     render_pass.draw_custom_mesh(&terrain.environment.sun.mesh, &self.common_pipeline);
+            // }
 
             render_pass.set_pipeline(&self.shadow.pipeline);
             render_pass.set_vertex_buffer(0, self.shadow.mesh.vertex_buffer.slice(..));

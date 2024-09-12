@@ -195,6 +195,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         final_color = mix(final_color, fog_color.rgb, fog_factor);
     }
 
-    return vec4<f32>(final_color, object_color.a);
+    return vec4<f32>(object_color);
+    // return vec4<f32>(final_color, object_color.a);
 }
  
