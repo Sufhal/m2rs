@@ -1,7 +1,7 @@
 use cgmath::Matrix4;
 use wgpu::util::DeviceExt;
 
-use crate::modules::{core::{light_source::LightSource, model::{CustomMesh, SimpleVertex, TransformUniform, Vertex}}, geometry::plane::Plane};
+use crate::modules::{camera::camera::CameraUniform, core::{light_source::LightSource, model::{CustomMesh, SimpleVertex, TransformUniform, Vertex}}, geometry::plane::Plane};
 
 // https://github.com/gfx-rs/wgpu-rs/blob/master/examples/shadow/shader.wgsl
 // https://github.com/gfx-rs/wgpu-rs/blob/master/examples/shadow/main.rs#L750
@@ -13,6 +13,7 @@ pub struct ShadowTest {
     pub pipeline: wgpu::RenderPipeline,
     pub bgl: wgpu::BindGroupLayout,
     pub mesh: CustomMesh,
+    pub camera_buffer: wgpu::Buffer,
 }
 
 impl ShadowTest {
@@ -46,7 +47,7 @@ impl ShadowTest {
         let bgl = Self::get_bgl(device);
         let pipeline = Self::get_pipeline(device, config, multisampled_texture, &bgl);
 
-        let plane = Plane::new(10.0, 10.0, 1, 1);
+        let plane = Plane::new(30.0, 30.0, 1, 1);
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Test Vertex Buffer"),
             contents: bytemuck::cast_slice(&plane.vertices),
@@ -59,7 +60,12 @@ impl ShadowTest {
         });
         let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Test Transform Buffer"),
-            contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation([0.0, 0.0, 0.0].into()).into())]),
+            contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation([384.0, 178.0, 740.0].into()).into())]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Test Camera Buffer"),
+            contents: bytemuck::cast_slice(&[CameraUniform::new()]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -71,7 +77,7 @@ impl ShadowTest {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
-            compare: Some(wgpu::CompareFunction::LessEqual),
+            compare: None,
             ..Default::default()
         });
 
@@ -89,6 +95,10 @@ impl ShadowTest {
             wgpu::BindGroupEntry {
                 binding: 2,
                 resource: wgpu::BindingResource::TextureView(&shadow_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: camera_buffer.as_entire_binding(),
             },
         ];
 
@@ -113,6 +123,7 @@ impl ShadowTest {
             pipeline,
             bgl,
             mesh,
+            camera_buffer,
         }
     }
 
@@ -145,8 +156,19 @@ impl ShadowTest {
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
+                        sample_type: wgpu::TextureSampleType::Depth,
                         view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                // camera
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
                     count: None,
                 },
@@ -162,7 +184,7 @@ impl ShadowTest {
         bgl: &wgpu::BindGroupLayout,
     ) -> wgpu::RenderPipeline {
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Water Pipeline Layout"),
+            label: Some("Shadow Test Pipeline Layout"),
             bind_group_layouts: &[
                 bgl
             ],
@@ -170,7 +192,7 @@ impl ShadowTest {
         });
         let shader = device.create_shader_module(
             wgpu::ShaderModuleDescriptor {
-                label: Some("Water Shader"),
+                label: Some("Shadow Apply Shader"),
                 source: wgpu::ShaderSource::Wgsl(
                     include_str!("../../shaders/test.wgsl").into()
                 ),

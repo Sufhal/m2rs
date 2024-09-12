@@ -414,6 +414,11 @@ impl<'a> State<'a> {
         self.shadow_pipeline.uniforms.light_source = self.shadow.light.uniform();
         self.queue.write_buffer(&self.shadow_pipeline.buffers.light_source, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.light_source]));
     
+        self.queue.write_buffer(
+            &self.shadow.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.common_pipeline.uniforms.camera]),
+        );
 
         self.common_pipeline.uniforms.cycle.day_factor = self.terrains[0].environment.cycle.day_factor;
         self.common_pipeline.uniforms.cycle.night_factor = self.terrains[0].environment.cycle.night_factor;
@@ -568,6 +573,12 @@ impl<'a> State<'a> {
             for terrain in &self.terrains {
                 render_pass.draw_custom_mesh(&terrain.environment.sun.mesh, &self.common_pipeline);
             }
+
+            render_pass.set_pipeline(&self.shadow.pipeline);
+            render_pass.set_vertex_buffer(0, self.shadow.mesh.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.shadow.mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.set_bind_group(0, &self.shadow.mesh.bind_group, &[]);
+            render_pass.draw_indexed(0..self.shadow.mesh.num_elements, 0, 0..1);
         }
 
         self.ui.queue(&self.device, &self.queue);

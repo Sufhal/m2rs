@@ -5,6 +5,13 @@ struct TransformUniform {
 @group(0) @binding(0) var<uniform> transform: TransformUniform;
 @group(0) @binding(1) var shadow_sampler: sampler;
 @group(0) @binding(2) var shadow_texture: texture_2d<f32>;
+struct CameraUniform {
+    view_pos: vec4<f32>,
+    view_proj: mat4x4<f32>,
+    view_matrix: mat4x4<f32>,
+    projection_matrix: mat4x4<f32>,
+};
+@group(0) @binding(3) var<uniform> camera: CameraUniform;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
