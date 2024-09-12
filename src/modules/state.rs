@@ -231,7 +231,7 @@ impl<'a> State<'a> {
 
         
         let mut state = Self {
-            shadow: ShadowTest::new(&device),
+            shadow: ShadowTest::new(&device, &config, &multisampled_texture),
             surface,
             device,
             queue,
