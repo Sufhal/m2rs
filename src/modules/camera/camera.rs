@@ -5,6 +5,8 @@ use instant::Duration;
 use winit::keyboard::KeyCode;
 use std::f32::consts::FRAC_PI_2;
 
+use crate::modules::core::light_source::LightSource;
+
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
@@ -20,6 +22,7 @@ pub struct Camera {
     pub position: Point3<f32>,
     yaw: Rad<f32>,
     pitch: Rad<f32>,
+    pub use_light_source: bool,
 }
 
 impl Camera {
@@ -36,6 +39,7 @@ impl Camera {
             position: position.into(),
             yaw: yaw.into(),
             pitch: pitch.into(),
+            use_light_source: false,
         }
     }
 
@@ -56,7 +60,7 @@ impl Camera {
 }
 
 pub struct Projection {
-    aspect: f32,
+    pub aspect: f32,
     fovy: Rad<f32>,
     znear: f32,
     zfar: f32,
@@ -84,7 +88,6 @@ impl Projection {
 
     pub fn calc_matrix(&self) -> Matrix4<f32> {
         OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
-        // OPENGL_TO_WGPU_MATRIX * perspective(self.fovy, self.aspect, self.znear, self.zfar)
     }
 }
 
@@ -238,12 +241,21 @@ impl CameraUniform {
         }
     }
 
-    pub fn update_view_proj(&mut self, camera: &Camera, projection: &Projection) {
-        self.view_position = camera.position.to_homogeneous().into();
-        let projection_matrix = projection.calc_matrix();
-        let view_matrix = camera.calc_matrix();
-        self.view_proj = (projection_matrix * view_matrix).into();
-        self.view_matrix = view_matrix.into();
-        self.projection_matrix = projection_matrix.into();
+    pub fn update_view_proj(&mut self, camera: &Camera, projection: &Projection, light_source: &LightSource) {
+        if camera.use_light_source == true {
+            let light = light_source.uniform(projection.aspect);
+            self.view_position = light.view_position;
+            self.view_proj = light.view_proj;
+            self.view_matrix = light.view_matrix;
+            self.projection_matrix = light.projection_matrix;
+        }
+        else {
+            self.view_position = camera.position.to_homogeneous().into();
+            let projection_matrix = projection.calc_matrix();
+            let view_matrix = camera.calc_matrix();
+            self.view_proj = (projection_matrix * view_matrix).into();
+            self.view_matrix = view_matrix.into();
+            self.projection_matrix = projection_matrix.into();
+        }
     }
 }

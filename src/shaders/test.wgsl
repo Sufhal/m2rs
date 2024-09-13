@@ -14,7 +14,10 @@ struct CameraUniform {
 @group(0) @binding(3) var<uniform> camera: CameraUniform;
 
 struct Light {
-    view_proj: mat4x4<f32>
+    view_position: vec4<f32>,
+    view_proj: mat4x4<f32>,
+    view_matrix: mat4x4<f32>,
+    projection_matrix: mat4x4<f32>,
 }
 @group(0) @binding(4) var<uniform> light: Light;
 
@@ -55,14 +58,23 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    // let light_space_position = light.view_proj * vec4<f32>(in.world_position, 1.0);
+    // var proj_coords = light_space_position.xyz / light_space_position.w;
+    // proj_coords = proj_coords * 0.5 + 0.5;
+
     let light_space_position = light.view_proj * vec4<f32>(in.world_position, 1.0);
-    let proj_coords = light_space_position.xyz / light_space_position.w;
+    let proj_correction = 1.0 / light_space_position.w;
+    let proj_coords = light_space_position.xy * vec2<f32>(0.5, -0.5) * proj_correction + 0.5;
+
+
     let shadow = textureSampleCompare(
         shadow_texture,
         shadow_sampler,
         proj_coords.xy,
-        proj_coords.z - 0.005 // bias pour éviter le shadow acne
+        light_space_position.z * proj_correction,
     );
-    let color = vec3<f32>(1.0, 1.0, 0.0);
-    return vec4<f32>(color * shadow, 1.0);
+    let color = vec3<f32>(1.0, 1.0, 0.0) * shadow;
+    let shadow_color = vec3<f32>(1.0, 0.0, 1.0) * (1.0 - shadow);
+
+    return vec4<f32>(color + shadow_color, 1.0);
 }

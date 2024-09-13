@@ -14,7 +14,10 @@ struct TransformUniform {
 @group(1) @binding(2) var<uniform> transform: TransformUniform;
 
 struct Light {
-    view_proj: mat4x4<f32>
+    view_position: vec4<f32>,
+    view_proj: mat4x4<f32>,
+    view_matrix: mat4x4<f32>,
+    projection_matrix: mat4x4<f32>,
 }
 @group(0) @binding(0) var<uniform> light: Light;
 
@@ -34,11 +37,6 @@ fn vs_main(
         instance.model_matrix_1,
         instance.model_matrix_2,
         instance.model_matrix_3,
-    );
-    let normal_matrix = mat3x3<f32>(
-        instance.normal_matrix_0,
-        instance.normal_matrix_1,
-        instance.normal_matrix_2,
     );
     var transformed_model_matrix = model_matrix * transform.transform;
     let model_view_position: vec4<f32> = transformed_model_matrix * vec4<f32>(model.position, 1.0); 

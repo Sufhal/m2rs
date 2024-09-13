@@ -1,4 +1,4 @@
-use cgmath::Matrix4;
+use cgmath::{Deg, Matrix4};
 use wgpu::util::DeviceExt;
 
 use crate::modules::{camera::camera::CameraUniform, core::{light_source::LightSource, model::{CustomMesh, SimpleVertex, TransformUniform, Vertex}}, geometry::plane::Plane};
@@ -14,6 +14,7 @@ pub struct ShadowTest {
     pub bgl: wgpu::BindGroupLayout,
     pub mesh: CustomMesh,
     pub camera_buffer: wgpu::Buffer,
+    pub light_source_buffer: wgpu::Buffer,
 }
 
 impl ShadowTest {
@@ -51,12 +52,12 @@ impl ShadowTest {
             ..Default::default()
         });
 
-        let light = LightSource::new([17.0, 14.0, 2.0], view);
+        let light = LightSource::new([-18.0, 19.0, 36.0], view);
 
         let bgl = Self::get_bgl(device);
         let pipeline = Self::get_pipeline(device, config, multisampled_texture, &bgl);
 
-        let plane = Plane::new(300.0, 300.0, 1, 1);
+        let plane = Plane::new(3000.0, 3000.0, 1, 1);
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Test Vertex Buffer"),
             contents: bytemuck::cast_slice(&plane.vertices),
@@ -69,7 +70,7 @@ impl ShadowTest {
         });
         let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Test Transform Buffer"),
-            contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation([0.0, 0.0, 0.0].into()).into())]),
+            contents: bytemuck::cast_slice(&[TransformUniform::from((Matrix4::from_angle_y(Deg(180.0)) * Matrix4::from_translation([0.0, 0.0, 0.0].into())).into())]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -79,7 +80,7 @@ impl ShadowTest {
         });
         let light_source_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Light Source Buffer"),
-            contents: bytemuck::cast_slice(&[light.uniform()]),
+            contents: bytemuck::cast_slice(&[light.uniform(1.0)]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -146,6 +147,7 @@ impl ShadowTest {
             bgl,
             mesh,
             camera_buffer,
+            light_source_buffer,
         }
     }
 

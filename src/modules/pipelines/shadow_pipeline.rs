@@ -92,12 +92,12 @@ impl ShadowPipeline {
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-                // bias: wgpu::DepthBiasState {
-                //     constant: 2, // corresponds to bilinear filtering
-                //     slope_scale: 2.0,
-                //     clamp: 0.0,
-                // },
+                // bias: wgpu::DepthBiasState::default(),
+                bias: wgpu::DepthBiasState {
+                    constant: 2, // corresponds to bilinear filtering
+                    slope_scale: 2.0,
+                    clamp: 0.0,
+                },
             }),
             multisample: wgpu::MultisampleState::default(),
             multiview: None,

@@ -14,7 +14,7 @@ use crate::modules::ui::ui::MetricData;
 use crate::modules::utils::time_factory::TimeFragment;
 use super::assets::gltf_loader::load_model_glb;
 use super::character::character::Character;
-use super::core::object_3d::Object3D;
+use super::core::object_3d::{Object3D, Translate};
 use super::core::scene;
 use super::pipelines::clouds_pipeline::CloudsPipeline;
 use super::pipelines::common_pipeline::CommonPipeline;
@@ -156,6 +156,8 @@ impl<'a> State<'a> {
             config.view_formats.clone()
         );
 
+        let shadow = ShadowTest::new(&device, &config, &multisampled_texture);
+
         let mut ui = UserInterface::new(&device, &config, &multisampled_texture, window.scale_factor() as f32);
         ui.std_out.push(format!("MSAA set to {sample_count}, supported values are {:?}", supported_sample_count));
 
@@ -166,7 +168,7 @@ impl<'a> State<'a> {
         let camera_controller = camera::CameraController::new(10.0, 0.4);
 
         let mut camera_uniform = camera::CameraUniform::new();
-        camera_uniform.update_view_proj(&camera, &projection);
+        camera_uniform.update_view_proj(&camera, &projection, &shadow.light);
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, sample_count, "depth_texture");
         
@@ -233,7 +235,7 @@ impl<'a> State<'a> {
 
         
         let mut state = Self {
-            shadow: ShadowTest::new(&device, &config, &multisampled_texture),
+            shadow,
             surface,
             device,
             queue,
@@ -298,8 +300,13 @@ impl<'a> State<'a> {
             if let Some(object3d) = &mut obj.object3d {
                 match object3d {
                     Object3D::Simple(simple) => {
-                        let i = simple.request_instance(&state.device);
-                        i.take();
+                        for i in 0..3 {
+                            let instance = simple.request_instance(&state.device);
+                            let v = (i * 10) as f32;
+                            instance.translate(&[v, 0.0, v]);
+                            instance.take();
+                        }
+                       
                     },
                     _ => ()
                 }
@@ -360,6 +367,12 @@ impl<'a> State<'a> {
                             });
                         }
                     },
+                    KeyCode::KeyC => {
+                        if self.key_debouncer.hit(KeyCode::KeyI) {
+                            self.ui.std_out.push("[C] pressed, camera <-> light source toggle requested".to_string());
+                            self.camera.use_light_source = !self.camera.use_light_source;
+                        }
+                    },
                     _ => {},
                 };
                 self.camera_controller.process_keyboard(*key, *state)
@@ -386,7 +399,7 @@ impl<'a> State<'a> {
         let elapsed_time = self.time_factory.elapsed_time_from_start();
 
         self.camera_controller.update_camera(&mut self.camera, dt);
-        self.common_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection);
+        self.common_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection, &self.shadow.light);
         self.queue.write_buffer(
             &self.common_pipeline.buffers.camera,
             0,
@@ -430,9 +443,39 @@ impl<'a> State<'a> {
             terrain.update(elapsed_time, delta_ms as f32, &self.queue);
         }
 
-        self.shadow_pipeline.uniforms.light_source = self.shadow.light.uniform();
-        self.queue.write_buffer(&self.shadow_pipeline.buffers.light_source, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.light_source]));
+
+        for obj in self.scene.get_all_objects_mut() {
+            if let Some(object3d) = &mut obj.object3d {
+                match object3d {
+                    Object3D::Simple(simple) => {
+                        for i in 0..3 {
+                            let v = (i * 10) as f32;
+                            let instance = &mut simple.instances[i];
+                            if i == 1 {
+                                instance.set_position([v + f32::cos(elapsed_time) * 2.0, 0.0, v + f32::cos(elapsed_time) * 2.0].into());
+                            } else {
+                                instance.set_position([v + f32::sin(elapsed_time) * 2.0, 0.0, v + f32::cos(elapsed_time) * 2.0].into());
+
+                            }
+
+                        }
+                    },
+                    _ => ()
+                }
+            }
+            
+        }
     
+
+        self.shadow_pipeline.uniforms.light_source = self.shadow.light.uniform(self.projection.aspect);
+        self.queue.write_buffer(&self.shadow_pipeline.buffers.light_source, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.light_source]));
+        
+        self.queue.write_buffer(
+            &self.shadow.light_source_buffer,
+            0,
+            bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.light_source])
+        );
+
         self.queue.write_buffer(
             &self.shadow.camera_buffer,
             0,
