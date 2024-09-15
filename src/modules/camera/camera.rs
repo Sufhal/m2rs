@@ -5,6 +5,8 @@ use instant::Duration;
 use winit::keyboard::KeyCode;
 use std::f32::consts::FRAC_PI_2;
 
+use crate::modules::core::directional_light::{self, DirectionalLight};
+
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
@@ -18,6 +20,7 @@ const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
 #[derive(Debug)]
 pub struct Camera {
     pub position: Point3<f32>,
+    pub use_directional_light: bool,
     yaw: Rad<f32>,
     pitch: Rad<f32>,
 }
@@ -34,6 +37,7 @@ impl Camera {
     ) -> Self {
         Self {
             position: position.into(),
+            use_directional_light: false,
             yaw: yaw.into(),
             pitch: pitch.into(),
         }
@@ -238,12 +242,24 @@ impl CameraUniform {
         }
     }
 
-    pub fn update_view_proj(&mut self, camera: &Camera, projection: &Projection) {
-        self.view_position = camera.position.to_homogeneous().into();
-        let projection_matrix = projection.calc_matrix();
-        let view_matrix = camera.calc_matrix();
-        self.view_proj = (projection_matrix * view_matrix).into();
-        self.view_matrix = view_matrix.into();
-        self.projection_matrix = projection_matrix.into();
+    pub fn update_view_proj(&mut self, camera: &Camera, projection: &Projection, directional_light: &DirectionalLight) {
+        match camera.use_directional_light {
+            true => {
+                let uniform = directional_light.uniform(projection.aspect);
+                self.view_position = uniform.view_position;
+                self.view_proj = uniform.view_proj;
+                self.view_matrix = uniform.view_matrix;
+                self.projection_matrix = uniform.projection_matrix;
+            }
+            false => {
+                let projection_matrix = projection.calc_matrix();
+                let view_matrix = camera.calc_matrix();
+                self.view_position = camera.position.to_homogeneous().into();
+                self.view_proj = (projection_matrix * view_matrix).into();
+                self.view_matrix = view_matrix.into();
+                self.projection_matrix = projection_matrix.into();
+            }
+        } 
+        
     }
 }

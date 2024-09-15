@@ -8,3 +8,5 @@ pub mod scene;
 pub mod skinning;
 pub mod motions;
 pub mod raycaster;
+pub mod directional_light;
+pub mod cascaded_shadows;

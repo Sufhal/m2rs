@@ -1,5 +1,4 @@
 use crate::modules::{assets::assets::load_string, conversion::common::bye_ymir, state::State, utils::functions::{correct_color, srgb_to_linear}};
-
 use super::{clouds::Clouds, cycle::Cycle, fog::Fog, sky::Sky, sun::Sun};
 
 pub struct Environment {

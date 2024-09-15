@@ -14,10 +14,12 @@ use crate::modules::ui::ui::MetricData;
 use crate::modules::utils::time_factory::TimeFragment;
 use super::assets::gltf_loader::load_model_glb;
 use super::character::character::Character;
+use super::core::directional_light::{self, DirectionalLight};
 use super::core::object_3d::Object3D;
 use super::core::scene;
 use super::pipelines::clouds_pipeline::CloudsPipeline;
 use super::pipelines::common_pipeline::CommonPipeline;
+use super::pipelines::shadow_pipeline::{self, ShadowPipeline};
 use super::pipelines::simple_models_pipeline::SimpleModelPipeline;
 use super::pipelines::skinned_models_pipeline::SkinnedModelPipeline;
 use super::pipelines::sky_pipeline::SkyPipeline;
@@ -47,6 +49,8 @@ pub struct State<'a> {
     pub sun_pipeline: SunPipeline,
     pub sky_pipeline: SkyPipeline,
     pub clouds_pipeline: CloudsPipeline,
+    pub shadow_pipeline: ShadowPipeline,
+    directional_light: DirectionalLight,
     camera: camera::Camera,
     projection: camera::Projection,
     pub camera_controller: camera::CameraController,
@@ -100,7 +104,8 @@ impl<'a> State<'a> {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    required_features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::all_webgpu_mask(),
+                    // required_features: wgpu::Features::empty(),
                     // WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web we'll have to disable some.
                     required_limits: if cfg!(target_arch = "wasm32") {
@@ -154,13 +159,15 @@ impl<'a> State<'a> {
         let mut ui = UserInterface::new(&device, &config, &multisampled_texture, window.scale_factor() as f32);
         ui.std_out.push(format!("MSAA set to {sample_count}, supported values are {:?}", supported_sample_count));
 
+        let directional_light = DirectionalLight::new([400.0, 300.0, 200.0], [376.0, 182.0, 641.0], &device);
+
         let camera = camera::Camera::new((376.0, 182.0, 641.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(28.0), 0.1, 100.0);
         let camera_controller = camera::CameraController::new(4.0, 0.4);
 
         let mut camera_uniform = camera::CameraUniform::new();
-        camera_uniform.update_view_proj(&camera, &projection);
+        camera_uniform.update_view_proj(&camera, &projection, &directional_light);
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, sample_count, "depth_texture");
         
@@ -172,6 +179,7 @@ impl<'a> State<'a> {
         let clouds_pipeline = CloudsPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let skinned_models_pipeline = SkinnedModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let simple_models_pipeline = SimpleModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
+        let shadow_pipeline = ShadowPipeline::new(&device, &simple_models_pipeline);
 
 
         let mut scene = scene::Scene::new();
@@ -237,6 +245,8 @@ impl<'a> State<'a> {
             sun_pipeline,
             sky_pipeline,
             clouds_pipeline,
+            shadow_pipeline,
+            directional_light,
             camera,
             projection,
             camera_controller,
@@ -366,6 +376,12 @@ impl<'a> State<'a> {
                             });
                         }
                     },
+                    KeyCode::KeyC => {
+                        if self.key_debouncer.hit(KeyCode::KeyC) {
+                            self.ui.std_out.push("[C] pressed, camera <-> directional light toggle requested".to_string());
+                            self.camera.use_directional_light = !self.camera.use_directional_light;
+                        }
+                    },
                     _ => {},
                 };
                 self.camera_controller.process_keyboard(*key, *state)
@@ -392,7 +408,7 @@ impl<'a> State<'a> {
         let elapsed_time = self.time_factory.elapsed_time_from_start();
 
         self.camera_controller.update_camera(&mut self.camera, dt);
-        self.common_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection);
+        self.common_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection, &self.directional_light);
         self.queue.write_buffer(
             &self.common_pipeline.buffers.camera,
             0,
@@ -475,6 +491,48 @@ impl<'a> State<'a> {
             format: Some(self.config.format.add_srgb_suffix()),
             ..Default::default()
         });
+
+        {
+            let mut shadow_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.directional_light.shadow_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+            shadow_pass.set_pipeline(&self.shadow_pipeline.pipeline);
+            shadow_pass.set_bind_group(0, &self.shadow_pipeline.bind_group, &[]);
+
+            for object in self.scene.get_all_objects() {
+                if let Some(object3d) = &object.object3d {
+                    match object3d {
+                        Object3D::Simple(simple) => {
+                            shadow_pass.set_vertex_buffer(1, simple.get_instance_buffer_slice());
+
+                            for i in 0..simple.model.meshes.len() {
+                                let mesh = &simple.model.meshes[i];
+                                let mesh_bind_group = &simple.model.meshes_bind_groups[i];
+
+                                shadow_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                                shadow_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                                shadow_pass.set_bind_group(1, &mesh_bind_group, &[]);
+                                shadow_pass.set_bind_group(2, &simple.instances_bind_group, &[]);
+                                shadow_pass.draw_indexed(0..mesh.num_elements, 0, 0..(simple.get_taken_instances_count() as u32));
+                            }
+                        },
+                        _ => ()
+                    
+                    }
+                }
+            }
+        }
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

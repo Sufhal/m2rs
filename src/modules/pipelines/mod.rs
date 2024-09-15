@@ -6,3 +6,4 @@ pub mod water_pipeline;
 pub mod sun_pipeline;
 pub mod sky_pipeline;
 pub mod clouds_pipeline;
+pub mod shadow_pipeline;
