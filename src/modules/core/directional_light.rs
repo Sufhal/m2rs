@@ -15,8 +15,8 @@ impl DirectionalLight {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Shadow Map Texture"),
             size: wgpu::Extent3d {
-                width: 512,
-                height: 512,
+                width: 4096,
+                height: 4096,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
@@ -51,7 +51,7 @@ impl DirectionalLight {
     pub fn uniform(&self, aspect: f32) -> DirectionalLightUniform {
         let up = Vector3::unit_y();
         let light_view = Matrix4::look_at_rh(self.position, self.target, up);
-        let light_projection = OPENGL_TO_WGPU_MATRIX * perspective(Deg(28.0), aspect, 0.1, 100.0);
+        let light_projection = OPENGL_TO_WGPU_MATRIX * perspective(Deg(28.0), aspect, 0.1, 100000.0);
         let mx_view_proj = light_projection * light_view;
 
         DirectionalLightUniform {

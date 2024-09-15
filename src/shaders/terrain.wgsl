@@ -94,10 +94,19 @@ struct Fog {
 }
 @group(0) @binding(4) var<uniform> fog: Fog;
 
+@group(0) @binding(5) var shadow_sampler: sampler_comparison;
+@group(0) @binding(6) var shadow_texture: texture_depth_2d;
+struct DirectionalLight {
+    view_position: vec4<f32>,
+    view_proj: mat4x4<f32>,
+    view_matrix: mat4x4<f32>,
+    projection_matrix: mat4x4<f32>,
+}
+@group(0) @binding(7) var<uniform> directional_light: DirectionalLight;
+
 struct ChunkInformations {
     textures_count: u32,
 }
-
 @group(1) @binding(1) var<uniform> chunk_informations: ChunkInformations;
 @group(1) @binding(2) var sampler_tex: sampler;
 @group(1) @binding(3) var tex_0: texture_2d<f32>;
@@ -224,6 +233,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let result = (ambient_color + sun_diffuse_color + moon_diffuse_color + material_emissive) * splat.xyz;
 
     var final_color = result.rgb;
+
+
+    let light_space_position = directional_light.view_proj * vec4<f32>(in.world_position, 1.0);
+    let proj_correction = 1.0 / light_space_position.w;
+    let proj_coords = light_space_position.xy * vec2<f32>(0.5, -0.5) * proj_correction + 0.5;
+
+    let shadow = textureSampleCompare(
+        shadow_texture,
+        shadow_sampler,
+        proj_coords.xy,
+        light_space_position.z * proj_correction,
+    );
+
+    final_color *= denormalize_value_between(shadow, 0.2, 1.0);
 
     // fog
     if fog.enabled == 1.0 {

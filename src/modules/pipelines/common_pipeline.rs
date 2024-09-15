@@ -1,5 +1,5 @@
 use wgpu::util::DeviceExt;
-use crate::modules::{camera::camera::CameraUniform, core::light::LightUniform, environment::{cycle::CycleUniform, fog::FogUniform, sun::SunUniform}};
+use crate::modules::{camera::camera::CameraUniform, core::{directional_light::{self, DirectionalLight, DirectionalLightUniform}, light::LightUniform}, environment::{cycle::CycleUniform, fog::FogUniform, sun::SunUniform}};
 
 pub struct Buffers {
     pub light: wgpu::Buffer,
@@ -7,6 +7,7 @@ pub struct Buffers {
     pub cycle: wgpu::Buffer,
     pub sun: wgpu::Buffer,
     pub fog: wgpu::Buffer,
+    pub directional_light: wgpu::Buffer,
 }
 
 pub struct Uniforms {
@@ -15,6 +16,7 @@ pub struct Uniforms {
     pub cycle: CycleUniform,
     pub sun: SunUniform,
     pub fog: FogUniform,
+    pub directional_light: DirectionalLightUniform,
 }
 
 pub struct CommonPipeline {
@@ -28,11 +30,12 @@ impl CommonPipeline {
 
     pub fn new(
         device: &wgpu::Device,
+        directional_light: &DirectionalLight,
     ) -> Self {
         let uniforms = Self::create_uniforms();
         let buffers = Self::create_buffers(device, &uniforms);
         let global_bind_group_layout = Self::create_global_bind_group_layout(device);
-        let global_bind_group = Self::create_global_bind_group(device, &global_bind_group_layout, &buffers);
+        let global_bind_group = Self::create_global_bind_group(device, &global_bind_group_layout, &buffers, directional_light);
         Self {
             global_bind_group_layout,
             global_bind_group,
@@ -99,12 +102,41 @@ impl CommonPipeline {
                     },
                     count: None,
                 },
+                // shadow sampler
+                wgpu::BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                    count: None,
+                },
+                // shadow texture
+                wgpu::BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                // directional light
+                wgpu::BindGroupLayoutEntry {
+                    binding: 7,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
             label: Some("global_bind_group_layout"),
         })
     }
 
-    fn create_global_bind_group(device: &wgpu::Device, global_layout: &wgpu::BindGroupLayout, buffers: &Buffers) -> wgpu::BindGroup {
+    fn create_global_bind_group(device: &wgpu::Device, global_layout: &wgpu::BindGroupLayout, buffers: &Buffers, directional_light: &DirectionalLight) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &global_layout,
             entries: &[
@@ -127,7 +159,19 @@ impl CommonPipeline {
                 wgpu::BindGroupEntry {
                     binding: 4,
                     resource: buffers.fog.as_entire_binding(),
-                }
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: wgpu::BindingResource::Sampler(&directional_light.shadow_texture.sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: wgpu::BindingResource::TextureView(&directional_light.shadow_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 7,
+                    resource: buffers.directional_light.as_entire_binding(),
+                },
             ],
             label: Some("light_bind_group"),
         })
@@ -145,6 +189,7 @@ impl CommonPipeline {
             cycle: CycleUniform::default(),
             sun: SunUniform::default(),
             fog: FogUniform::default(),
+            directional_light: DirectionalLightUniform::default(),
         }
     }
 
@@ -173,6 +218,11 @@ impl CommonPipeline {
             fog: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Fog Buffer"),
                 contents: bytemuck::cast_slice(&[uniforms.fog]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }),
+            directional_light: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Directional Light Buffer"),
+                contents: bytemuck::cast_slice(&[uniforms.directional_light]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }),
         }

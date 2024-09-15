@@ -159,7 +159,7 @@ impl<'a> State<'a> {
         let mut ui = UserInterface::new(&device, &config, &multisampled_texture, window.scale_factor() as f32);
         ui.std_out.push(format!("MSAA set to {sample_count}, supported values are {:?}", supported_sample_count));
 
-        let directional_light = DirectionalLight::new([400.0, 300.0, 200.0], [376.0, 182.0, 641.0], &device);
+        let directional_light = DirectionalLight::new([300.0, 400.0, 200.0], [376.0, 182.0, 641.0], &device);
 
         let camera = camera::Camera::new((376.0, 182.0, 641.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
@@ -171,7 +171,7 @@ impl<'a> State<'a> {
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, sample_count, "depth_texture");
         
-        let common_pipeline = CommonPipeline::new(&device);
+        let common_pipeline = CommonPipeline::new(&device, &directional_light);
         let terrain_pipeline = TerrainPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let water_pipeline = WaterPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let sun_pipeline = SunPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
@@ -451,6 +451,10 @@ impl<'a> State<'a> {
         for terrain in &mut self.terrains {
             terrain.update(elapsed_time, delta_ms as f32, &self.queue);
         }
+
+        self.shadow_pipeline.uniforms.directional_light = self.directional_light.uniform(self.projection.aspect);
+        self.queue.write_buffer(&self.shadow_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.directional_light])); 
+        self.queue.write_buffer(&self.common_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.directional_light]));
 
         self.common_pipeline.uniforms.cycle.day_factor = self.terrains[0].environment.cycle.day_factor;
         self.common_pipeline.uniforms.cycle.night_factor = self.terrains[0].environment.cycle.night_factor;
