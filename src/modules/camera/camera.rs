@@ -227,7 +227,7 @@ impl CameraController {
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
     view_position: [f32; 4],
-    view_proj: [[f32; 4]; 4],
+    pub view_proj: [[f32; 4]; 4],
     view_matrix: [[f32; 4]; 4],
     projection_matrix: [[f32; 4]; 4],
 }
@@ -243,17 +243,17 @@ impl CameraUniform {
     }
 
     pub fn update_view_proj(&mut self, camera: &Camera, projection: &Projection, directional_light: &DirectionalLight) {
+        let projection_matrix = projection.calc_matrix();
+        let view_matrix = camera.calc_matrix();
         match camera.use_directional_light {
             true => {
-                let uniform = directional_light.uniform(projection.aspect);
+                let uniform = directional_light.uniform_from_camera((projection_matrix * view_matrix).into());
                 self.view_position = uniform.view_position;
                 self.view_proj = uniform.view_proj;
                 self.view_matrix = uniform.view_matrix;
                 self.projection_matrix = uniform.projection_matrix;
             }
             false => {
-                let projection_matrix = projection.calc_matrix();
-                let view_matrix = camera.calc_matrix();
                 self.view_position = camera.position.to_homogeneous().into();
                 self.view_proj = (projection_matrix * view_matrix).into();
                 self.view_matrix = view_matrix.into();

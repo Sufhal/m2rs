@@ -452,7 +452,8 @@ impl<'a> State<'a> {
             terrain.update(elapsed_time, delta_ms as f32, &self.queue);
         }
 
-        self.shadow_pipeline.uniforms.directional_light = self.directional_light.uniform(self.projection.aspect);
+        // self.shadow_pipeline.uniforms.directional_light = self.directional_light.uniform(self.projection.aspect);
+        self.shadow_pipeline.uniforms.directional_light = self.directional_light.uniform_from_camera(self.common_pipeline.uniforms.camera.view_proj.into());
         self.queue.write_buffer(&self.shadow_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.directional_light])); 
         self.queue.write_buffer(&self.common_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.directional_light]));
 
