@@ -1,4 +1,4 @@
-use cgmath::{perspective, Deg, EuclideanSpace, InnerSpace, Matrix4, Point3, SquareMatrix, Vector3, Vector4, Zero};
+use cgmath::{perspective, Deg, EuclideanSpace, InnerSpace, Matrix4, Point3, SquareMatrix, Transform, Vector3, Vector4, Zero};
 use crate::modules::camera::camera::OPENGL_TO_WGPU_MATRIX;
 
 use super::texture::Texture;
@@ -7,11 +7,13 @@ pub struct DirectionalLight {
     pub position: Point3<f32>,
     pub target: Point3<f32>,
     pub shadow_texture: Texture,
+    cascade_splits: [f32; 4],
+    cascade_projections: [Matrix4<f32>; 3],
 }
 
 impl DirectionalLight {
 
-    pub fn new(position: [f32; 3], target: [f32; 3], device: &wgpu::Device) -> Self {
+    pub fn new(far: f32, near: f32, position: [f32; 3], target: [f32; 3], device: &wgpu::Device) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Shadow Map Texture"),
             size: wgpu::Extent3d {
@@ -40,11 +42,20 @@ impl DirectionalLight {
             ..Default::default()
         });
         let shadow_texture = Texture { view, sampler, texture };
-        
+        // PSSM
+        let lambda = 0.5;
+        let cascade_splits = [
+            near,
+            calculate_split_dist(near, far, 1, 3, lambda),
+            calculate_split_dist(near, far, 2, 3, lambda),
+            far,
+        ];
         Self {
             position: position.into(),
             target: target.into(),
             shadow_texture,
+            cascade_splits,
+            cascade_projections: [Matrix4::identity(); 3],
         }
     }
 
@@ -91,11 +102,20 @@ impl Default for DirectionalLightUniform {
     }
 }
 
+fn calculate_split_dist(near: f32, far: f32, i: u32, splits: u32, lambda: f32) -> f32 {
+    let uniform = near + (far - near) * (i as f32 / splits as f32);
+    let logarithmic = near * (far / near).powf(i as f32 / splits as f32);
+    lambda * uniform + (1.0 - lambda) * logarithmic
+}
+
 fn calculate_light_view_proj(camera_view_proj: Matrix4<f32>, directional_light: &DirectionalLight) -> Matrix4<f32> {
 
     let light_direction = Vector3::new(-0.5, -1.0, -0.5).normalize(); // Diagonale depuis la gauche et vers l'arrière
-    let frustum_center = get_frustum_center(camera_view_proj);
-    let light_position = frustum_center - light_direction * 100.0;
+    let frustum_corners = get_frustum_corners(camera_view_proj);
+    let frustum_center = get_frustum_center(&frustum_corners);
+
+    let light_distance = 100.0;
+    let light_position = frustum_center - light_direction * light_distance;
 
     let light_view = Matrix4::look_at_rh(
         light_position,
@@ -103,9 +123,30 @@ fn calculate_light_view_proj(camera_view_proj: Matrix4<f32>, directional_light: 
         Vector3::unit_y()
     );
 
-    let light_projection = OPENGL_TO_WGPU_MATRIX * perspective(Deg(28.0), 1.0, 0.1, 100.0);
+    let (min, max) = oriented_bounding_box(&frustum_corners, &light_view);
+
+    let margin = 10.0;
+    let light_projection = OPENGL_TO_WGPU_MATRIX * cgmath::ortho(
+        min.x - margin, max.x + margin,
+        min.y - margin, max.y + margin,
+        min.z - margin, max.z + margin
+    );
 
     light_projection * light_view
+}
+
+
+fn oriented_bounding_box(corners: &[Point3<f32>], light_view: &Matrix4<f32>) -> (Point3<f32>, Point3<f32>) {
+    let mut min = Point3::new(f32::MAX, f32::MAX, f32::MAX);
+    let mut max = Point3::new(f32::MIN, f32::MIN, f32::MIN);
+
+    for corner in corners {
+        let transformed_corner = light_view.transform_point(*corner);
+        min = min.zip(transformed_corner, |a, b| a.min(b));
+        max = max.zip(transformed_corner, |a, b| a.max(b));
+    }
+
+    (min, max)
 }
 
 
@@ -131,13 +172,12 @@ fn get_frustum_corners(camera_view_proj: Matrix4<f32>) -> [Point3<f32>; 8] {
     frustum_points
 }
 
-fn get_frustum_center(camera_view_proj: Matrix4<f32>) -> Point3<f32> {
-    let frustum_corners = get_frustum_corners(camera_view_proj);
 
+fn get_frustum_center(frustum_corners: &[Point3<f32>; 8]) -> Point3<f32> {
     // Prendre les points proches (0-3) et éloignés (4-7)
     let mut center = Point3::new(0.0, 0.0, 0.0);
 
-    for corner in &frustum_corners {
+    for corner in frustum_corners {
         center.x += corner.x;
         center.y += corner.y;
         center.z += corner.z;

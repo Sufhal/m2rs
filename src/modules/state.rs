@@ -159,7 +159,7 @@ impl<'a> State<'a> {
         let mut ui = UserInterface::new(&device, &config, &multisampled_texture, window.scale_factor() as f32);
         ui.std_out.push(format!("MSAA set to {sample_count}, supported values are {:?}", supported_sample_count));
 
-        let directional_light = DirectionalLight::new([300.0, 400.0, 200.0], [376.0, 182.0, 641.0], &device);
+        let directional_light = DirectionalLight::new(0.1, 100.0, [300.0, 400.0, 200.0], [376.0, 182.0, 641.0], &device);
 
         let camera = camera::Camera::new((376.0, 182.0, 641.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
