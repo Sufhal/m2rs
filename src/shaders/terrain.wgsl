@@ -270,10 +270,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var shadow_strength = 0.0;
 
     if cycle.day_factor >= SHADOW_START && cycle.day_factor < SHADOW_ZENITH {
+        // morning
         shadow_strength = ease_out_expo(normalize_value_between(cycle.day_factor, SHADOW_START, SHADOW_ZENITH));
     }
     else if cycle.day_factor >= SHADOW_ZENITH && cycle.day_factor <= SHADOW_END {
+        // afternoon
         shadow_strength = ease_out_expo(1.0 - normalize_value_between(cycle.day_factor, SHADOW_ZENITH, SHADOW_END));
+    }
+    if cycle.night_factor > 0.0 && cycle.night_factor < SHADOW_ZENITH {
+        // early night
+        shadow_strength = ease_out_expo(normalize_value_between(cycle.night_factor, 0.0, SHADOW_ZENITH)) * 0.75;
+    }
+    else if cycle.night_factor >= SHADOW_ZENITH && cycle.night_factor <= 1.0 {
+        // late night
+        shadow_strength = ease_out_expo(1.0 - normalize_value_between(cycle.night_factor, SHADOW_ZENITH, 1.0)) * 0.75;
     }
     shadow = mix(1.0, shadow, shadow_strength);
     final_color *= shadow;

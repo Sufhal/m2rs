@@ -58,11 +58,18 @@ impl DirectionalLight {
     }
 
     pub fn update(&mut self, camera_view_proj: Matrix4<f32>, terrain: &Terrain) {
-        let [x, y, z, _] = terrain.environment.sun.uniform.sun_position;
-        let source = Vector3::from([x, y, z]);
-        let mut center = Vector3::from(terrain.center);
-        center.y -= 200.0; // this helps to have less stretched shadows when the sun is low
-        self.direction = (center - source).normalize();
+        let source = if terrain.environment.cycle.day_factor > 0.0 {
+            let [x, y, z, _] = terrain.environment.sun.uniform.sun_position;
+            Vector3::from([x, y, z])
+        } else {
+            let [x, y, z, _] = terrain.environment.sun.uniform.moon_position;
+            Vector3::from([x, y, z])
+        };
+        self.direction = {
+            let mut center = Vector3::from(terrain.center);
+            center.y -= 100.0; // this helps to have less stretched shadows when the sun is low
+            (center - source).normalize()
+        };
         for i in 0..3 {
             let near = self.cascade_splits[i];
             let far = self.cascade_splits[i + 1];
