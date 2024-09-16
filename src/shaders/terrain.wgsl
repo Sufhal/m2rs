@@ -239,12 +239,33 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let proj_correction = 1.0 / light_space_position.w;
     let proj_coords = light_space_position.xy * vec2<f32>(0.5, -0.5) * proj_correction + 0.5;
 
-    let shadow = textureSampleCompare(
-        shadow_texture,
-        shadow_sampler,
-        proj_coords.xy,
-        light_space_position.z * proj_correction,
-    );
+    // let shadow = textureSampleCompare(
+    //     shadow_texture,
+    //     shadow_sampler,
+    //     proj_coords.xy,
+    //     light_space_position.z * proj_correction,
+    // );
+
+    // Calculer le biais pour éviter le shadow acne
+    let bias = 0.0005;
+    
+    // Appliquer le PCF (Percentage Closer Filtering)
+    var shadow: f32 = 0.0;
+    let texel_size = 1.0 / 8192.0; // Ajustez cette valeur selon la taille de votre shadow map
+    for (var x: i32 = -1; x <= 1; x++) {
+        for (var y: i32 = -1; y <= 1; y++) {
+            let offset = vec2<f32>(f32(x), f32(y)) * texel_size;
+            shadow += textureSampleCompare(
+                shadow_texture,
+                shadow_sampler,
+                // proj_coords.xy,
+                proj_coords.xy + offset,
+                // proj_coords.z - bias
+                light_space_position.z * proj_correction
+            );
+        }
+    }
+    shadow /= 9.0;
 
     final_color *= denormalize_value_between(shadow, 0.2, 1.0);
 

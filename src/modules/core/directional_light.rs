@@ -1,7 +1,9 @@
 use cgmath::{perspective, Deg, EuclideanSpace, InnerSpace, Matrix4, Point3, SquareMatrix, Transform, Vector3, Vector4, Zero};
 use crate::modules::camera::camera::OPENGL_TO_WGPU_MATRIX;
-
 use super::texture::Texture;
+
+const SHADOW_MAP_SIZE: u32 = 8192;
+// const SHADOW_MAP_SIZE: u32 = 512;
 
 pub struct DirectionalLight {
     pub position: Point3<f32>,
@@ -76,8 +78,8 @@ impl DirectionalLight {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Shadow Map Texture"),
             size: wgpu::Extent3d {
-                width: 512,
-                height: 512,
+                width: SHADOW_MAP_SIZE,
+                height: SHADOW_MAP_SIZE,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
@@ -145,9 +147,15 @@ fn calculate_light_view_proj(frustum_corners: &[Point3<f32>; 8], directional_lig
         Vector3::unit_y()
     );
 
-    let (min, max) = oriented_bounding_box(frustum_corners, &light_view);
+    let (mut min, mut max) = oriented_bounding_box(frustum_corners, &light_view);
 
-    let margin = 10.0;
+    let texel_size = (max.x - min.x) / SHADOW_MAP_SIZE as f32;
+    min.x = (min.x / texel_size).floor() * texel_size;
+    min.y = (min.y / texel_size).floor() * texel_size;
+    max.x = (max.x / texel_size).ceil() * texel_size;
+    max.y = (max.y / texel_size).ceil() * texel_size;
+
+    let margin = 0.0;
     let light_projection = OPENGL_TO_WGPU_MATRIX * cgmath::ortho(
         min.x - margin, max.x + margin,
         min.y - margin, max.y + margin,
@@ -169,29 +177,6 @@ fn oriented_bounding_box(corners: &[Point3<f32>], light_view: &Matrix4<f32>) -> 
     }
 
     (min, max)
-}
-
-
-fn get_frustum_corners(camera_view_proj: Matrix4<f32>) -> [Point3<f32>; 8] {
-    let inverse_view_proj = camera_view_proj.invert().unwrap();
-    let mut frustum_corners = [
-        Vector4::new(-1.0, -1.0, -1.0, 1.0),  // Near bottom left
-        Vector4::new(1.0, -1.0, -1.0, 1.0),   // Near bottom right
-        Vector4::new(1.0, 1.0, -1.0, 1.0),    // Near top right
-        Vector4::new(-1.0, 1.0, -1.0, 1.0),   // Near top left
-        Vector4::new(-1.0, -1.0, 1.0, 1.0),   // Far bottom left
-        Vector4::new(1.0, -1.0, 1.0, 1.0),    // Far bottom right
-        Vector4::new(1.0, 1.0, 1.0, 1.0),     // Far top right
-        Vector4::new(-1.0, 1.0, 1.0, 1.0),    // Far top left
-    ];
-
-    for corner in &mut frustum_corners {
-        *corner = inverse_view_proj * *corner;
-        *corner /= corner.w;
-    }
-
-    let frustum_points = frustum_corners.map(|v| Point3::new(v.x, v.y, v.z));
-    frustum_points
 }
 
 fn get_frustum_corners_in_world_space(camera_view_proj: Matrix4<f32>, near: f32, far: f32) -> [Point3<f32>; 8] {
