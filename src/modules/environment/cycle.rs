@@ -1,6 +1,6 @@
 use crate::modules::utils::functions::{denormalize_f32, normalize_f32};
 
-const REAL_TIME: bool = true; 
+const REAL_TIME: bool = false; 
 const MS_IN_DAY: u64 = 24 * 3600 * 1000;
 const UTC: u64 = 2;
 const DAY_START_HOUR: u64 = 5;
@@ -43,7 +43,7 @@ impl Cycle {
 
     pub fn update(&mut self, mut delta: f32) {
         if REAL_TIME == false {
-            delta *= (86_400_000.0 / 60_000.0) * 2.0; // 24h in 1min
+            delta *= (86_400_000.0 / 60_000.0) * 4.0; // 24h in 1min
             // delta *= 86_400_000.0 / 60_000.0; // 24h in 1min
         }
         self.delta = delta;

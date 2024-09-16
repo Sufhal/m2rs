@@ -1,11 +1,12 @@
 use cgmath::{perspective, Deg, EuclideanSpace, InnerSpace, Matrix4, Point3, SquareMatrix, Transform, Vector3, Vector4, Zero};
-use crate::modules::camera::camera::OPENGL_TO_WGPU_MATRIX;
+use crate::modules::{camera::camera::OPENGL_TO_WGPU_MATRIX, environment::sun::Sun, terrain::terrain::Terrain};
 use super::texture::Texture;
 
 const SHADOW_MAP_SIZE: u32 = 8192;
 // const SHADOW_MAP_SIZE: u32 = 512;
 
 pub struct DirectionalLight {
+    direction: Vector3<f32>,
     pub position: Point3<f32>,
     pub target: Point3<f32>,
     pub shadow_texture: Texture,
@@ -39,6 +40,7 @@ impl DirectionalLight {
             cascade_splits,
             cascade_projections,
             cascade_textures,
+            direction: Vector3::zero(),
         }
     }
 
@@ -55,7 +57,12 @@ impl DirectionalLight {
         }
     }
 
-    pub fn update(&mut self, camera_view_proj: Matrix4<f32>) {
+    pub fn update(&mut self, camera_view_proj: Matrix4<f32>, terrain: &Terrain) {
+        let [x, y, z, _] = terrain.environment.sun.uniform.sun_position;
+        let source = Vector3::from([x, y, z]);
+        let mut center = Vector3::from(terrain.center);
+        center.y -= 200.0; // this helps to have less stretched shadows when the sun is low
+        self.direction = (center - source).normalize();
         for i in 0..3 {
             let near = self.cascade_splits[i];
             let far = self.cascade_splits[i + 1];
@@ -135,15 +142,19 @@ fn calculate_split_dist(near: f32, far: f32, i: u32, splits: u32, lambda: f32) -
 }
 
 fn calculate_light_view_proj(frustum_corners: &[Point3<f32>; 8], directional_light: &DirectionalLight) -> Matrix4<f32> {
-    let light_direction = Vector3::new(-0.5, -1.0, -0.5).normalize(); // Diagonale depuis la gauche et vers l'arrière
+    // let light_direction = Vector3::new(-0.5, -1.0, -0.5).normalize(); // Diagonale depuis la gauche et vers l'arrière
+    let light_direction = directional_light.direction; // Diagonale depuis la gauche et vers l'arrière
     let frustum_center = get_frustum_center(&frustum_corners);
 
+    let stabilized_frustum_center = frustum_center;
+    // let stabilized_frustum_center = stabilize_cascade_center(frustum_center, directional_light.cascade_projections[0]);
+
     let light_distance = 100.0;
-    let light_position = frustum_center - light_direction * light_distance;
+    let light_position = stabilized_frustum_center - light_direction * light_distance;
 
     let light_view = Matrix4::look_at_rh(
         light_position,
-        frustum_center,
+        stabilized_frustum_center,
         Vector3::unit_y()
     );
 
@@ -212,4 +223,31 @@ fn get_frustum_center(frustum_corners: &[Point3<f32>; 8]) -> Point3<f32> {
     center.z /= 8.0;
 
     center
+}
+
+const TEXEL_SCALE: f32 = 2.0 / SHADOW_MAP_SIZE as f32; // résolution de la shadow map de 1024px
+const INV_TEXEL_SCALE: f32 = 1.0 / TEXEL_SCALE;
+
+fn stabilize_cascade_center(center: Point3<f32>, cascade_view_projection: Matrix4<f32>) -> Point3<f32> {
+    // Projeter le nouveau centre en utilisant la projection précédente
+    let projected_center = cascade_view_projection * center.to_homogeneous();
+    
+    // Diviser par w pour obtenir les coordonnées normalisées
+    let w = projected_center.w;
+    
+    // Arrondir les coordonnées x et y à des valeurs de texels entiers
+    let x = ((projected_center.x / w) * INV_TEXEL_SCALE).floor() * TEXEL_SCALE;
+    let y = ((projected_center.y / w) * INV_TEXEL_SCALE).floor() * TEXEL_SCALE;
+    let z = projected_center.z / w;
+    
+    // Re-projeter dans l'espace monde
+    let inv_cascade_view_projection = cascade_view_projection.invert().unwrap();
+    let corrected_center = inv_cascade_view_projection * Vector4::new(x, y, z, 1.0);
+    
+    // Diviser par w pour obtenir les coordonnées 3D finales
+    Point3::new(
+        corrected_center.x / corrected_center.w,
+        corrected_center.y / corrected_center.w,
+        corrected_center.z / corrected_center.w
+    )
 }

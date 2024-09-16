@@ -104,7 +104,8 @@ impl<'a> State<'a> {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    required_features: wgpu::Features::all_webgpu_mask(),
+                    required_features: wgpu::Features::DEPTH_CLIP_CONTROL,
+                    // required_features: wgpu::Features::all_webgpu_mask(),
                     // required_features: wgpu::Features::empty(),
                     // WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web we'll have to disable some.
@@ -453,7 +454,7 @@ impl<'a> State<'a> {
         }
 
         // self.shadow_pipeline.uniforms.directional_light = self.directional_light.uniform(self.projection.aspect);
-        self.directional_light.update(self.common_pipeline.uniforms.camera.view_proj.into());
+        self.directional_light.update(self.common_pipeline.uniforms.camera.view_proj.into(), &self.terrains[0]);
         self.shadow_pipeline.uniforms.directional_light = self.directional_light.uniform_from_camera(self.common_pipeline.uniforms.camera.view_proj.into());
         self.queue.write_buffer(&self.shadow_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.directional_light])); 
         self.queue.write_buffer(&self.common_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.directional_light]));

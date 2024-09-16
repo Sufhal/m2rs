@@ -94,7 +94,7 @@ impl Plane {
         }
     }
 
-    pub fn set_vertices_height(&mut self, vertices_height: Vec<f32>) {
+    pub fn set_vertices_height(&mut self, vertices_height: &Vec<f32>) {
         if vertices_height.len() != self.vertices.len() {
             panic!("Impossible to set vertices height with incompatible surface vertices count");
         }
@@ -425,5 +425,7 @@ impl Plane {
             clouds_buffer
         )
     }
+
+
 }
 

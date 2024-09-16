@@ -7,6 +7,7 @@ pub struct Chunk {
     pub terrain_mesh: CustomMesh,
     pub water_mesh: CustomMesh,
     pub depth_buffer: wgpu::Buffer,
+    pub mean_height: f32,
     water_buffer: wgpu::Buffer,
     area_data: AreaData,
 }
@@ -24,8 +25,8 @@ impl Chunk {
         let name = Self::name_from(*x, *y);
         let chunk_path = &format!("{terrain_path}/{name}");
         let height = Height::read(&chunk_path, setting.height_scale).await?;
+        let mean_height = height.vertices.iter().fold(0.0, |acc, v| acc + *v) / height.vertices.len() as f32;
         let water = Water::read(&chunk_path).await?;
-        // dbg!(&water);
         let textures_set = ChunkTextureSet::read(&chunk_path).await?;
         let mut alpha_maps = Vec::new();
         for i in 0..textures_set.textures.len() {
@@ -50,7 +51,7 @@ impl Chunk {
             (*y as f32 * size) + (size / 2.0)
         ];
         let mut terrain_geometry = Plane::new(size, size, segments, segments);
-        terrain_geometry.set_vertices_height(height.vertices);
+        terrain_geometry.set_vertices_height(&height.vertices);
         let terrain_mesh = terrain_geometry.to_terrain_mesh(
             &state.device, 
             &state.terrain_pipeline, 
@@ -79,13 +80,13 @@ impl Chunk {
             &water_textures,
         );
         let area_data = AreaData::read(&chunk_path).await?;
-        
         Ok(Self {
             terrain_mesh,
             water_mesh,
             area_data,
             water_buffer,
             depth_buffer,
+            mean_height,
         })
     }
 

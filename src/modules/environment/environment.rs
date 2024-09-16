@@ -11,14 +11,14 @@ pub struct Environment {
 
 impl Environment {
 
-    pub async fn load(name: &str, state: &State<'_>) -> anyhow::Result<Self> {
+    pub async fn load(name: &str, center: [f32; 3], state: &State<'_>) -> anyhow::Result<Self> {
         let cycle = Cycle::new();
         let day_msenv = MsEnv::read(name).await?;
         let night_msenv = MsEnv::read("moonlight04").await?;
         Ok(Self {
             cycle,
             fog: Fog::new(&day_msenv, &night_msenv),
-            sun: Sun::new(&day_msenv, &night_msenv, state),
+            sun: Sun::new(&day_msenv, &night_msenv, center, state),
             sky: Sky::new(&day_msenv, &night_msenv, state),
             clouds: Clouds::new(&day_msenv, state).await?
         })

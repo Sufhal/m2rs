@@ -159,6 +159,9 @@ fn srgb_to_linear(color: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(r, g, b);
 }
 
+const SHADOW_START: f32 = 0.10;
+const SHADOW_ZENITH: f32 = 0.5;
+const SHADOW_END: f32 = 0.90;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -219,7 +222,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let material_emissive: vec3<f32> = mix(sun.night_material_emissive.rgb, sun.day_material_emissive.rbg, sun_light_factor);
     let background_diffuse: vec3<f32> = mix(sun.night_background_diffuse.rgb, sun.day_background_diffuse.rbg, sun_light_factor);
 
-    let ambient_strength = mix(0.6, 0.3, sun_light_factor);
+    let ambient_strength = mix(0.7, 0.3, sun_light_factor);
     let ambient_color = material_ambient * ambient_strength;
 
     let sun_light_dir = normalize(sun.sun_position.xyz - in.world_position);
@@ -245,29 +248,35 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     //     proj_coords.xy,
     //     light_space_position.z * proj_correction,
     // );
-
-    // Calculer le biais pour éviter le shadow acne
-    let bias = 0.0005;
     
-    // Appliquer le PCF (Percentage Closer Filtering)
+    // PCF (Percentage Closer Filtering)
     var shadow: f32 = 0.0;
-    let texel_size = 1.0 / 8192.0; // Ajustez cette valeur selon la taille de votre shadow map
+
+    let texel_size = 1.0 / 8192.0;
     for (var x: i32 = -1; x <= 1; x++) {
         for (var y: i32 = -1; y <= 1; y++) {
             let offset = vec2<f32>(f32(x), f32(y)) * texel_size;
             shadow += textureSampleCompare(
                 shadow_texture,
                 shadow_sampler,
-                // proj_coords.xy,
                 proj_coords.xy + offset,
-                // proj_coords.z - bias
                 light_space_position.z * proj_correction
             );
         }
     }
     shadow /= 9.0;
+    shadow = denormalize_value_between(shadow, 0.25, 1.0); // attenuate the opacity of the shadow;
 
-    final_color *= denormalize_value_between(shadow, 0.2, 1.0);
+    var shadow_strength = 0.0;
+
+    if cycle.day_factor >= SHADOW_START && cycle.day_factor < SHADOW_ZENITH {
+        shadow_strength = ease_out_expo(normalize_value_between(cycle.day_factor, SHADOW_START, SHADOW_ZENITH));
+    }
+    else if cycle.day_factor >= SHADOW_ZENITH && cycle.day_factor <= SHADOW_END {
+        shadow_strength = ease_out_expo(1.0 - normalize_value_between(cycle.day_factor, SHADOW_ZENITH, SHADOW_END));
+    }
+    shadow = mix(1.0, shadow, shadow_strength);
+    final_color *= shadow;
 
     // fog
     if fog.enabled == 1.0 {

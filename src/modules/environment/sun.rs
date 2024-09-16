@@ -1,4 +1,4 @@
-use cgmath::{Deg, Matrix4, Quaternion, Rotation3, Vector3};
+use cgmath::{Angle, Deg, Matrix4, Quaternion, Rad, Rotation3, Vector3};
 use crate::modules::{core::model::{CustomMesh, TransformUniform}, geometry::plane::Plane, state::State};
 use super::{cycle::Cycle, environment::MsEnv, Position};
 
@@ -6,13 +6,14 @@ const DAY_POSITION: [f32; 3] = [2600.0, 000.0, -1000.0];
 const NIGHT_POSITION: [f32; 3] = [1400.0, 1400.0, 1400.0];
 
 pub struct Sun {
+    center: [f32; 3],
     position: Position,
     pub uniform: SunUniform,
     pub mesh: CustomMesh,
 }
 
 impl Sun {
-    pub fn new(day_msenv: &MsEnv, night_msenv: &MsEnv, state: &State<'_>) -> Self {
+    pub fn new(day_msenv: &MsEnv, night_msenv: &MsEnv, center: [f32; 3], state: &State<'_>) -> Self {
         let position = DAY_POSITION;
         let plane = Plane::new(500.0, 500.0, 1, 1);
         let mut uniform = SunUniform::default();
@@ -38,6 +39,7 @@ impl Sun {
             position,
             uniform,
             mesh,
+            center,
         }
     } 
 
@@ -48,7 +50,8 @@ impl Sun {
         }
         if cycle.day_factor > 0.0 {
             let angle = 180.0 * cycle.day_factor;
-            self.position = (Quaternion::from_axis_angle(Vector3::unit_z(), Deg(angle)) * Vector3::from(DAY_POSITION)).into();
+            // self.position = (Quaternion::from_axis_angle(Vector3::unit_z(), Deg(angle)) * Vector3::from(DAY_POSITION)).into();
+            self.position = compute_sun_position(&self.center, 2000.0, angle);
             self.uniform.sun_position = [self.position[0], self.position[1], self.position[2], 0.0];
         }
         queue.write_buffer(
@@ -109,4 +112,12 @@ impl Default for SunUniform {
             night_character_ambient: Default::default(),
         }
     }
+}
+
+fn compute_sun_position(center: &[f32; 3], radius: f32, angle_deg: f32) -> [f32; 3] {
+    let angle_rad = Rad::from(cgmath::Deg(angle_deg));
+    let x = center[0] + radius * angle_rad.cos();
+    let z = center[2];
+    let y = center[1] + radius * angle_rad.sin();
+    [x, y, z]
 }
