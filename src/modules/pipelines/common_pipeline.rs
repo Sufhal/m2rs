@@ -162,11 +162,11 @@ impl CommonPipeline {
                 },
                 wgpu::BindGroupEntry {
                     binding: 5,
-                    resource: wgpu::BindingResource::Sampler(&directional_light.shadow_texture.sampler),
+                    resource: wgpu::BindingResource::Sampler(&directional_light.cascade_textures[0].sampler),
                 },
                 wgpu::BindGroupEntry {
                     binding: 6,
-                    resource: wgpu::BindingResource::TextureView(&directional_light.shadow_texture.view),
+                    resource: wgpu::BindingResource::TextureView(&directional_light.cascade_textures[0].view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 7,

@@ -453,6 +453,7 @@ impl<'a> State<'a> {
         }
 
         // self.shadow_pipeline.uniforms.directional_light = self.directional_light.uniform(self.projection.aspect);
+        self.directional_light.update(self.common_pipeline.uniforms.camera.view_proj.into());
         self.shadow_pipeline.uniforms.directional_light = self.directional_light.uniform_from_camera(self.common_pipeline.uniforms.camera.view_proj.into());
         self.queue.write_buffer(&self.shadow_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.directional_light])); 
         self.queue.write_buffer(&self.common_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.directional_light]));
@@ -502,7 +503,7 @@ impl<'a> State<'a> {
                 label: None,
                 color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.directional_light.shadow_texture.view,
+                    view: &self.directional_light.cascade_textures[0].view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: wgpu::StoreOp::Store,
