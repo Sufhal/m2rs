@@ -3,18 +3,18 @@ use crate::modules::{assets::assets::load_string, utils::functions::random_u8};
 
 use super::skinning::{AnimationMixer, MixerState};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MotionsGroups {
     pub groups: Vec<MotionsGroup>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MotionsGroup {
     pub name: String,
     pub motions: Vec<Motion>
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Motion {
     pub file: String,
     pub probability: u8
@@ -26,22 +26,13 @@ impl MotionsGroups {
         let motions_group = serde_json::from_str::<MotionsGroups>(file_content.as_str()).map_err(|e| MotionsError::ParsingError(e.to_string()))?;
         Ok(motions_group)
     }
-    pub fn update_mixer(&self, mixer: &mut AnimationMixer) {
-        if let MixerState::None = mixer.state {
-            let motion = self.groups[0].pick_motion();
-            mixer.play(&motion.file);
-        }
-    }
-    pub fn play_motion(&self, motion_name: &str, mixer: &mut AnimationMixer) {
-        if let Some(group) = self.groups.iter().find(|group| group.name == motion_name) {
-            let motion = group.pick_motion();
-            mixer.play(&motion.file);
-        }
+    pub fn get_group(&self, motion_name: &str) -> Option<&MotionsGroup> {
+        self.groups.iter().find(|group| group.name == motion_name)
     }
 }
 
 impl MotionsGroup {
-    fn pick_motion(&self) -> &Motion {
+    pub fn pick_motion(&self) -> &Motion {
         let mut cumulative_probability = 0u8;
         let random = random_u8(100);
         for motion in &self.motions {

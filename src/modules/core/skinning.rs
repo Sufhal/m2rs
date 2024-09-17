@@ -2,6 +2,8 @@ use std::{cell::RefCell, rc::Rc};
 use cgmath::{InnerSpace, Matrix4, Quaternion, SquareMatrix};
 use crate::modules::utils::functions::{clamp_f64, denormalize_f32x3, denormalize_f32x4, normalize_f64};
 
+use super::motions::MotionsGroup;
+
 #[repr(C, align(16))]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
 pub struct Mat4x4([[f32; 4]; 4]);
@@ -150,7 +152,7 @@ pub enum Keyframes {
 #[derive(Clone, Debug)]
 pub struct PlayState {
     animation: usize,
-    elapsed_time: f64
+    elapsed_time: f64,
 }
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
@@ -169,7 +171,8 @@ pub enum MixerState {
 #[derive(Clone, Debug)]
 pub struct AnimationMixer {
     clips: Rc<RefCell<Vec<AnimationClip>>>,
-    pub state: MixerState,
+    state: MixerState,
+    current_motion_group: Option<MotionsGroup>,
 }
 
 impl AnimationMixer {
@@ -177,9 +180,10 @@ impl AnimationMixer {
         Self {
             clips,
             state: match autoplay {
-                true => MixerState::Play(PlayState { animation: 0, elapsed_time: 0.0 }),
+                true => MixerState::Play(PlayState { animation: 0, elapsed_time: 0.0}),
                 false => MixerState::None
-            }
+            },
+            current_motion_group: None,
         }
     }
     fn find_animation(&self, clip_name: &str) -> Option<usize> {
@@ -187,16 +191,21 @@ impl AnimationMixer {
         clips.iter().position(|c| c.name == clip_name)
     }
     pub fn update(&mut self, delta_ms: f64) {
-        let _clips = RefCell::borrow(&self.clips);
         match &mut self.state {
             MixerState::Play(state) => {
                 state.elapsed_time += delta_ms;
             },
+            MixerState::None => {
+                if let Some(motions_group) = &self.current_motion_group {
+                    self.play(motions_group.clone());
+                }
+            }
             _ => ()
         };
     }
-    pub fn play(&mut self, clip_name: &str) {
-        if let Some(clip) = self.find_animation(clip_name) {
+    pub fn play(&mut self, motions_group: MotionsGroup) {
+        let motion = motions_group.pick_motion();
+        if let Some(clip) = self.find_animation(&motion.file) {
             match &mut self.state {
                 MixerState::None => {
                     self.state = MixerState::Play(PlayState { animation: clip, elapsed_time: 0.0 });
@@ -206,8 +215,9 @@ impl AnimationMixer {
                 },
                 _ => ()
             };
-        } else {
-            dbg!("animation not found");
+        }
+        if self.current_motion_group.is_none() || self.current_motion_group.as_ref().unwrap().name != motions_group.name {
+            self.current_motion_group = Some(motions_group);
         }
     }
     pub fn apply_on_skeleton(&mut self, skeleton: &mut SkeletonInstance) {
@@ -249,16 +259,12 @@ impl AnimationMixer {
                 }
                 else {
                     self.state = MixerState::None;
-                    // dbg!(&state.elapsed_time);
-                    // dbg!((clips[state.animation].duration * 1000.0) as f64);
                 }
-                // if state.elapsed_time > (clips[state.animation].duration * 1000.0) as f64 {
-                //     self.state = MixerState::None;
-                // }
             },
             _ => ()
         };
-        
     }
+
+
  
 }

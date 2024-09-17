@@ -217,7 +217,8 @@ impl Character {
                     match object3d {
                         Object3D::Skinned(skinned) => {
                             if let Some(instance) = skinned.get_instance(&instance_id) {
-                                self.motions.update_mixer(&mut instance.mixer);
+                                
+
                             }
                         },
                         _ => ()
@@ -234,7 +235,9 @@ impl Character {
                     match object3d {
                         Object3D::Skinned(skinned) => {
                             if let Some(instance) = skinned.get_instance(&instance_id) {
-                                self.motions.play_motion(motion_name, &mut instance.mixer);
+                                if let Some(motions_group) = self.motions.get_group(motion_name) {
+                                    instance.mixer.play(motions_group.clone());
+                                }
                             }
                         },
                         _ => ()
