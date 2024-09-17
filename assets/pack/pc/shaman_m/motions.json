@@ -5,7 +5,33 @@
         "motions": [
           {
             "file": "wait",
+            "probability": 70
+          },
+          {
+            "file": "wait_1",
+            "probability": 30
+          }
+        ]
+      },
+      {
+        "name": "RUN",
+        "motions": [
+          {
+            "file": "run",
             "probability": 100
+          }
+        ]
+      },
+      {
+        "name": "ATTACK",
+        "motions": [
+          {
+            "file": "attack",
+            "probability": 50
+          },
+          {
+            "file": "attack_1",
+            "probability": 50
           }
         ]
       }

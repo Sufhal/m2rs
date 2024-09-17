@@ -94,7 +94,20 @@ impl Character {
                     NPCType::Normal => todo!()
                 }
             },
-            CharacterKind::PC(_) => todo!()
+            CharacterKind::PC(pc) => {
+                match pc {
+                    PCType::Shaman(sex) => {
+                        match sex {
+                            Sex::Male => {
+                                let filename = format!("pack/pc/{}/motions.json", pc.to_string());
+                                MotionsGroups::load(&filename).await.unwrap()
+                            },
+                            Sex::Female => todo!()
+                        }
+                    },
+                    _ => todo!()
+                }
+            }
         };
         let objects = if let Some(childrens) = state.scene.get_childrens_of(name) {
             // object is already loaded, we just have to create instances
@@ -128,7 +141,7 @@ impl Character {
                 },
                 CharacterKind::PC(pc) => {
                     let pc_type = pc.to_string();
-                    format!("pack/{pc_type}/{name}.glb")
+                    format!("pack/pc/{pc_type}/{name}.glb")
                 }
             };
             let model_objects = load_model_glb(
@@ -151,6 +164,7 @@ impl Character {
                             objects.push((object.id.clone(), instance.id.clone()));
                         },
                         Object3D::Skinned(skinned) => {
+                            dbg!(name);
                             // loading animations clips attached to motions
                             for group in &motions.groups {
                                 for motion in &group.motions {
@@ -164,11 +178,15 @@ impl Character {
                                                 NPCType::Normal => todo!()
                                             }
                                         },
-                                        CharacterKind::PC(_) => todo!()
+                                        CharacterKind::PC(pc) => {
+                                            let character_path = pc.to_string();
+                                            format!("pack/pc/{character_path}")
+                                        }
                                     };
                                     let name = &motion.file;
                                     let path = format!("{animations_path}/{name}.glb");
                                     let clip = load_animation(&path, name).await.unwrap();
+                                    dbg!(&clip.name);
                                     skinned.add_animation(clip);
                                 }
                             }
@@ -200,6 +218,23 @@ impl Character {
                         Object3D::Skinned(skinned) => {
                             if let Some(instance) = skinned.get_instance(&instance_id) {
                                 self.motions.update_mixer(&mut instance.mixer);
+                            }
+                        },
+                        _ => ()
+                    };
+                }
+            }
+        }
+    }
+
+    pub fn set_animation(&self, motion_name: &str, scene: &mut Scene) {
+        for (object_id, instance_id) in &self.objects {
+            if let Some(object) = scene.get_mut(object_id) {
+                if let Some(object3d) = &mut object.object3d {
+                    match object3d {
+                        Object3D::Skinned(skinned) => {
+                            if let Some(instance) = skinned.get_instance(&instance_id) {
+                                self.motions.play_motion(motion_name, &mut instance.mixer);
                             }
                         },
                         _ => ()

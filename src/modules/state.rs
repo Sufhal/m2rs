@@ -13,9 +13,9 @@ use crate::modules::camera::camera;
 use crate::modules::ui::ui::MetricData;
 use crate::modules::utils::time_factory::TimeFragment;
 use super::assets::gltf_loader::load_model_glb;
-use super::character::character::Character;
+use super::character::character::{Character, CharacterKind, NPCType, PCType, Sex};
 use super::core::directional_light::{self, DirectionalLight};
-use super::core::object_3d::Object3D;
+use super::core::object_3d::{Object3D, TranslateWithScene};
 use super::core::scene;
 use super::pipelines::clouds_pipeline::CloudsPipeline;
 use super::pipelines::common_pipeline::CommonPipeline;
@@ -187,45 +187,45 @@ impl<'a> State<'a> {
 
         // dbg!(&shaman_animations);
 
-        let model_objects = load_model_glb(
-            "pack/pc/shaman_m/shaman_cheonryun.glb", 
-            // "fox.glb", 
-            &device, 
-            &queue, 
-            &skinned_models_pipeline,
-            &simple_models_pipeline,
-        ).await.expect("unable to load");
-        for mut object in model_objects {
-            if let Some(object3d) = &mut object.object3d {
-                // let clips = load_animations(
-                //     "shaman_wait_1.glb", 
-                //     // "shaman_cheonryun.glb", 
-                //     // "fox.glb", 
-                //     &object_3d.model.skeleton
-                // ).await.unwrap();
-                // object_3d.set_animations(clips);
-                // object_3d.model.animations = clips;
+        // let model_objects = load_model_glb(
+        //     "pack/pc/shaman_m/shaman_cheonryun.glb", 
+        //     // "fox.glb", 
+        //     &device, 
+        //     &queue, 
+        //     &skinned_models_pipeline,
+        //     &simple_models_pipeline,
+        // ).await.expect("unable to load");
+        // for mut object in model_objects {
+        //     if let Some(object3d) = &mut object.object3d {
+        //         // let clips = load_animations(
+        //         //     "shaman_wait_1.glb", 
+        //         //     // "shaman_cheonryun.glb", 
+        //         //     // "fox.glb", 
+        //         //     &object_3d.model.skeleton
+        //         // ).await.unwrap();
+        //         // object_3d.set_animations(clips);
+        //         // object_3d.model.animations = clips;
                 
   
-                // dbg!(&object.matrix);
-                // println!("object {} have mesh", id);
-                match object3d {
-                    Object3D::Skinned(skinned) => {
-                        for i in 0..10 {
-                            let instance = skinned.request_instance(&device);
-                            instance.set_position(cgmath::Vector3::from([
-                                0.5 + (i as f32 / 2.0),
-                                0.0,
-                                0.0
-                            ]));
-                            instance.take();
-                        }
-                    },
-                    _ => ()
-                };
-            }
-            scene.add(object);
-        }
+        //         // dbg!(&object.matrix);
+        //         // println!("object {} have mesh", id);
+        //         match object3d {
+        //             Object3D::Skinned(skinned) => {
+        //                 for i in 0..10 {
+        //                     let instance = skinned.request_instance(&device);
+        //                     instance.set_position(cgmath::Vector3::from([
+        //                         0.5 + (i as f32 / 2.0),
+        //                         0.0,
+        //                         0.0
+        //                     ]));
+        //                     instance.take();
+        //                 }
+        //             },
+        //             _ => ()
+        //         };
+        //     }
+        //     scene.add(object);
+        // }
 
         scene.compute_world_matrices();
         scene.update_objects_buffers(&queue);
@@ -267,8 +267,17 @@ impl<'a> State<'a> {
             key_debouncer: KeyDebouncer::new(200.0)
         };
 
-        // let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
-        // character.translate(384.0, 186.0, 640.0, &mut state.scene);
+        let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        character.translate(384.0, 186.0, 640.0, &mut state.scene);
+        state.characters.push(character);
+
+        let mut character = Character::new("shaman_cheonryun", CharacterKind::PC(PCType::Shaman(Sex::Male)), &mut state).await;
+        character.translate(384.0, 186.0, 640.0, &mut state.scene);
+        character.set_animation("ATTACK", &mut state.scene);
+        state.characters.push(character);
+
+
+
         // let q = Quaternion::from_angle_y(Deg(45.0));
         // character.rotate(q.s, q.v.x, q.v.y, q.v.z, &mut state.scene);
         // state.characters.push(character);

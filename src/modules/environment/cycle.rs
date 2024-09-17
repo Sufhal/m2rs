@@ -1,6 +1,6 @@
 use crate::modules::utils::functions::{denormalize_f32, normalize_f32};
 
-const REAL_TIME: bool = false; 
+const REAL_TIME: bool = true; 
 const MS_IN_DAY: u64 = 24 * 3600 * 1000;
 const UTC: u64 = 2;
 const DAY_START_HOUR: u64 = 5;

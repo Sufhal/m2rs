@@ -206,6 +206,8 @@ impl AnimationMixer {
                 },
                 _ => ()
             };
+        } else {
+            dbg!("animation not found");
         }
     }
     pub fn apply_on_skeleton(&mut self, skeleton: &mut SkeletonInstance) {

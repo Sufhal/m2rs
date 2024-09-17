@@ -32,6 +32,12 @@ impl MotionsGroups {
             mixer.play(&motion.file);
         }
     }
+    pub fn play_motion(&self, motion_name: &str, mixer: &mut AnimationMixer) {
+        if let Some(group) = self.groups.iter().find(|group| group.name == motion_name) {
+            let motion = group.pick_motion();
+            mixer.play(&motion.file);
+        }
+    }
 }
 
 impl MotionsGroup {
