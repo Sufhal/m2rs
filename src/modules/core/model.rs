@@ -1,4 +1,4 @@
-use cgmath::SquareMatrix;
+use cgmath::{Matrix4, Point3, SquareMatrix, Transform};
 use crate::modules::{core::texture, pipelines::{common_pipeline::CommonPipeline, skinned_models_pipeline::SkinnedModelPipeline}};
 use std::ops::Range;
 use super::skinning::{AnimationClip, Skeleton};
@@ -122,6 +122,20 @@ impl Vertex for SimpleVertex {
                 //     format: wgpu::VertexFormat::Float32x4,
                 // }
             ],
+        }
+    }
+}
+
+pub trait Transformable {
+    fn apply_matrix(&mut self, matrix: &Matrix4<f32>);
+}
+
+impl Transformable for Vec<SimpleVertex> {
+    fn apply_matrix(&mut self, matrix: &Matrix4<f32>) {
+        for vertex in self.iter_mut() {
+            let position = Point3::new(vertex.position[0], vertex.position[1], vertex.position[2]);
+            let transformed_position = matrix.transform_point(position);
+            vertex.position = [transformed_position.x, transformed_position.y, transformed_position.z];
         }
     }
 }

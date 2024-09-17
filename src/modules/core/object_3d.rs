@@ -1,8 +1,8 @@
 use std::{cell::RefCell, rc::Rc};
 use cgmath::One;
 use wgpu::util::DeviceExt;
-use crate::modules::{pipelines::{simple_models_pipeline::SimpleModelBindGroupLayouts, skinned_models_pipeline::SkinnedModelBindGroupLayouts}, utils::id_gen::generate_unique_string};
-use super::{instance::InstanceRaw, model::{SimpleModel, SkinnedModel}, scene::Scene, skinning::{AnimationClip, AnimationMixer, Mat4x4, Skeleton, SkeletonInstance}};
+use crate::modules::{pipelines::{simple_models_pipeline::SimpleModelBindGroupLayouts, skinned_models_pipeline::SkinnedModelBindGroupLayouts}, terrain::terrain::Terrain, utils::id_gen::generate_unique_string};
+use super::{instance::InstanceRaw, model::{SimpleModel, SkinnedModel}, raycaster::Raycaster, scene::Scene, skinning::{AnimationClip, AnimationMixer, Mat4x4, Skeleton, SkeletonInstance}};
 
 type Vec3 = cgmath::Vector3<f32>;
 type Quat = cgmath::Quaternion<f32>;
@@ -382,7 +382,7 @@ pub trait Scale {
 
 impl Translate for SkinnedObject3DInstance {
     fn translate(&mut self, value: &[f32; 3]) {
-        self.set_position(self.position + cgmath::Vector3 { 
+        self.set_position(cgmath::Vector3 { 
             x: value[0], 
             y: value[1], 
             z: value[2] 
@@ -392,7 +392,7 @@ impl Translate for SkinnedObject3DInstance {
 
 impl Translate for SimpleObject3DInstance {
     fn translate(&mut self, value: &[f32; 3]) {
-        self.set_position(self.position + cgmath::Vector3 { 
+        self.set_position(cgmath::Vector3 { 
             x: value[0], 
             y: value[1], 
             z: value[2] 
@@ -400,69 +400,33 @@ impl Translate for SimpleObject3DInstance {
     }
 }
 
+impl Position for SkinnedObject3DInstance {
+    fn get_position(&mut self) -> [f32; 3] {
+        self.position.into()
+    }
+}
+
+impl GroundAttachable for SkinnedObject3DInstance {}
+
 impl Rotate for SkinnedObject3DInstance {
     fn rotate(&mut self, value: &[f32; 4]) {
         self.set_rotation(cgmath::Quaternion::new(value[0], value[1], value[2], value[3]));
     }
 }
 
-// pub trait Transform {
-//     fn add_x_rotation(&mut self, angle: f32);
-//     fn add_y_rotation(&mut self, angle: f32);
-//     fn add_z_rotation(&mut self, angle: f32);
-//     fn add_xyz_rotation(&mut self, x: f32, y: f32, z: f32);
-//     fn add_x_position(&mut self, value: f32);
-//     fn add_y_position(&mut self, value: f32);
-//     fn add_z_position(&mut self, value: f32);
-//     fn add_xyz_position(&mut self, x: f32, y: f32, z: f32);
-//     fn add_x_scale(&mut self, value: f32);
-//     fn add_y_scale(&mut self, value: f32);
-//     fn add_z_scale(&mut self, value: f32);
-//     fn add_xyz_scale(&mut self, x: f32, y: f32, z: f32);
-// }
+pub trait Position {
+    fn get_position(&mut self) -> [f32; 3];
+}
 
-// impl Transform for Object3DInstance {
-//     fn add_x_rotation(&mut self, angle: f32) {
-//         let incremental_rotation = Quaternion::from_angle_x(Rad(angle));
-//         self.set_rotation(self.rotation * incremental_rotation);
-//     }
-//     fn add_y_rotation(&mut self, angle: f32) {
-//         let incremental_rotation = Quaternion::from_angle_y(Rad(angle));
-//         self.set_rotation(self.rotation * incremental_rotation);
-//     }
-//     fn add_z_rotation(&mut self, angle: f32) {
-//         let incremental_rotation = Quaternion::from_angle_z(Rad(angle));
-//         self.set_rotation(self.rotation * incremental_rotation);
-//     }
-//     fn add_xyz_rotation(&mut self, x: f32, y: f32, z: f32) {
-//         let incremental_rotation = 
-//             Quaternion::from_angle_x(Rad(x)) *
-//             Quaternion::from_angle_y(Rad(y)) *
-//             Quaternion::from_angle_z(Rad(z));
-//         self.set_rotation(self.rotation * incremental_rotation);
-//     }
-//     fn add_x_position(&mut self, value: f32) {
-//         self.set_position(self.position + cgmath::Vector3 { x: value, y: 0.0, z: 0.0 });
-//     }
-//     fn add_y_position(&mut self, value: f32) {
-//         self.set_position(self.position + cgmath::Vector3 { x: 0.0, y: value, z: 0.0 });
-//     }
-//     fn add_z_position(&mut self, value: f32) {
-//         self.set_position(self.position + cgmath::Vector3 { x: 0.0, y: 0.0, z: value });
-//     }
-//     fn add_xyz_position(&mut self, x: f32, y: f32, z: f32) {
-//         self.set_position(self.position + cgmath::Vector3 { x, y, z });
-//     }
-//     fn add_x_scale(&mut self, value: f32) {
-//         self.set_scale(self.scale + cgmath::Vector3 { x: value, y: 0.0, z: 0.0 });
-//     }
-//     fn add_y_scale(&mut self, value: f32) {
-//         self.set_scale(self.scale + cgmath::Vector3 { x: 0.0, y: value, z: 0.0 });
-//     }
-//     fn add_z_scale(&mut self, value: f32) {
-//         self.set_scale(self.scale + cgmath::Vector3 { x: 0.0, y: 0.0, z: value });
-//     }
-//     fn add_xyz_scale(&mut self, x: f32, y: f32, z: f32) {
-//         self.set_scale(self.scale + cgmath::Vector3 { x, y, z });
-//     }
-// }
+pub trait GroundAttachable: Translate + Position {
+    fn set_on_the_ground(&mut self, terrain: &Terrain) {
+        let position = self.get_position();
+        if let Some(chunk) = terrain.get_chunk_at(&position) {
+            let raycaster = Raycaster::new(position.clone(), [0.0, -1.0, 0.0]);
+            if let Some(distance) = raycaster.intersects_first(&chunk.terrain_plane.vertices, &chunk.terrain_plane.indices) {
+                self.translate(&[position[0], position[1] - distance, position[2]]);
+            }
+
+        }
+    }
+}

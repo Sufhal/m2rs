@@ -108,4 +108,13 @@ impl Terrain {
             .collect()
     }
 
+    pub fn get_chunk_at(&self, position: &[f32; 3]) -> Option<&Chunk> {
+        for chunk in &self.chunks {
+            if chunk.contains_position(position) {
+                return Some(chunk)
+            }
+        }
+        None
+    }
+
 }

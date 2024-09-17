@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Matrix4, Vector3};
+use cgmath::{InnerSpace, Matrix4, SquareMatrix, Vector3};
 use rustc_hash::FxHashMap;
 use wgpu::util::DeviceExt;
 use crate::modules::{core::{model::{CustomMesh, SimpleVertex, TransformUniform}, texture::Texture}, environment::clouds::CloudsUniform, pipelines::{clouds_pipeline::CloudsPipeline, sun_pipeline::SunPipeline, terrain_pipeline::TerrainPipeline, water_pipeline::WaterPipeline}, terrain::{chunk::ChunkInformationUniform, texture_set::ChunkTextureSet, water::WaterTexture}, utils::functions::add_normals};
@@ -101,10 +101,9 @@ impl Plane {
         for i in 0..vertices_height.len() {
             self.vertices[i].position[1] = vertices_height[i];
         }
-        self.update_normals();
     }
 
-    fn update_normals(&mut self) {
+    pub fn update_normals(&mut self) {
         for vertex in &mut self.vertices {
             vertex.normal = [0.0, 0.0, 0.0];
         }
@@ -138,7 +137,6 @@ impl Plane {
         device: &wgpu::Device, 
         terrain_pipeline: &TerrainPipeline, 
         name: String, 
-        position: [f32; 3], 
         textures: &Vec<Texture>,
         alpha_maps: &Vec<Texture>,
         textures_set: &ChunkTextureSet,
@@ -155,7 +153,7 @@ impl Plane {
         });
         let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Transform Buffer"),
-            contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::from_translation(position.into()).into())]),
+            contents: bytemuck::cast_slice(&[TransformUniform::from(Matrix4::identity().into())]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let chunk_informations_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

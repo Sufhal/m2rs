@@ -1,10 +1,13 @@
 use std::fmt::{self};
+use cgmath::Matrix4;
+
 use crate::modules::assets::gltf_loader::{load_animation, load_model_glb};
 use crate::modules::core::motions::MotionsGroups;
 use crate::modules::core::object::Object;
-use crate::modules::core::object_3d::{Object3D, Rotate, RotateWithScene, Translate, TranslateWithScene};
+use crate::modules::core::object_3d::{Object3D, Rotate, RotateWithScene, Translate, TranslateWithScene, GroundAttachable};
 use crate::modules::core::scene::Scene;
 use crate::modules::state::State;
+use crate::modules::terrain::terrain::Terrain;
 
 pub enum Sex {
     Male,
@@ -74,7 +77,8 @@ pub struct Character {
     #[allow(dead_code)]
     kind: CharacterKind,
     pub objects: Vec<(String, String)>, // (Object ID, Object3DInstance ID)
-    motions: MotionsGroups
+    motions: MotionsGroups,
+    has_moved: bool,
 }
 
 impl Character {
@@ -153,6 +157,7 @@ impl Character {
             ).await.expect("unable to load");
             let mut group = Object::new();
             group.name = Some(name.to_string());
+            group.matrix = Matrix4::from_scale(3.0).into(); // <- TODO: I should not do that
             for mut object in model_objects {
                 group.add_child(&mut object);
                 if let Some(object3d) = &mut object.object3d {
@@ -206,19 +211,21 @@ impl Character {
         Self {
             kind,
             objects,
-            motions
+            motions,
+            has_moved: true,
         }
     }
 
-    pub fn update(&self, scene: &mut Scene) {
+    pub fn update(&mut self, scene: &mut Scene, terrain: &Terrain) {
         for (object_id, instance_id) in &self.objects {
             if let Some(object) = scene.get_mut(object_id) {
                 if let Some(object3d) = &mut object.object3d {
                     match object3d {
                         Object3D::Skinned(skinned) => {
                             if let Some(instance) = skinned.get_instance(&instance_id) {
-                                
-
+                                if self.has_moved {
+                                    instance.set_on_the_ground(terrain);
+                                }
                             }
                         },
                         _ => ()
@@ -226,6 +233,7 @@ impl Character {
                 }
             }
         }
+        self.has_moved = false;
     }
 
     pub fn set_animation(&self, motion_name: &str, scene: &mut Scene) {

@@ -267,12 +267,12 @@ impl<'a> State<'a> {
             key_debouncer: KeyDebouncer::new(200.0)
         };
 
-        let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
-        character.translate(384.0, 186.0, 640.0, &mut state.scene);
-        state.characters.push(character);
+        // let mut character = Character::new("stray_dog", CharacterKind::NPC(NPCType::Monster), &mut state).await;
+        // character.translate(384.0, 186.0, 640.0, &mut state.scene);
+        // state.characters.push(character);
 
         let mut character = Character::new("shaman_cheonryun", CharacterKind::PC(PCType::Shaman(Sex::Male)), &mut state).await;
-        character.translate(384.0, 186.0, 640.0, &mut state.scene);
+        character.translate(392.0, 186.0, 690.0, &mut state.scene);
         character.set_animation("ATTACK", &mut state.scene);
         state.characters.push(character);
 
@@ -437,8 +437,8 @@ impl<'a> State<'a> {
 
         self.ui.update(delta_ms);
 
-        for character in &self.characters {
-            character.update(&mut self.scene);
+        for character in &mut self.characters {
+            character.update(&mut self.scene, &self.terrains[0]);
         }
 
         for object in self.scene.get_all_objects_mut() {

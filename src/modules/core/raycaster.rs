@@ -1,21 +1,35 @@
-use cgmath::{InnerSpace, MetricSpace, Vector3};
+use cgmath::{InnerSpace, Vector3};
 use super::model::SimpleVertex;
 
-pub struct Raycast {
+pub struct Raycaster {
     origin: Vector3<f32>,
     direction: Vector3<f32>,
 }
 
-impl Raycast {
+impl Raycaster {
     pub fn new(origin: [f32; 3], direction: [f32; 3]) -> Self {
         Self {
             origin: origin.into(),
             direction: direction.into()
         }
     }
+    pub fn intersects_first(&self, vertices: &[SimpleVertex], indices: &[u32]) -> Option<f32> {
+        for i in (0..indices.len()).step_by(3) {
+            let triangle = [
+                vertices[indices[i + 0] as usize],
+                vertices[indices[i + 1] as usize],
+                vertices[indices[i + 2] as usize],
+            ];
+            let intersection = self.intersects_triangle(triangle);
+            if intersection.is_some() {
+                return intersection
+            }
+        }
+        None
+    }
     /// Based on [Möller–Trumbore intersection algorithm](https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm)
     /// Returns the distance between the origin and the intersection point
-    pub fn intersects(&self, triangle: [SimpleVertex; 3]) -> Option<f32> {
+    fn intersects_triangle(&self, triangle: [SimpleVertex; 3]) -> Option<f32> {
         let t0 = Vector3::from(triangle[0].position);
         let t1 = Vector3::from(triangle[1].position);
         let t2 = Vector3::from(triangle[2].position);
@@ -46,8 +60,7 @@ impl Raycast {
         let t = inv_det * e2.dot(s_cross_e1);
     
         if t > f32::EPSILON { // ray intersection
-            let intersection_point = self.origin + self.direction * t;
-            return Some(self.origin.distance2(intersection_point));
+            return Some(t);
         }
         else { // This means that there is a line intersection but not a ray intersection.
             return None;

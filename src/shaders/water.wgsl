@@ -171,7 +171,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let material_emissive: vec3<f32> = mix(sun.night_material_emissive.rgb, sun.day_material_emissive.rbg, sun_light_factor);
     let background_diffuse: vec3<f32> = mix(sun.night_background_diffuse.rgb, sun.day_background_diffuse.rbg, sun_light_factor);
 
-    let ambient_strength = mix(0.6, 0.3, sun_light_factor);
+    let ambient_strength = mix(0.9, 0.3, sun_light_factor);
     let ambient_color = material_ambient * ambient_strength;
 
     let sun_light_dir = normalize(sun.sun_position.xyz - in.world_position);

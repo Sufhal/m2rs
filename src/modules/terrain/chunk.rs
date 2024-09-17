@@ -1,15 +1,20 @@
-use cgmath::Rotation3;
+use cgmath::{Matrix4, Rotation3};
 use wgpu::util::DeviceExt;
-use crate::modules::{assets::assets::load_binary, core::{model::CustomMesh, object_3d::Object3D, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
+use crate::modules::{assets::assets::load_binary, core::{model::{CustomMesh, Transformable}, object_3d::Object3D, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
 use super::{areadata::AreaData, height::Height, setting::Setting, texture_set::ChunkTextureSet, water::{Water, WaterTexture}};
 
+const SIZE: f32 = 256.0;
+
 pub struct Chunk {
+    pub name: String,
     pub terrain_mesh: CustomMesh,
+    pub terrain_plane: Plane,
     pub water_mesh: CustomMesh,
     pub depth_buffer: wgpu::Buffer,
     pub mean_height: f32,
     water_buffer: wgpu::Buffer,
     area_data: AreaData,
+    limits: ([f32; 2], [f32; 2]), // ([minX, maxX], [minY, maxY]) 
 }
 
 impl Chunk {
@@ -50,28 +55,29 @@ impl Chunk {
             0.0,
             (*y as f32 * size) + (size / 2.0)
         ];
-        let mut terrain_geometry = Plane::new(size, size, segments, segments);
-        terrain_geometry.set_vertices_height(&height.vertices);
-        let terrain_mesh = terrain_geometry.to_terrain_mesh(
+        let mut terrain_plane = Plane::new(size, size, segments, segments);
+        terrain_plane.set_vertices_height(&height.vertices);
+        terrain_plane.vertices.apply_matrix(&Matrix4::from_translation(position.into()));
+        terrain_plane.update_normals();
+        let terrain_mesh = terrain_plane.to_terrain_mesh(
             &state.device, 
             &state.terrain_pipeline, 
             name.clone(),
-            position.clone(),
             textures,
             &alpha_maps,
             &textures_set
         );
-        let water_geometry = water.generate_plane(setting.height_scale);
-        let depth = Water::calculate_depth(&water_geometry, &terrain_geometry);
+        let water_plane = water.generate_plane(setting.height_scale);
+        let depth = Water::calculate_depth(&water_plane, &terrain_plane);
         let depth_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Depth Buffer"),
             contents: bytemuck::cast_slice(&depth),
             usage: wgpu::BufferUsages::VERTEX,
         });
-        let (water_mesh, water_buffer) = water_geometry.to_water_mesh(
+        let (water_mesh, water_buffer) = water_plane.to_water_mesh(
             &state.device, 
             &state.water_pipeline, 
-            name,
+            name.clone(),
             [
                 (*x as f32 * size),
                 0.0,
@@ -80,13 +86,20 @@ impl Chunk {
             &water_textures,
         );
         let area_data = AreaData::read(&chunk_path).await?;
+        let limits = (
+            [*x as f32 * SIZE, (*x as f32 + 1.0) * SIZE],
+            [*y as f32 * SIZE, (*y as f32 + 1.0) * SIZE],
+        );
         Ok(Self {
+            name,
             terrain_mesh,
+            terrain_plane,
             water_mesh,
             area_data,
             water_buffer,
             depth_buffer,
             mean_height,
+            limits,
         })
     }
 
@@ -135,6 +148,12 @@ impl Chunk {
             bytemuck::cast_slice(&[water_texture.uniform]),
         );
     }
+
+	pub fn contains_position(&self, position: &[f32; 3]) -> bool {
+        let [x, _, y] = position;
+        let ([x_min, x_max], [y_min, y_max]) = self.limits;
+		(*x >= x_min && *x < x_max) && (*y >= y_min && *y < y_max)
+	}
 
 
 }

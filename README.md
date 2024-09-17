@@ -32,9 +32,9 @@ M2RS is an experimental projet which targets to entierly rewrite the game [Metin
 - `Terrain`
   - [x] parse and generate terrain chunks
   - [x] shader
-  - [ ] shadows
-  - [ ] raycast to make characters walk above the ground
-  - [ ] objects
+  - [x] shadows
+  - [x] raycast to make characters walk above the ground
+  - [x] objects
   - [ ] trees
   - [x] water geometry
   - [x] water shader
