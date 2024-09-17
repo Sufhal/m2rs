@@ -1,0 +1,13 @@
+{
+    "groups": [
+      {
+        "name": "WAIT",
+        "motions": [
+          {
+            "file": "wait",
+            "probability": 100
+          }
+        ]
+      }
+    ]
+}
