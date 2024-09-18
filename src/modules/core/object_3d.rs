@@ -419,14 +419,16 @@ pub trait Position {
 }
 
 pub trait GroundAttachable: Translate + Position {
-    fn set_on_the_ground(&mut self, terrain: &Terrain) {
+    fn set_on_the_ground(&mut self, terrain: &Terrain) -> [f32; 3] {
         let position = self.get_position();
         if let Some(chunk) = terrain.get_chunk_at(&position) {
             let raycaster = Raycaster::new(position.clone(), [0.0, -1.0, 0.0]);
             if let Some(distance) = raycaster.intersects_first(&chunk.terrain_plane.vertices, &chunk.terrain_plane.indices) {
-                self.translate(&[position[0], position[1] - distance, position[2]]);
+                let new_position = [position[0], position[1] - distance, position[2]];
+                self.translate(&new_position);
+                return new_position;
             }
-
         }
+        position
     }
 }

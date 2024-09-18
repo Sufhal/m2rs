@@ -4,13 +4,15 @@ use super::model::SimpleVertex;
 pub struct Raycaster {
     origin: Vector3<f32>,
     direction: Vector3<f32>,
+    is_vertical: bool,
 }
 
 impl Raycaster {
     pub fn new(origin: [f32; 3], direction: [f32; 3]) -> Self {
         Self {
             origin: origin.into(),
-            direction: direction.into()
+            direction: direction.into(),
+            is_vertical: direction[0] == 0.0 && direction[2] == 0.0
         }
     }
     pub fn intersects_first(&self, vertices: &[SimpleVertex], indices: &[u32]) -> Option<f32> {
@@ -20,6 +22,9 @@ impl Raycaster {
                 vertices[indices[i + 1] as usize],
                 vertices[indices[i + 2] as usize],
             ];
+            if self.is_vertical && !self.is_triangle_near_ray(&triangle, 10.0) { 
+                continue;
+            }
             let intersection = self.intersects_triangle(triangle);
             if intersection.is_some() {
                 return intersection
@@ -65,5 +70,19 @@ impl Raycaster {
         else { // This means that there is a line intersection but not a ray intersection.
             return None;
         }
+    }
+
+    fn is_triangle_near_ray(&self, triangle: &[SimpleVertex; 3], threshold: f32) -> bool {
+        let ray_x = self.origin.x;
+        let ray_z = self.origin.z;
+        for vertex in triangle {
+            let [vx, _, vz] = vertex.position;
+            let dx = (vx - ray_x).abs();
+            let dz = (vz - ray_z).abs();
+                if dx <= threshold && dz <= threshold {
+                return true;
+            }
+        }
+        false
     }
 }

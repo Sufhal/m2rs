@@ -217,6 +217,7 @@ impl Character {
     }
 
     pub fn update(&mut self, scene: &mut Scene, terrain: &Terrain) {
+        let mut ground_position = None;
         for (object_id, instance_id) in &self.objects {
             if let Some(object) = scene.get_mut(object_id) {
                 if let Some(object3d) = &mut object.object3d {
@@ -224,7 +225,13 @@ impl Character {
                         Object3D::Skinned(skinned) => {
                             if let Some(instance) = skinned.get_instance(&instance_id) {
                                 if self.has_moved {
-                                    instance.set_on_the_ground(terrain);
+                                    match ground_position {
+                                        Some(position) => instance.translate(&position),
+                                        None => {
+                                            let position = instance.set_on_the_ground(terrain);
+                                            ground_position = Some(position);
+                                        }
+                                    }
                                 }
                             }
                         },
@@ -233,7 +240,7 @@ impl Character {
                 }
             }
         }
-        self.has_moved = false;
+        // self.has_moved = false;
     }
 
     pub fn set_animation(&self, motion_name: &str, scene: &mut Scene) {
