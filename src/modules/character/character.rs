@@ -246,13 +246,6 @@ impl Character {
             scene
         );
         self.has_moved = true;
-        // // Mettre à jour la rotation du personnage pour qu'il fasse face à la direction du mouvement
-        // if movement.magnitude() > 0.001 {
-        //     let new_rotation = movement.y.atan2(movement.x);
-        //     let rotation = Quaternion::from_arc(Vector3::new(0.0, 0.0, 1.0), normalized_direction, None);
-        //     self.rotate_quaternion(rotation, scene);
-        //     self.rotate(new_rotation, scene);
-        // }
     }
 
 }

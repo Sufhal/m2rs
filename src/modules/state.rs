@@ -377,7 +377,13 @@ impl<'a> State<'a> {
                 }
             },
             WindowEvent::MouseWheel { delta, .. } => {
-                self.camera_controller.process_scroll(delta);
+                if self.camera_controller.enabled {
+                    self.camera_controller.process_scroll(delta);
+                } else {
+                    if let Some(actor) = &mut self.actor {
+                        actor.orbit_controller.process_scroll(delta);
+                    }
+                }
                 true
             }
             WindowEvent::MouseInput {
