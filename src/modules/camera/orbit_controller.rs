@@ -1,5 +1,7 @@
 use cgmath::{Point3, Rad};
 use winit::{dpi::PhysicalPosition, event::MouseScrollDelta};
+use crate::modules::{core::{object_3d::GroundAttachable, raycaster::Raycaster}, terrain::terrain::Terrain};
+
 use super::camera::Camera;
 
 const VERTICAL_OFFSET: f32 = 2.0;
@@ -49,7 +51,7 @@ impl OrbitController {
         self.target = Point3::from(target);
     }
 
-    pub fn update_camera(&mut self, camera: &mut Camera) {
+    pub fn update_camera(&mut self, camera: &mut Camera, terrain: &Terrain) {
         self.yaw += self.rotate_horizontal * 0.01;
         self.pitch += self.rotate_vertical * 0.01;
         const PITCH_LIMIT: f32 = std::f32::consts::FRAC_PI_2 - 0.1;
@@ -65,6 +67,7 @@ impl OrbitController {
         );
         camera.yaw = Rad(self.yaw + std::f32::consts::PI);
         camera.pitch = Rad(-self.pitch);
+        camera.ensure_minimum_height(2.0, terrain);
         self.rotate_horizontal = 0.0;
         self.rotate_vertical = 0.0;
     }

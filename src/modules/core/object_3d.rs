@@ -454,4 +454,25 @@ pub trait GroundAttachable: Translate + Position {
         }
         position
     }
+    fn ensure_minimum_height(&mut self, minimum_height: f32, terrain: &Terrain) {
+        const GROUND_RAYCAST_OFFSET: f32 = 10.0; // raycast from an higher position
+        const DIRECTION: [f32; 3] = [0.0, -1.0, 0.0]; // downside
+        let position = self.get_position();
+        if let Some(chunk) = terrain.get_chunk_at(&position) {
+            let mut origin = position.clone();
+            origin[1] += GROUND_RAYCAST_OFFSET;
+            let raycaster = Raycaster::new(origin, DIRECTION);
+            if let Some(distance) = raycaster.intersects_first(&chunk.terrain_plane.vertices, &chunk.terrain_plane.indices) {
+                if distance - GROUND_RAYCAST_OFFSET < minimum_height {
+                    let new_position = [
+                        position[0], 
+                        position[1], 
+                        // position[1] + (distance - GROUND_RAYCAST_OFFSET + minimum_height), 
+                        position[2]
+                    ];
+                    self.translate(&new_position);
+                }
+            }
+        }
+    } 
 }

@@ -5,7 +5,7 @@ use instant::Duration;
 use winit::keyboard::KeyCode;
 use std::f32::consts::FRAC_PI_2;
 
-use crate::modules::core::directional_light::{self, DirectionalLight};
+use crate::modules::core::{directional_light::{self, DirectionalLight}, object_3d::{GroundAttachable, Position, Translate}};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -57,6 +57,22 @@ impl Camera {
         )
     }
 }
+
+impl Position for Camera {
+    fn get_position(&mut self) -> [f32; 3] {
+        self.position.into()
+    }
+}
+
+impl Translate for Camera {
+    fn translate(&mut self, value: &[f32; 3]) {
+        self.position.x = value[0];
+        self.position.y = value[1];
+        self.position.z = value[2];
+    }
+}
+
+impl GroundAttachable for Camera {}
 
 pub struct Projection {
     pub aspect: f32,

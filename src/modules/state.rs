@@ -417,7 +417,7 @@ impl<'a> State<'a> {
             self.camera_controller.update_camera(&mut self.camera, dt);
         } else {
             if let Some(actor) = &mut self.actor {
-                actor.orbit_controller.update_camera(&mut self.camera);
+                actor.orbit_controller.update_camera(&mut self.camera, &self.terrains[0]);
             }
         }
         self.common_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection, &self.directional_light);
