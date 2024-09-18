@@ -1,7 +1,17 @@
 use crate::modules::utils::functions::{denormalize_f32, normalize_f32};
 
-const REAL_TIME: bool = false; 
+#[allow(unused)]
+enum TimeControl {
+    Stopped,
+    StoppedAtNight,
+    Realtime,
+    Accelerated(f32),
+    OneDayInOneMinute,
+}
+const TIME_CONTROL: TimeControl = TimeControl::Stopped;
 const MS_IN_DAY: u64 = 24 * 3600 * 1000;
+const MS_FIXED_DAY: u64 = MS_IN_DAY / 2;
+const MS_FIXED_NIGHT: u64 = 0;
 const UTC: u64 = 2;
 const DAY_START_HOUR: u64 = 5;
 const DAY_END_HOUR: u64 = 23;
@@ -32,7 +42,11 @@ pub struct Cycle {
 
 impl Cycle {
     pub fn new() -> Self {
-        let todays_ms = Self::elapsed_ms_today() as f32;
+        let todays_ms = match TIME_CONTROL {
+            TimeControl::Stopped => MS_FIXED_DAY,
+            TimeControl::StoppedAtNight => MS_FIXED_NIGHT,
+            _ => Self::elapsed_ms_today()
+        } as f32;
         Self {
             day_factor: Self::compute_day_factor(todays_ms),
             night_factor: Self::compute_night_factor(todays_ms),
@@ -42,9 +56,18 @@ impl Cycle {
     }
 
     pub fn update(&mut self, mut delta: f32) {
-        if REAL_TIME == false {
-            delta *= (86_400_000.0 / 60_000.0) * 4.0; // 24h in 1min
-            // delta *= 86_400_000.0 / 60_000.0; // 24h in 1min
+        match TIME_CONTROL {
+            TimeControl::Accelerated(multiplicator) => {
+                delta *= multiplicator;
+            },
+            TimeControl::OneDayInOneMinute => {
+                delta *= 86_400_000.0 / 60_000.0;
+            },
+            TimeControl::Stopped | 
+            TimeControl::StoppedAtNight => {
+                delta = 0.0;
+            },
+            _ => ()
         }
         self.delta = delta;
         self.todays_ms += delta;

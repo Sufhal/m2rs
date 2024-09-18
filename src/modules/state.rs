@@ -1,4 +1,4 @@
-use std::iter;
+use std::{char, iter};
 use cgmath::Rotation3;
 use log::info;
 use winit::keyboard::KeyCode;
@@ -13,7 +13,9 @@ use crate::modules::camera::camera;
 use crate::modules::ui::ui::MetricData;
 use crate::modules::utils::time_factory::TimeFragment;
 use super::assets::gltf_loader::load_model_glb;
-use super::character::character::{Character, CharacterKind, NPCType, PCType, Sex};
+use super::camera::free_camera_controller::FreeCameraController;
+use super::character::actor::Actor;
+use super::character::character::{Character, CharacterKind, CharacterState, GetActor, NPCType, PCType, Sex};
 use super::core::directional_light::{self, DirectionalLight};
 use super::core::object_3d::{Object3D, TranslateWithScene};
 use super::core::scene;
@@ -53,7 +55,7 @@ pub struct State<'a> {
     directional_light: DirectionalLight,
     camera: camera::Camera,
     projection: camera::Projection,
-    pub camera_controller: camera::CameraController,
+    pub camera_controller: FreeCameraController,
     pub mouse_pressed: bool,
     depth_texture: texture::Texture,
     pub multisampled_texture: wgpu::Texture,
@@ -63,6 +65,7 @@ pub struct State<'a> {
     // time: std::time::Instant,
     time_factory: TimeFactory,
     pub characters: Vec<Character>,
+    pub actor: Option<Actor>,
     pub terrains: Vec<Terrain>,
     pub properties: Properties,
     pub ui: UserInterface,
@@ -165,7 +168,7 @@ impl<'a> State<'a> {
         let camera = camera::Camera::new((376.0, 182.0, 641.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         // let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
         let projection = camera::Projection::new(config.width, config.height, cgmath::Deg(28.0), 0.1, 100.0);
-        let camera_controller = camera::CameraController::new(4.0, 0.4);
+        let camera_controller = FreeCameraController::new(4.0, 0.4);
 
         let mut camera_uniform = camera::CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection, &directional_light);
@@ -261,6 +264,7 @@ impl<'a> State<'a> {
             // performance_tracker: PerformanceTracker::new(),
             time_factory: TimeFactory::new(),
             characters: Vec::new(),
+            actor: None,
             terrains: Vec::new(),
             properties,
             ui,
@@ -273,8 +277,10 @@ impl<'a> State<'a> {
 
         let mut character = Character::new("shaman_cheonryun", CharacterKind::PC(PCType::Shaman(Sex::Male)), &mut state).await;
         character.translate(392.0, 186.0, 690.0, &mut state.scene);
-        character.set_animation("ATTACK", &mut state.scene);
+        character.set_state(CharacterState::Wait, &mut state.scene);
+        state.actor = Some(Actor::new(character.id.clone()));
         state.characters.push(character);
+
 
 
 
@@ -301,39 +307,6 @@ impl<'a> State<'a> {
 
         let terrain = Terrain::load("c1", &mut state).await.unwrap();
         state.terrains.push(terrain);
-            
-            // for chunk in &terrain.chunks {
-                
-            // }
-        
-
-        // let model_objects = load_model_glb(
-        //     "pack/zone/c/building/c1-034-stonedoor.glb", 
-        //     &state.device, 
-        //     &state.queue, 
-        //     &state.skinned_models_pipeline,
-        //     &state.simple_models_pipeline,
-        // ).await.expect("unable to load");
-        // for mut object in model_objects {
-        //     if let Some(object3d) = &mut object.object3d {
-        //         match object3d {
-        //             Object3D::Simple(simple) => {
-        //                 for i in 0..1 {
-        //                     let instance = simple.request_instance(&state.device);
-        //                     instance.set_position(cgmath::Vector3::from([
-        //                         388.0,
-        //                         -113.0,
-        //                         641.0
-        //                     ]));
-        //                     instance.take();
-        //                 }
-        //             },
-        //             _ => ()
-        //         };
-        //     }
-        //     state.scene.add(object);
-        // }
-
 
         state
     }
@@ -388,13 +361,20 @@ impl<'a> State<'a> {
                     },
                     KeyCode::KeyC => {
                         if self.key_debouncer.hit(KeyCode::KeyC) {
-                            self.ui.std_out.push("[C] pressed, camera <-> directional light toggle requested".to_string());
-                            self.camera.use_directional_light = !self.camera.use_directional_light;
+                            self.ui.std_out.push("[C] pressed, camera control switch".to_string());
+                            self.camera_controller.enabled = !self.camera_controller.enabled;
                         }
                     },
                     _ => {},
                 };
-                self.camera_controller.process_keyboard(*key, *state)
+                if self.camera_controller.enabled {
+                    self.camera_controller.process_keyboard(*key, *state)
+                } 
+                else if let Some(actor) = &mut self.actor {
+                    actor.process_keyboard(*key, *state)
+                } else {
+                    false
+                }
             },
             WindowEvent::MouseWheel { delta, .. } => {
                 self.camera_controller.process_scroll(delta);
@@ -416,8 +396,24 @@ impl<'a> State<'a> {
         self.time_factory.tick();
         let update_call_fragment = TimeFragment::new();
         let elapsed_time = self.time_factory.elapsed_time_from_start();
+        let delta_ms = self.time_factory.get_delta();
+        
+        if let Some(actor) = &mut self.actor {
+            let character = self.characters.get_actor(actor);
+            actor.apply_controls(character, &mut self.scene, &self.camera, delta_ms as f32);
+            actor.orbit_controller.update_target(character.position);
+        }
+        for character in &mut self.characters {
+            character.update(&mut self.scene, &self.terrains[0]);
+        }
 
-        self.camera_controller.update_camera(&mut self.camera, dt);
+        if self.camera_controller.enabled {
+            self.camera_controller.update_camera(&mut self.camera, dt);
+        } else {
+            if let Some(actor) = &mut self.actor {
+                actor.orbit_controller.update_camera(&mut self.camera);
+            }
+        }
         self.common_pipeline.uniforms.camera.update_view_proj(&self.camera, &self.projection, &self.directional_light);
         self.queue.write_buffer(
             &self.common_pipeline.buffers.camera,
@@ -433,13 +429,9 @@ impl<'a> State<'a> {
         // let t = TimeFragment::new();
         // println!("t:{}", t.elapsed_ms());
 
-        let delta_ms = self.time_factory.get_delta();
 
         self.ui.update(delta_ms);
-
-        for character in &mut self.characters {
-            character.update(&mut self.scene, &self.terrains[0]);
-        }
+        
 
         for object in self.scene.get_all_objects_mut() {
             if let Some(object3d) = &mut object.object3d {

@@ -1,83 +1,29 @@
 use std::fmt::{self};
-use cgmath::Matrix4;
+use cgmath::{InnerSpace, Matrix4, Quaternion, Vector3};
 
 use crate::modules::assets::gltf_loader::{load_animation, load_model_glb};
 use crate::modules::core::motions::MotionsGroups;
 use crate::modules::core::object::Object;
-use crate::modules::core::object_3d::{Object3D, Rotate, RotateWithScene, Translate, TranslateWithScene, GroundAttachable};
+use crate::modules::core::object_3d::{AdditiveTranslation, AdditiveTranslationWithScene, GroundAttachable, Object3D, Rotate, RotateWithScene, Translate, TranslateWithScene};
 use crate::modules::core::scene::Scene;
 use crate::modules::state::State;
 use crate::modules::terrain::terrain::Terrain;
+use crate::modules::utils::id_gen::generate_unique_string;
 
-pub enum Sex {
-    Male,
-    Female
-}
+use super::actor::Actor;
 
-impl fmt::Display for Sex {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let output = match self {
-            Sex::Male => "m",
-            Sex::Female => "w",
-        };
-        write!(f, "{}", output)
-    }
-}
 
-pub enum PCType {
-    Shaman(Sex),
-    Sura(Sex),
-    Ninja(Sex),
-    Warrior(Sex)
-}
-
-impl fmt::Display for PCType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let output = match self {
-            PCType::Shaman(sex) => format!("shaman_{sex}"),
-            PCType::Sura(sex) => format!("sura_{sex}"),
-            PCType::Ninja(sex) => format!("assassin_{sex}"),
-            PCType::Warrior(sex) => format!("warrior_{sex}"),
-        };
-        write!(f, "{}", output)
-    }
-}
-
-pub enum NPCType {
-    Normal,
-    Monster,
-}
-
-impl fmt::Display for NPCType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let output = match self {
-            NPCType::Normal => "normal",
-            NPCType::Monster => "monster",
-        };
-        write!(f, "{}", output)
-    }
-}
-
-pub enum CharacterKind {
-    PC(PCType),
-    NPC(NPCType),
-}
-
-impl fmt::Display for CharacterKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let output = match self {
-            CharacterKind::PC(pc) => format!("pc/{}", &*pc.to_string()),
-            CharacterKind::NPC(npc) => npc.to_string(),
-        };
-        write!(f, "{}", output)
-    }
-}
 
 pub struct Character {
+    pub id: String,
     #[allow(dead_code)]
     kind: CharacterKind,
     pub objects: Vec<(String, String)>, // (Object ID, Object3DInstance ID)
+    pub position: [f32; 3],
+    direction: [f32; 3],
+    velocity: f32,
     motions: MotionsGroups,
+    state: CharacterState,
     has_moved: bool,
 }
 
@@ -169,7 +115,6 @@ impl Character {
                             objects.push((object.id.clone(), instance.id.clone()));
                         },
                         Object3D::Skinned(skinned) => {
-                            dbg!(name);
                             // loading animations clips attached to motions
                             for group in &motions.groups {
                                 for motion in &group.motions {
@@ -191,7 +136,6 @@ impl Character {
                                     let name = &motion.file;
                                     let path = format!("{animations_path}/{name}.glb");
                                     let clip = load_animation(&path, name).await.unwrap();
-                                    dbg!(&clip.name);
                                     skinned.add_animation(clip);
                                 }
                             }
@@ -209,10 +153,15 @@ impl Character {
         };
 
         Self {
+            id: generate_unique_string(),
             kind,
             objects,
             motions,
+            state: CharacterState::None,
             has_moved: true,
+            position: Default::default(),
+            direction: Default::default(),
+            velocity: 1.0,
         }
     }
 
@@ -240,10 +189,13 @@ impl Character {
                 }
             }
         }
-        // self.has_moved = false;
+        if let Some(position) = ground_position {
+            self.position = position;
+        }
+        self.has_moved = false;
     }
 
-    pub fn set_animation(&self, motion_name: &str, scene: &mut Scene) {
+    fn set_animation(&self, motion_name: &str, scene: &mut Scene) {
         for (object_id, instance_id) in &self.objects {
             if let Some(object) = scene.get_mut(object_id) {
                 if let Some(object3d) = &mut object.object3d {
@@ -251,7 +203,7 @@ impl Character {
                         Object3D::Skinned(skinned) => {
                             if let Some(instance) = skinned.get_instance(&instance_id) {
                                 if let Some(motions_group) = self.motions.get_group(motion_name) {
-                                    instance.mixer.play(motions_group.clone());
+                                    instance.mixer.queue(motions_group.clone());
                                 }
                             }
                         },
@@ -262,7 +214,57 @@ impl Character {
         }
     }
 
+    pub fn set_state(&mut self, state: CharacterState, scene: &mut Scene) {
+        if self.state == state {
+            return;
+        }
+        match state {
+            CharacterState::Wait => {
+                self.set_animation("WAIT", scene);
+            },
+            CharacterState::Run => {
+                self.set_animation("RUN", scene);
+            },
+            CharacterState::Attack => {
+                self.set_animation("ATTACK", scene);
+            },
+            _ => ()
+        }
+        self.state = state;
+    }
+
+    pub fn move_in_direction(&mut self, direction: Vector3<f32>, scene: &mut Scene, delta_ms: f32) {
+        let normalized_direction = direction.normalize();
+        let movement = normalized_direction * self.velocity * (delta_ms / 200.0);
+        self.additive_translation(movement.x, movement.y, movement.z, scene);
+        let rotation = Quaternion::from_arc(Vector3::new(0.0, 0.0, 1.0), direction, None);
+        self.rotate(
+            rotation.s, 
+            rotation.v.x, 
+            rotation.v.y, 
+            rotation.v.z,
+            scene
+        );
+        self.has_moved = true;
+        // // Mettre à jour la rotation du personnage pour qu'il fasse face à la direction du mouvement
+        // if movement.magnitude() > 0.001 {
+        //     let new_rotation = movement.y.atan2(movement.x);
+        //     let rotation = Quaternion::from_arc(Vector3::new(0.0, 0.0, 1.0), normalized_direction, None);
+        //     self.rotate_quaternion(rotation, scene);
+        //     self.rotate(new_rotation, scene);
+        // }
+    }
+
 }
+
+#[derive(PartialEq)]
+pub enum CharacterState {
+    None,
+    Wait,
+    Run,
+    Attack,
+}
+
 
 impl TranslateWithScene for Character {
     fn translate(&mut self, x: f32, y: f32, z: f32, scene: &mut Scene) {
@@ -278,6 +280,25 @@ impl TranslateWithScene for Character {
                         Object3D::Skinned(skinned) => {
                             if let Some(instance) = skinned.get_instance(&instance_id) {
                                 instance.translate(&[x, y, z]);
+                            }
+                        }
+                    };
+                }
+            }
+        }
+    }
+}
+
+impl AdditiveTranslationWithScene for Character {
+    fn additive_translation(&mut self, x: f32, y: f32, z: f32, scene: &mut Scene) {
+        for (object_id, instance_id) in &self.objects {
+            if let Some(object) = scene.get_mut(object_id) {
+                if let Some(object3d) = &mut object.object3d {
+                    match object3d {
+                        Object3D::Simple(simple) => todo!(),
+                        Object3D::Skinned(skinned) => {
+                            if let Some(instance) = skinned.get_instance(&instance_id) {
+                                instance.additive_translation(&[x, y, z]);
                             }
                         }
                     };
@@ -307,5 +328,79 @@ impl RotateWithScene for Character {
                 }
             }
         }
+    }
+}
+
+pub enum Sex {
+    Male,
+    Female
+}
+
+impl fmt::Display for Sex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let output = match self {
+            Sex::Male => "m",
+            Sex::Female => "w",
+        };
+        write!(f, "{}", output)
+    }
+}
+
+pub enum PCType {
+    Shaman(Sex),
+    Sura(Sex),
+    Ninja(Sex),
+    Warrior(Sex)
+}
+
+impl fmt::Display for PCType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let output = match self {
+            PCType::Shaman(sex) => format!("shaman_{sex}"),
+            PCType::Sura(sex) => format!("sura_{sex}"),
+            PCType::Ninja(sex) => format!("assassin_{sex}"),
+            PCType::Warrior(sex) => format!("warrior_{sex}"),
+        };
+        write!(f, "{}", output)
+    }
+}
+
+pub enum NPCType {
+    Normal,
+    Monster,
+}
+
+impl fmt::Display for NPCType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let output = match self {
+            NPCType::Normal => "normal",
+            NPCType::Monster => "monster",
+        };
+        write!(f, "{}", output)
+    }
+}
+
+pub enum CharacterKind {
+    PC(PCType),
+    NPC(NPCType),
+}
+
+impl fmt::Display for CharacterKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let output = match self {
+            CharacterKind::PC(pc) => format!("pc/{}", &*pc.to_string()),
+            CharacterKind::NPC(npc) => npc.to_string(),
+        };
+        write!(f, "{}", output)
+    }
+}
+
+pub trait GetActor {
+    fn get_actor(&mut self, actor: &Actor) -> &mut Character;
+}
+
+impl GetActor for Vec<Character> {
+    fn get_actor(&mut self, actor: &Actor) -> &mut Character {
+        self.iter_mut().find(|v| v.id == actor.character).unwrap()
     }
 }

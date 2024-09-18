@@ -60,7 +60,13 @@ pub async fn run() {
                     event: DeviceEvent::MouseMotion{ delta, },
                     .. // We're not using device_id currently
                 } => if state.mouse_pressed {
-                    state.camera_controller.process_mouse(delta.0, delta.1)
+                    if state.camera_controller.enabled {
+                        state.camera_controller.process_mouse(delta.0, delta.1)
+                    } else {
+                        if let Some(actor) = &mut state.actor {
+                            actor.orbit_controller.process_mouse(delta.0, delta.1)
+                        }
+                    }
                 },
                 Event::WindowEvent {
                     ref event,

@@ -173,6 +173,7 @@ pub struct AnimationMixer {
     clips: Rc<RefCell<Vec<AnimationClip>>>,
     state: MixerState,
     current_motion_group: Option<MotionsGroup>,
+    queued_motion_group: Option<MotionsGroup>,
 }
 
 impl AnimationMixer {
@@ -184,6 +185,7 @@ impl AnimationMixer {
                 false => MixerState::None
             },
             current_motion_group: None,
+            queued_motion_group: None,
         }
     }
     fn find_animation(&self, clip_name: &str) -> Option<usize> {
@@ -196,13 +198,33 @@ impl AnimationMixer {
                 state.elapsed_time += delta_ms;
             },
             MixerState::None => {
-                if let Some(motions_group) = &self.current_motion_group {
-                    self.play(motions_group.clone());
+                if let Some(queued_motions_group) = &self.queued_motion_group {
+                    self.play(queued_motions_group.clone());
+                    self.queued_motion_group = None;
+                }
+                else {
+                    if let Some(motions_group) = &self.current_motion_group {
+                        self.play(motions_group.clone());
+                    }
                 }
             }
             _ => ()
         };
     }
+    /// Add a motions group to the queue. 
+    /// The queue is actually used depending the current motions group
+    pub fn queue(&mut self, motions_group: MotionsGroup) {
+        if let MixerState::Play(_) = &mut self.state {
+            if let Some(current) = &self.current_motion_group {
+                if !["WAIT", "RUN"].contains(&current.name.as_str()) {
+                    self.queued_motion_group = Some(motions_group);
+                    return
+                }
+            }
+        }
+        self.play(motions_group);
+    }
+    /// Play a motions group immediately
     pub fn play(&mut self, motions_group: MotionsGroup) {
         let motion = motions_group.pick_motion();
         if let Some(clip) = self.find_animation(&motion.file) {

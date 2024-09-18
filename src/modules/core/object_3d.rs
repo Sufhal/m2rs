@@ -1,5 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
-use cgmath::One;
+use cgmath::{One, Vector3};
 use wgpu::util::DeviceExt;
 use crate::modules::{pipelines::{simple_models_pipeline::SimpleModelBindGroupLayouts, skinned_models_pipeline::SkinnedModelBindGroupLayouts}, terrain::terrain::Terrain, utils::id_gen::generate_unique_string};
 use super::{instance::InstanceRaw, model::{SimpleModel, SkinnedModel}, raycaster::Raycaster, scene::Scene, skinning::{AnimationClip, AnimationMixer, Mat4x4, Skeleton, SkeletonInstance}};
@@ -364,12 +364,19 @@ pub trait TranslateWithScene {
     fn translate(&mut self, x: f32, y: f32, z: f32, scene: &mut Scene);
 }
 
+pub trait AdditiveTranslationWithScene {
+    fn additive_translation(&mut self, x: f32, y: f32, z: f32, scene: &mut Scene);
+}
+
 pub trait RotateWithScene {
     fn rotate(&mut self, w: f32, xi: f32, yj: f32, zk: f32, scene: &mut Scene);
 }
 
 pub trait Translate {
     fn translate(&mut self, value: &[f32; 3]);
+}
+pub trait AdditiveTranslation {
+    fn additive_translation(&mut self, value: &[f32; 3]);
 }
 
 pub trait Rotate {
@@ -387,6 +394,13 @@ impl Translate for SkinnedObject3DInstance {
             y: value[1], 
             z: value[2] 
         });
+    }
+}
+
+impl AdditiveTranslation for SkinnedObject3DInstance {
+    fn additive_translation(&mut self, value: &[f32; 3]) {
+        let position = self.position.clone() + Vector3::new(value[0], value[1], value[2]);
+        self.set_position(position);
     }
 }
 
@@ -418,13 +432,22 @@ pub trait Position {
     fn get_position(&mut self) -> [f32; 3];
 }
 
+
 pub trait GroundAttachable: Translate + Position {
     fn set_on_the_ground(&mut self, terrain: &Terrain) -> [f32; 3] {
+        const GROUND_RAYCAST_OFFSET: f32 = 10.0; // raycast from an higher position
+        const DIRECTION: [f32; 3] = [0.0, -1.0, 0.0]; // downside
         let position = self.get_position();
         if let Some(chunk) = terrain.get_chunk_at(&position) {
-            let raycaster = Raycaster::new(position.clone(), [0.0, -1.0, 0.0]);
+            let mut origin = position.clone();
+            origin[1] += GROUND_RAYCAST_OFFSET;
+            let raycaster = Raycaster::new(origin, DIRECTION);
             if let Some(distance) = raycaster.intersects_first(&chunk.terrain_plane.vertices, &chunk.terrain_plane.indices) {
-                let new_position = [position[0], position[1] - distance, position[2]];
+                let new_position = [
+                    position[0], 
+                    position[1] - distance + GROUND_RAYCAST_OFFSET, 
+                    position[2]
+                ];
                 self.translate(&new_position);
                 return new_position;
             }
