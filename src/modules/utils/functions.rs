@@ -1,4 +1,6 @@
-use cgmath::Vector3;
+use std::f32::consts::PI;
+
+use cgmath::{Rad, Vector3};
 use super::time_factory::TimeFactory;
 
 pub fn debug_using_trash_file(
@@ -137,10 +139,20 @@ pub fn srgb_to_linear(color: [f32; 3]) -> [f32; 3] {
         ((color[2] + 0.055) / 1.055).powf(2.4)
     };
 
-    [r, g, b] // Retourne la couleur convertie en espace linéaire
+    [r, g, b]
 }
 
 pub fn correct_color(colors: [f32; 4]) -> [f32; 4] {
     let rgb = srgb_to_linear([colors[0], colors[1], colors[2]]);
     [rgb[0], rgb[1], rgb[2], colors[3]]
+}
+
+pub fn lerp_angle(start: Rad<f32>, end: Rad<f32>, t: f32) -> Rad<f32> {
+    let mut delta = (end - start).0;
+    if delta > PI {
+        delta -= 2.0 * PI;
+    } else if delta < -PI {
+        delta += 2.0 * PI;
+    }
+    Rad(start.0 + delta * t.clamp(0.0, 1.0))
 }

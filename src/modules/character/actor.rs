@@ -1,15 +1,21 @@
 use std::f32::consts::{FRAC_2_PI, PI};
 
-use cgmath::{InnerSpace, Matrix3, Matrix4, Rad, Transform, Vector3};
+use cgmath::{Angle, InnerSpace, Matrix3, Matrix4, Quaternion, Rad, Rotation3, Transform, Vector3, VectorSpace};
 use winit::{event::ElementState, keyboard::KeyCode};
-use crate::modules::{camera::{camera::Camera, orbit_controller::OrbitController}, core::scene::Scene};
+use crate::modules::{camera::{camera::Camera, orbit_controller::OrbitController}, core::scene::Scene, utils::functions::{denormalize_f32x3, lerp_angle}};
 use super::character::{Character, CharacterState};
 
+const ROTATION_SPEED: f32 = PI / (200.0 / 1000.0);
+//                                ^^^^^ duration in ms to make a a 360
 
 pub struct Actor {
     pub character: String,
     pub orbit_controller: OrbitController,
     controller: Controller,
+    // current_rotation: Quaternion<f32>,
+    // target_rotation: Quaternion<f32>,
+    direction: Vector3<f32>,
+    rotation_speed: f32,
 }
 
 impl Actor {
@@ -19,10 +25,14 @@ impl Actor {
             character,
             controller: Default::default(),
             orbit_controller: OrbitController::new(),
+            // current_rotation: Quaternion::from_angle_y(Rad(0.0)),
+            // target_rotation: Quaternion::from_angle_y(Rad(0.0)),
+            direction: Vector3::new(0.0, 0.0, 0.0), 
+            rotation_speed: ROTATION_SPEED,
         }
     }
 
-    pub fn apply_controls(&self, character: &mut Character, scene: &mut Scene, camera: &Camera, delta_ms: f32) {
+    pub fn apply_controls(&mut self, character: &mut Character, scene: &mut Scene, camera: &Camera, delta_ms: f32) {
         let mut movement_direction = Vector3::new(0.0, 0.0, 0.0);
         if self.controller.forward {
             movement_direction.z -= 1.0;
@@ -31,10 +41,10 @@ impl Actor {
             movement_direction.z += 1.0;
         }
         if self.controller.left {
-            movement_direction.x -= 1.0;
+            movement_direction.x -= 0.9;
         }
         if self.controller.right {
-            movement_direction.x += 1.0;
+            movement_direction.x += 0.9;
         }
 
         if self.controller.attack == true {
@@ -47,8 +57,13 @@ impl Actor {
         {
             let rotation = Matrix4::from_angle_y(-camera.yaw - Rad(PI / 2.0));
             let camera_space_movement = rotation.transform_vector(movement_direction);
-            let movement = Vector3::new(camera_space_movement.x, 0.0, camera_space_movement.z).normalize();
-            character.move_in_direction(movement, scene, delta_ms);
+            let desired_direction = Vector3::new(camera_space_movement.x, 0.0, camera_space_movement.z).normalize();
+            let delta_seconds = delta_ms / 1000.0;
+            let current_angle = Rad::atan2(self.direction.z, self.direction.x);
+            let desired_angle = Rad::atan2(desired_direction.z, desired_direction.x);
+            let new_angle = lerp_angle(current_angle, desired_angle, self.rotation_speed * delta_seconds);
+            self.direction = Vector3::new(new_angle.cos(), 0.0, new_angle.sin()).normalize();
+            character.move_in_direction(self.direction, scene, delta_ms);
             character.set_state(CharacterState::Run, scene);
         } else {
             character.set_state(CharacterState::Wait, scene);
