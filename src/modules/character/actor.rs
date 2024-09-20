@@ -1,11 +1,10 @@
-use std::f32::consts::{FRAC_2_PI, PI};
-
-use cgmath::{Angle, InnerSpace, Matrix3, Matrix4, Quaternion, Rad, Rotation3, Transform, Vector3, VectorSpace};
+use std::f32::consts::PI;
+use cgmath::{Angle, InnerSpace, Matrix4, Rad, Transform, Vector3};
 use winit::{event::ElementState, keyboard::KeyCode};
-use crate::modules::{camera::{camera::Camera, orbit_controller::OrbitController}, core::scene::Scene, utils::functions::{denormalize_f32x3, lerp_angle}};
+use crate::modules::{camera::{camera::Camera, orbit_controller::OrbitController}, core::scene::Scene, utils::functions::lerp_angle};
 use super::character::{Character, CharacterState};
 
-const ROTATION_SPEED: f32 = PI / (200.0 / 1000.0);
+const ROTATION_SPEED: f32 = PI / (150.0 / 1000.0);
 //                                ^^^^^ duration in ms to make a a 360
 
 pub struct Actor {
@@ -41,10 +40,10 @@ impl Actor {
             movement_direction.z += 1.0;
         }
         if self.controller.left {
-            movement_direction.x -= 0.9;
+            movement_direction.x -= 1.0;
         }
         if self.controller.right {
-            movement_direction.x += 0.9;
+            movement_direction.x += 1.0;
         }
 
         if self.controller.attack == true {
@@ -55,6 +54,10 @@ impl Actor {
             self.controller.left == true || 
             self.controller.right == true  
         {
+            if movement_direction.magnitude2() < 0.0001 { // trying to normalize a zero vector result in a NaN vector
+                character.set_state(CharacterState::Wait, scene);
+                return
+            }
             let rotation = Matrix4::from_angle_y(-camera.yaw - Rad(PI / 2.0));
             let camera_space_movement = rotation.transform_vector(movement_direction);
             let desired_direction = Vector3::new(camera_space_movement.x, 0.0, camera_space_movement.z).normalize();
@@ -73,22 +76,22 @@ impl Actor {
     pub fn process_keyboard(&mut self, key: KeyCode, state: ElementState) -> bool {
         match key {
             KeyCode::KeyW | KeyCode::ArrowUp => {
-                self.controller.backward = false;
+                // self.controller.backward = false;
                 self.controller.forward = state.is_pressed();
                 true
             }
             KeyCode::KeyS | KeyCode::ArrowDown => {
-                self.controller.forward = false;
+                // self.controller.forward = false;
                 self.controller.backward = state.is_pressed();
                 true
             }
             KeyCode::KeyA | KeyCode::ArrowLeft => {
-                self.controller.right = false;
+                // self.controller.right = false;
                 self.controller.left = state.is_pressed();
                 true
             }
             KeyCode::KeyD | KeyCode::ArrowRight => {
-                self.controller.left = false;
+                // self.controller.left = false;
                 self.controller.right = state.is_pressed();
                 true
             }
@@ -103,6 +106,7 @@ impl Actor {
 }
 
 
+#[derive(Debug)]
 struct Controller {
     forward: bool,
     backward: bool,
