@@ -15,14 +15,14 @@ impl Raycaster {
             is_vertical: direction[0] == 0.0 && direction[2] == 0.0
         }
     }
-    pub fn intersects_first(&self, vertices: &[SimpleVertex], indices: &[u32]) -> Option<f32> {
+    pub fn intersects_first(&self, vertices: &[SimpleVertex], indices: &[u32], ray_length: Option<f32>) -> Option<f32> {
         for i in (0..indices.len()).step_by(3) {
             let triangle = [
                 vertices[indices[i + 0] as usize],
                 vertices[indices[i + 1] as usize],
                 vertices[indices[i + 2] as usize],
             ];
-            if self.is_vertical && !self.is_triangle_near_ray(&triangle, 10.0) { 
+            if self.is_vertical && !self.is_triangle_near_ray(&triangle, ray_length.unwrap_or(10.0)) { 
                 continue;
             }
             let intersection = self.intersects_triangle(triangle);

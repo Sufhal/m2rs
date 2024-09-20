@@ -52,9 +52,10 @@ impl OrbitController {
     }
 
     pub fn update_camera(&mut self, camera: &mut Camera, terrain: &Terrain) {
-        let distance_to_ground = camera.get_distance_to_ground(terrain);
+        const MINIMUM_HEIGHT: f32 = 1.0;
+        let distance_to_ground_bottom = camera.get_distance_to_ground([0.0, -1.0, 0.0], terrain);
         self.yaw += self.rotate_horizontal * 0.01;
-        if distance_to_ground > 1.0 || self.rotate_vertical.is_positive() {
+        if distance_to_ground_bottom > MINIMUM_HEIGHT || self.rotate_vertical.is_positive() {
             self.pitch += self.rotate_vertical * 0.01;
         }
         const PITCH_LIMIT: f32 = std::f32::consts::FRAC_PI_2 - 0.1;
@@ -70,7 +71,6 @@ impl OrbitController {
         );
         camera.yaw = Rad(self.yaw + std::f32::consts::PI);
         camera.pitch = Rad(-self.pitch);
-        // camera.ensure_minimum_height(2.0, terrain);
         self.rotate_horizontal = 0.0;
         self.rotate_vertical = 0.0;
     }

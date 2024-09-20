@@ -442,7 +442,7 @@ pub trait GroundAttachable: Translate + Position {
             let mut origin = position.clone();
             origin[1] += GROUND_RAYCAST_OFFSET;
             let raycaster = Raycaster::new(origin, DIRECTION);
-            if let Some(distance) = raycaster.intersects_first(&chunk.terrain_plane.vertices, &chunk.terrain_plane.indices) {
+            if let Some(distance) = raycaster.intersects_first(&chunk.terrain_plane.vertices, &chunk.terrain_plane.indices, None) {
                 let new_position = [
                     position[0], 
                     position[1] - distance + GROUND_RAYCAST_OFFSET, 
@@ -454,19 +454,16 @@ pub trait GroundAttachable: Translate + Position {
         }
         position
     }
-    fn get_distance_to_ground(&mut self, terrain: &Terrain) -> f32 {
+    fn get_distance_to_ground(&mut self, direction: [f32; 3], terrain: &Terrain) -> f32 {
         // TODO: 
         // 1. pass direction in param
         // 2. pass ray length in raycast
-        const GROUND_RAYCAST_OFFSET: f32 = 10.0; // raycast from an higher position
-        const DIRECTION: [f32; 3] = [0.0, -1.0, 0.0]; // downside
         let position = self.get_position();
         if let Some(chunk) = terrain.get_chunk_at(&position) {
-            let mut origin = position.clone();
-            origin[1] += GROUND_RAYCAST_OFFSET;
-            let raycaster = Raycaster::new(origin, DIRECTION);
-            if let Some(distance) = raycaster.intersects_first(&chunk.terrain_plane.vertices, &chunk.terrain_plane.indices) {
-                return distance - GROUND_RAYCAST_OFFSET
+            let origin = position.clone();
+            let raycaster = Raycaster::new(origin, direction);
+            if let Some(distance) = raycaster.intersects_first(&chunk.terrain_plane.vertices, &chunk.terrain_plane.indices, None) {
+                return distance
             }
         }
         0.0
