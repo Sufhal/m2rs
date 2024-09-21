@@ -15,9 +15,9 @@ impl Terrain {
     pub async fn load(name: &str, state: &mut State<'_>) -> anyhow::Result<Self> {
         let path = format!("pack/map/{name}");
         let setting = Setting::read(&path).await?;
-        let texture_set = TextureSet::read(&path).await?;
+        let terrain_textures_set = TextureSet::read(&path).await?;
         let water_texture = WaterTexture::load(state).await?;
-        let textures = texture_set.load_textures(&state.device, &state.queue).await?;
+        let textures = terrain_textures_set.load_textures(&state.device, &state.queue).await?;
         let mut chunks = Vec::new();
         for x in 0..setting.map_size[0] {
             for y in 0..setting.map_size[1] {
@@ -27,6 +27,7 @@ impl Terrain {
                     &y,
                     &setting,
                     &textures,
+                    &terrain_textures_set,
                     &water_texture,
                     state
                 ).await?;

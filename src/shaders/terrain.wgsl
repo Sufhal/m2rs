@@ -105,7 +105,9 @@ struct DirectionalLight {
 @group(0) @binding(7) var<uniform> directional_light: DirectionalLight;
 
 struct ChunkInformations {
-    textures_count: u32,
+    textures_count: vec4<u32>,
+    textures_scale_1: vec4<f32>,
+    textures_scale_2: vec4<f32>,
 }
 @group(1) @binding(1) var<uniform> chunk_informations: ChunkInformations;
 @group(1) @binding(2) var sampler_tex: sampler;
@@ -173,17 +175,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var splat = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
     let uv = in.tex_coords;
-    let tex_uv = uv * 40.0; // TODO: map level textureset.json contains data about this factor
-    let t0 = textureSample(tex_0, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 0u, vec2<u32>(3, 3))).r;
-    let t1 = textureSample(tex_1, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 1u, vec2<u32>(3, 3))).r;
-    let t2 = textureSample(tex_2, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 2u, vec2<u32>(3, 3))).r;
-    let t3 = textureSample(tex_3, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 3u, vec2<u32>(3, 3))).r;
-    let t4 = textureSample(tex_4, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 4u, vec2<u32>(3, 3))).r;
-    let t5 = textureSample(tex_5, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 5u, vec2<u32>(3, 3))).r;
-    let t6 = textureSample(tex_6, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 6u, vec2<u32>(3, 3))).r;
-    let t7 = textureSample(tex_7, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 7u, vec2<u32>(3, 3))).r;
+    let t0 = textureSample(tex_0, sampler_tex, uv * chunk_informations.textures_scale_1[0] * 10.0) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 0u, vec2<u32>(3, 3))).r;
+    let t1 = textureSample(tex_1, sampler_tex, uv * chunk_informations.textures_scale_1[1] * 10.0) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 1u, vec2<u32>(3, 3))).r;
+    let t2 = textureSample(tex_2, sampler_tex, uv * chunk_informations.textures_scale_1[2] * 10.0) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 2u, vec2<u32>(3, 3))).r;
+    let t3 = textureSample(tex_3, sampler_tex, uv * chunk_informations.textures_scale_1[3] * 10.0) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 3u, vec2<u32>(3, 3))).r;
+    let t4 = textureSample(tex_4, sampler_tex, uv * chunk_informations.textures_scale_2[0] * 10.0) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 4u, vec2<u32>(3, 3))).r;
+    let t5 = textureSample(tex_5, sampler_tex, uv * chunk_informations.textures_scale_2[1] * 10.0) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 5u, vec2<u32>(3, 3))).r;
+    let t6 = textureSample(tex_6, sampler_tex, uv * chunk_informations.textures_scale_2[2] * 10.0) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 6u, vec2<u32>(3, 3))).r;
+    let t7 = textureSample(tex_7, sampler_tex, uv * chunk_informations.textures_scale_2[3] * 10.0) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 7u, vec2<u32>(3, 3))).r;
 
-    for (var i: u32 = 0; i < chunk_informations.textures_count; i = i + 1) {
+    for (var i: u32 = 0; i < chunk_informations.textures_count[0]; i = i + 1) {
         switch i {
             case 0u: {
                 splat += t0;

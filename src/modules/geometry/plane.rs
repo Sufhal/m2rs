@@ -140,6 +140,7 @@ impl Plane {
         textures: &Vec<Texture>,
         alpha_atlas: &Texture,
         textures_set: &ChunkTextureSet,
+        textures_scale: Vec<f32>,
     ) -> CustomMesh {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Terrain Vertex Buffer"),
@@ -158,7 +159,7 @@ impl Plane {
         });
         let chunk_informations_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Chunk Informations Buffer"),
-            contents: bytemuck::cast_slice(&[ChunkInformationUniform { textures_count: textures_set.textures.len() as u32 }]),
+            contents: bytemuck::cast_slice(&[ChunkInformationUniform::new(textures_set.textures.len() as u32, &textures_scale)]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 

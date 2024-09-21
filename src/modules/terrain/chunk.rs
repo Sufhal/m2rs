@@ -1,7 +1,7 @@
 use cgmath::{Matrix4, Rotation3};
 use wgpu::util::DeviceExt;
 use crate::modules::{assets::assets::load_binary, core::{model::{CustomMesh, Transformable}, object_3d::Object3D, texture::Texture}, geometry::plane::Plane, state::State, utils::functions::u8_to_string_with_len};
-use super::{areadata::AreaData, height::Height, setting::Setting, texture_set::ChunkTextureSet, water::{Water, WaterTexture}};
+use super::{areadata::AreaData, height::Height, setting::Setting, texture_set::{ChunkTextureSet, TextureSet}, water::{Water, WaterTexture}};
 
 const SIZE: f32 = 256.0;
 
@@ -24,7 +24,8 @@ impl Chunk {
         y: &u8,
         setting: &Setting,
         textures: &Vec<Texture>,
-        water_textures: &WaterTexture,
+        terrain_textures_set: &TextureSet,
+        water_texture: &WaterTexture,
         state: &mut State<'_>
     ) -> anyhow::Result<Self> {
         let name = Self::name_from(*x, *y);
@@ -33,6 +34,7 @@ impl Chunk {
         let mean_height = height.vertices.iter().fold(0.0, |acc, v| acc + *v) / height.vertices.len() as f32;
         let water = Water::read(&chunk_path).await?;
         let textures_set = ChunkTextureSet::read(&chunk_path).await?;
+        let textures_scale = textures_set.textures.iter().map(|idx| terrain_textures_set.definitions[*idx as usize].u_scale).collect::<Vec<_>>();
         let alpha_atlas = {
             let raw = load_binary(&format!("{chunk_path}/tiles_atlas.raw")).await?;
             Texture::from_raw_bytes(
@@ -62,7 +64,8 @@ impl Chunk {
             name.clone(),
             textures,
             &alpha_atlas,
-            &textures_set
+            &textures_set,
+            textures_scale
         );
         let water_plane = water.generate_plane(setting.height_scale);
         let depth = Water::calculate_depth(&water_plane, &terrain_plane);
@@ -80,7 +83,7 @@ impl Chunk {
                 0.0,
                 (*y as f32 * size)
             ],
-            &water_textures,
+            &water_texture,
         );
         let area_data = AreaData::read(&chunk_path).await?;
         let limits = (
@@ -159,5 +162,32 @@ impl Chunk {
 #[repr(C)]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
 pub struct ChunkInformationUniform {
-    pub textures_count: u32
+    textures_count: [u32; 4],
+    textures_scale_1: [f32; 4],
+    textures_scale_2: [f32; 4],
+}
+
+impl ChunkInformationUniform {
+    pub fn new(textures_count: u32, textures_scale: &Vec<f32>) -> Self {
+        Self {
+            textures_count: [
+                textures_count,
+                0,
+                0,
+                0
+            ],
+            textures_scale_1: [
+                *textures_scale.get(0).unwrap_or(&1.0),
+                *textures_scale.get(1).unwrap_or(&1.0),
+                *textures_scale.get(2).unwrap_or(&1.0),
+                *textures_scale.get(3).unwrap_or(&1.0),
+            ],
+            textures_scale_2: [
+                *textures_scale.get(4).unwrap_or(&1.0),
+                *textures_scale.get(5).unwrap_or(&1.0),
+                *textures_scale.get(6).unwrap_or(&1.0),
+                *textures_scale.get(7).unwrap_or(&1.0),
+            ]
+        }
+    }
 }
