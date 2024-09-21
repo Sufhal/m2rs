@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use image::GrayImage;
 use crate::modules::conversion::common::write;
+use crate::modules::conversion::utils::generate_tiles_atlas;
 use crate::modules::terrain::areadata::AreaData;
 use crate::modules::terrain::texture_set::{ChunkTextureSet, TextureSet};
 
@@ -191,6 +192,7 @@ pub fn convert_maps() {
                                     colors.remove(colors.iter().position(|(v, _)| *v == color_to_merge).unwrap());
                                 }
 
+                                let mut tiles = Vec::new();
                                 for i in 0..colors.len() {
                                     let (index, _) = colors.get(i).unwrap();
                                     let alpha_map = tile_indices
@@ -210,8 +212,13 @@ pub fn convert_maps() {
                                         &format!("{}/tile_{i}.raw", element.path().to_str().unwrap()), 
                                         blurred_alpha_map.to_vec()
                                     );
-                                    
+                                    tiles.push(blurred_alpha_map); 
                                 }
+                                let tiles_atlas = generate_tiles_atlas(tiles);
+                                write(
+                                    &format!("{}/tiles_atlas.raw", element.path().to_str().unwrap()), 
+                                    tiles_atlas.to_vec()
+                                );
 
                                 write(
                                     &format!("{}/textureset.json", element.path().to_str().unwrap()), 
