@@ -1,5 +1,5 @@
 use wgpu::util::DeviceExt;
-use crate::modules::{camera::camera::CameraUniform, core::{directional_light::{self, DirectionalLight, DirectionalLightUniform}, light::LightUniform}, environment::{cycle::CycleUniform, fog::FogUniform, sun::SunUniform}};
+use crate::modules::{camera::camera::CameraUniform, core::{directional_light::{DirectionalLight, DirectionalLightUniform}, light::LightUniform}, environment::{cycle::CycleUniform, fog::FogUniform, sun::SunUniform}};
 
 pub struct Buffers {
     pub light: wgpu::Buffer,

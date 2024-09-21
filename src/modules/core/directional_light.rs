@@ -1,5 +1,5 @@
-use cgmath::{perspective, Deg, EuclideanSpace, InnerSpace, Matrix4, Point3, SquareMatrix, Transform, Vector3, Vector4, Zero};
-use crate::modules::{camera::camera::OPENGL_TO_WGPU_MATRIX, environment::sun::Sun, terrain::terrain::Terrain};
+use cgmath::{perspective, Deg, InnerSpace, Matrix4, Point3, SquareMatrix, Transform, Vector3, Vector4, Zero};
+use crate::modules::{camera::camera::OPENGL_TO_WGPU_MATRIX, terrain::terrain::Terrain};
 use super::texture::Texture;
 
 const SHADOW_MAP_SIZE: u32 = 8192;
@@ -81,7 +81,7 @@ impl DirectionalLight {
         }
     }
 
-    pub fn uniform_from_camera(&self, camera_view_proj: Matrix4<f32>) -> DirectionalLightUniform {
+    pub fn uniform_from_camera(&self, _camera_view_proj: Matrix4<f32>) -> DirectionalLightUniform {
         DirectionalLightUniform {
             view_proj: self.cascade_projections[0].into(),
             ..Default::default()
@@ -230,31 +230,4 @@ fn get_frustum_center(frustum_corners: &[Point3<f32>; 8]) -> Point3<f32> {
     center.z /= 8.0;
 
     center
-}
-
-const TEXEL_SCALE: f32 = 2.0 / SHADOW_MAP_SIZE as f32; // résolution de la shadow map de 1024px
-const INV_TEXEL_SCALE: f32 = 1.0 / TEXEL_SCALE;
-
-fn stabilize_cascade_center(center: Point3<f32>, cascade_view_projection: Matrix4<f32>) -> Point3<f32> {
-    // Projeter le nouveau centre en utilisant la projection précédente
-    let projected_center = cascade_view_projection * center.to_homogeneous();
-    
-    // Diviser par w pour obtenir les coordonnées normalisées
-    let w = projected_center.w;
-    
-    // Arrondir les coordonnées x et y à des valeurs de texels entiers
-    let x = ((projected_center.x / w) * INV_TEXEL_SCALE).floor() * TEXEL_SCALE;
-    let y = ((projected_center.y / w) * INV_TEXEL_SCALE).floor() * TEXEL_SCALE;
-    let z = projected_center.z / w;
-    
-    // Re-projeter dans l'espace monde
-    let inv_cascade_view_projection = cascade_view_projection.invert().unwrap();
-    let corrected_center = inv_cascade_view_projection * Vector4::new(x, y, z, 1.0);
-    
-    // Diviser par w pour obtenir les coordonnées 3D finales
-    Point3::new(
-        corrected_center.x / corrected_center.w,
-        corrected_center.y / corrected_center.w,
-        corrected_center.z / corrected_center.w
-    )
 }

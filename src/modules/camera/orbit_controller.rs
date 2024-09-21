@@ -1,6 +1,6 @@
 use cgmath::{num_traits::Signed, Point3, Rad};
 use winit::{dpi::PhysicalPosition, event::MouseScrollDelta};
-use crate::modules::{core::{object_3d::GroundAttachable, raycaster::Raycaster}, terrain::terrain::Terrain};
+use crate::modules::{core::object_3d::GroundAttachable, terrain::terrain::Terrain};
 
 use super::camera::Camera;
 

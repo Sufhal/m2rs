@@ -20,6 +20,7 @@ pub struct Character {
     kind: CharacterKind,
     pub objects: Vec<(String, String)>, // (Object ID, Object3DInstance ID)
     pub position: [f32; 3],
+    #[allow(dead_code)]
     direction: [f32; 3],
     velocity: f32,
     motions: MotionsGroups,
@@ -288,7 +289,7 @@ impl AdditiveTranslationWithScene for Character {
             if let Some(object) = scene.get_mut(object_id) {
                 if let Some(object3d) = &mut object.object3d {
                     match object3d {
-                        Object3D::Simple(simple) => todo!(),
+                        Object3D::Simple(_simple) => todo!(),
                         Object3D::Skinned(skinned) => {
                             if let Some(instance) = skinned.get_instance(&instance_id) {
                                 instance.additive_translation(&[x, y, z]);

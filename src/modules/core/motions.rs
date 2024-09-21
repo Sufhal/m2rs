@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::modules::{assets::assets::load_string, utils::functions::random_u8};
 
-use super::skinning::{AnimationMixer, MixerState};
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MotionsGroups {
     pub groups: Vec<MotionsGroup>,

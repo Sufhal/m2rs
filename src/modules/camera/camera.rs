@@ -1,11 +1,6 @@
 use cgmath::*;
-use winit::event::*;
-use winit::dpi::PhysicalPosition;
-use instant::Duration;
-use winit::keyboard::KeyCode;
-use std::f32::consts::FRAC_PI_2;
 
-use crate::modules::core::{directional_light::{self, DirectionalLight}, object_3d::{GroundAttachable, Position, Translate}};
+use crate::modules::core::{directional_light::DirectionalLight, object_3d::{GroundAttachable, Position, Translate}};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(

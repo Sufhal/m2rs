@@ -38,7 +38,7 @@ impl FreeCameraController {
             boost: 1.0,
             speed,
             sensitivity,
-            enabled: true,
+            enabled: false,
         }
     }
 
