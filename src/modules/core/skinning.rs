@@ -160,7 +160,6 @@ pub struct PlayState {
 pub struct BlendState {
     animation: usize,
     elapsed_time: f64,
-    to_blend: Vec<PlayState>,
 }
 #[derive(Clone, Debug)]
 pub enum MixerState {
@@ -220,7 +219,6 @@ impl AnimationMixer {
                     }
                 }
             }
-            _ => ()
         };
     }
     /// Add a motions group to the queue. 
@@ -253,21 +251,18 @@ impl AnimationMixer {
                         }
                     );
                 },
-                MixerState::Play(state) => {
+                MixerState::Play(_) => {
                     self.state = MixerState::Blend(
                         BlendState {
                             animation: clip,
                             elapsed_time: 0.0,
-                            to_blend: vec![state.clone()]
                         }
                     );
                 },
                 MixerState::Blend(state) => {
-                    state.to_blend.push(PlayState { animation: state.animation, elapsed_time: state.elapsed_time });
                     state.animation = clip;
                     state.elapsed_time = 0.0;
                 }
-                _ => ()
             };
         }
         if self.current_motion_group.is_none() || self.current_motion_group.as_ref().unwrap().name != motions_group.name {
