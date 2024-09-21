@@ -1,8 +1,9 @@
 use std::{cell::RefCell, rc::Rc};
 use cgmath::{InnerSpace, Matrix4, Quaternion, SquareMatrix};
 use crate::modules::utils::functions::{clamp_f64, denormalize_f32x3, denormalize_f32x4, normalize_f64};
-
 use super::motions::MotionsGroup;
+
+const ANIMATION_TRANSITION_DURATION: f64 = 200.0;
 
 #[repr(C, align(16))]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
@@ -14,7 +15,7 @@ pub struct SkinningInformations {
     bones_count: u32,
 }
 
-/// ### /!\ World matrices in Bones are in the Skeleton context, not in the Scene context
+/// ### ⚠️ World matrices in Bones are in the Skeleton context, not in the Scene context
 #[derive(Clone, Debug)]
 pub struct Bone {
     pub name: Option<String>,
@@ -156,16 +157,16 @@ pub struct PlayState {
 }
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
-pub struct TransitionState {
+pub struct BlendState {
+    animation: usize,
     elapsed_time: f64,
-    animation_in: usize,
-    animation_out: usize
+    to_blend: Vec<PlayState>,
 }
 #[derive(Clone, Debug)]
 pub enum MixerState {
     None,
     Play(PlayState),
-    Transition(TransitionState)
+    Blend(BlendState)
 }
 
 #[derive(Clone, Debug)]
@@ -194,6 +195,17 @@ impl AnimationMixer {
     }
     pub fn update(&mut self, delta_ms: f64) {
         match &mut self.state {
+            MixerState::Blend(state) => {
+                state.elapsed_time += delta_ms;
+                if state.elapsed_time > ANIMATION_TRANSITION_DURATION {
+                    self.state = MixerState::Play(
+                        PlayState { 
+                            animation: state.animation, 
+                            elapsed_time: state.elapsed_time 
+                        }
+                    );
+                }
+            },
             MixerState::Play(state) => {
                 state.elapsed_time += delta_ms;
             },
@@ -214,14 +226,18 @@ impl AnimationMixer {
     /// Add a motions group to the queue. 
     /// The queue is actually used depending the current motions group
     pub fn queue(&mut self, motions_group: MotionsGroup) {
-        if let MixerState::Play(_) = &mut self.state {
-            if let Some(current) = &self.current_motion_group {
-                if !["WAIT", "RUN"].contains(&current.name.as_str()) {
-                    self.queued_motion_group = Some(motions_group);
-                    return
+        match &mut self.state {
+            MixerState::Play(_) |
+            MixerState::Blend(_) => {
+                if let Some(current) = &self.current_motion_group {
+                    if !["WAIT", "RUN"].contains(&current.name.as_str()) {
+                        self.queued_motion_group = Some(motions_group);
+                        return
+                    }
                 }
-            }
-        }
+            },
+            _ => (),
+        };
         self.play(motions_group);
     }
     /// Play a motions group immediately
@@ -230,11 +246,27 @@ impl AnimationMixer {
         if let Some(clip) = self.find_animation(&motion.file) {
             match &mut self.state {
                 MixerState::None => {
-                    self.state = MixerState::Play(PlayState { animation: clip, elapsed_time: 0.0 });
+                    self.state = MixerState::Play(
+                        PlayState { 
+                            animation: clip, 
+                            elapsed_time: 0.0 
+                        }
+                    );
                 },
                 MixerState::Play(state) => {
-                    *state = PlayState { animation: clip, elapsed_time: 0.0 };
+                    self.state = MixerState::Blend(
+                        BlendState {
+                            animation: clip,
+                            elapsed_time: 0.0,
+                            to_blend: vec![state.clone()]
+                        }
+                    );
                 },
+                MixerState::Blend(state) => {
+                    state.to_blend.push(PlayState { animation: state.animation, elapsed_time: state.elapsed_time });
+                    state.animation = clip;
+                    state.elapsed_time = 0.0;
+                }
                 _ => ()
             };
         }
@@ -283,6 +315,48 @@ impl AnimationMixer {
                     self.state = MixerState::None;
                 }
             },
+            MixerState::Blend(state) => {
+                let transition_factor = normalize_f64(state.elapsed_time, 0.0, ANIMATION_TRANSITION_DURATION);
+                let elapsed_secs = state.elapsed_time / 1000.0;
+                let clip = &clips[state.animation];
+                let timestamps = &clip.animations[0].timestamps;
+                if let Some(next) = timestamps.iter().position(|t| *t > elapsed_secs) {
+                    let previous = next - 1;
+                    let factor = normalize_f64(elapsed_secs, timestamps[previous], timestamps[next]);
+                    let factor = clamp_f64(factor, 0.0, 1.0);
+                    for bone_animation in &clip.animations {
+                        let bone = &mut skeleton.bones[bone_animation.bone];
+                        match &bone_animation.keyframes {
+                            Keyframes::Translation(frames) => {
+                                let previous_frame = &frames[previous];
+                                let next_frame = &frames[next];
+                                let interpolated = denormalize_f32x3(factor as f32, previous_frame, next_frame);
+                                let blent = denormalize_f32x3(transition_factor as f32, &bone.translation, &interpolated);
+                                bone.set_translation(&blent);
+                            },
+                            Keyframes::Rotation(frames) => {
+                                let previous_frame = &frames[previous];
+                                let next_frame = &frames[next];
+                                let interpolated = denormalize_f32x4(factor as f32, previous_frame, next_frame);
+                                let blent = denormalize_f32x4(transition_factor as f32, &bone.rotation, &interpolated);
+                                bone.set_rotation(&blent);
+                            },
+                            Keyframes::Scale(frames) => {
+                                let previous_frame = &frames[previous];
+                                let next_frame = &frames[next];
+                                let interpolated = denormalize_f32x3(factor as f32, previous_frame, next_frame);
+                                let blent = denormalize_f32x3(transition_factor as f32, &bone.scale, &interpolated);
+                                bone.set_scale(&blent);
+                            },
+                            _ => {},
+                        };
+                    }
+                    skeleton.calculate_world_matrices();
+                }
+                else {
+                    self.state = MixerState::None;
+                }
+            }
             _ => ()
         };
     }

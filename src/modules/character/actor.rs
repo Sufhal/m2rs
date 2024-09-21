@@ -11,8 +11,6 @@ pub struct Actor {
     pub character: String,
     pub orbit_controller: OrbitController,
     controller: Controller,
-    // current_rotation: Quaternion<f32>,
-    // target_rotation: Quaternion<f32>,
     direction: Vector3<f32>,
     rotation_speed: f32,
 }
@@ -24,8 +22,6 @@ impl Actor {
             character,
             controller: Default::default(),
             orbit_controller: OrbitController::new(),
-            // current_rotation: Quaternion::from_angle_y(Rad(0.0)),
-            // target_rotation: Quaternion::from_angle_y(Rad(0.0)),
             direction: Vector3::new(0.0, 0.0, 0.0), 
             rotation_speed: ROTATION_SPEED,
         }
@@ -76,22 +72,18 @@ impl Actor {
     pub fn process_keyboard(&mut self, key: KeyCode, state: ElementState) -> bool {
         match key {
             KeyCode::KeyW | KeyCode::ArrowUp => {
-                // self.controller.backward = false;
                 self.controller.forward = state.is_pressed();
                 true
             }
             KeyCode::KeyS | KeyCode::ArrowDown => {
-                // self.controller.forward = false;
                 self.controller.backward = state.is_pressed();
                 true
             }
             KeyCode::KeyA | KeyCode::ArrowLeft => {
-                // self.controller.right = false;
                 self.controller.left = state.is_pressed();
                 true
             }
             KeyCode::KeyD | KeyCode::ArrowRight => {
-                // self.controller.left = false;
                 self.controller.right = state.is_pressed();
                 true
             }
