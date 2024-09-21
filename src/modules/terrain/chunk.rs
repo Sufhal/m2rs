@@ -33,21 +33,18 @@ impl Chunk {
         let mean_height = height.vertices.iter().fold(0.0, |acc, v| acc + *v) / height.vertices.len() as f32;
         let water = Water::read(&chunk_path).await?;
         let textures_set = ChunkTextureSet::read(&chunk_path).await?;
-        let mut alpha_maps = Vec::new();
-        for i in 0..textures_set.textures.len() {
-            let alpha_map_raw = load_binary(&format!("{chunk_path}/tile_{i}.raw")).await?;
-            alpha_maps.push(
-                Texture::from_raw_bytes(
-                    &alpha_map_raw, 
-                    256, 
-                    256, 
-                    wgpu::TextureFormat::R8Unorm, 
-                    wgpu::FilterMode::Nearest,
-                    256, 
-                    state
-                )
-            );
-        }
+        let alpha_atlas = {
+            let raw = load_binary(&format!("{chunk_path}/tiles_atlas.raw")).await?;
+            Texture::from_raw_bytes(
+                &raw, 
+                768, 
+                768, 
+                wgpu::TextureFormat::R8Unorm, 
+                wgpu::FilterMode::Nearest,
+                768, 
+                state
+            )
+        };
         let segments = 128u32;
         let size = segments as f32 * 2.0;
         let position = [
@@ -64,7 +61,7 @@ impl Chunk {
             &state.terrain_pipeline, 
             name.clone(),
             textures,
-            &alpha_maps,
+            &alpha_atlas,
             &textures_set
         );
         let water_plane = water.generate_plane(setting.height_scale);

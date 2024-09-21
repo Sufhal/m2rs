@@ -138,7 +138,7 @@ impl Plane {
         terrain_pipeline: &TerrainPipeline, 
         name: String, 
         textures: &Vec<Texture>,
-        alpha_maps: &Vec<Texture>,
+        alpha_atlas: &Texture,
         textures_set: &ChunkTextureSet,
     ) -> CustomMesh {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -167,14 +167,6 @@ impl Plane {
             &textures[*set_index as usize].view
         };
 
-        let get_alpha_view = |index: usize| {
-            if let Some(texture) = alpha_maps.get(index) {
-                &texture.view
-            } else {
-                &alpha_maps[0].view
-            }
-        };
-
         let mut entries = vec![
             wgpu::BindGroupEntry {
                 binding: 0,
@@ -193,14 +185,15 @@ impl Plane {
         for i in 0..8 {
             let offset = 3;
             entries.push(wgpu::BindGroupEntry {
-                binding: offset + (i * 2) as u32,
+                binding: offset + (i) as u32,
                 resource: wgpu::BindingResource::TextureView(get_texture_view(i)),
             });
-            entries.push(wgpu::BindGroupEntry {
-                binding: offset + (i * 2 + 1) as u32,
-                resource: wgpu::BindingResource::TextureView(get_alpha_view(i as usize)),
-            });
         }
+
+        entries.push(wgpu::BindGroupEntry {
+            binding: entries.len() as u32,
+            resource: wgpu::BindingResource::TextureView(&alpha_atlas.view),
+        });
 
         let sampler_alpha = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,

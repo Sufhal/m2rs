@@ -73,18 +73,7 @@ impl TerrainPipeline {
             let offset = 3;
             // texture
             entries.push(wgpu::BindGroupLayoutEntry {
-                binding: offset + (i * 2) as u32,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    multisampled: false,
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                },
-                count: None,
-            });
-            // alpha map
-            entries.push(wgpu::BindGroupLayoutEntry {
-                binding: offset + (i * 2 + 1) as u32,
+                binding: offset + (i) as u32,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
                     multisampled: false,
@@ -94,6 +83,18 @@ impl TerrainPipeline {
                 count: None,
             });
         }
+
+        // alpha atlas
+        entries.push(wgpu::BindGroupLayoutEntry {
+            binding: entries.len() as u32,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture {
+                multisampled: false,
+                view_dimension: wgpu::TextureViewDimension::D2,
+                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+            },
+            count: None,
+        });
 
         entries.push(wgpu::BindGroupLayoutEntry {
             binding: entries.len() as u32,

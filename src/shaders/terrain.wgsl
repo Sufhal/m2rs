@@ -110,22 +110,15 @@ struct ChunkInformations {
 @group(1) @binding(1) var<uniform> chunk_informations: ChunkInformations;
 @group(1) @binding(2) var sampler_tex: sampler;
 @group(1) @binding(3) var tex_0: texture_2d<f32>;
-@group(1) @binding(4) var tex_alpha_map_0: texture_2d<f32>;
-@group(1) @binding(5) var tex_1: texture_2d<f32>;
-@group(1) @binding(6) var tex_alpha_map_1: texture_2d<f32>;
-@group(1) @binding(7) var tex_2: texture_2d<f32>;
-@group(1) @binding(8) var tex_alpha_map_2: texture_2d<f32>;
-@group(1) @binding(9) var tex_3: texture_2d<f32>;
-@group(1) @binding(10) var tex_alpha_map_3: texture_2d<f32>;
-@group(1) @binding(11) var tex_4: texture_2d<f32>;
-@group(1) @binding(12) var tex_alpha_map_4: texture_2d<f32>;
-@group(1) @binding(13) var tex_5: texture_2d<f32>;
-@group(1) @binding(14) var tex_alpha_map_5: texture_2d<f32>;
-@group(1) @binding(15) var tex_6: texture_2d<f32>;
-@group(1) @binding(16) var tex_alpha_map_6: texture_2d<f32>;
-@group(1) @binding(17) var tex_7: texture_2d<f32>;
-@group(1) @binding(18) var tex_alpha_map_7: texture_2d<f32>;
-@group(1) @binding(19) var sampler_alpha: sampler;
+@group(1) @binding(4) var tex_1: texture_2d<f32>;
+@group(1) @binding(5) var tex_2: texture_2d<f32>;
+@group(1) @binding(6) var tex_3: texture_2d<f32>;
+@group(1) @binding(7) var tex_4: texture_2d<f32>;
+@group(1) @binding(8) var tex_5: texture_2d<f32>;
+@group(1) @binding(9) var tex_6: texture_2d<f32>;
+@group(1) @binding(10) var tex_7: texture_2d<f32>;
+@group(1) @binding(11) var tex_alpha_atlas: texture_2d<f32>;
+@group(1) @binding(12) var sampler_alpha: sampler;
 
 fn normalize_value_between(value: f32, min: f32, max: f32) -> f32 {
     return (value - min) / (max - min);
@@ -159,6 +152,17 @@ fn srgb_to_linear(color: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(r, g, b);
 }
 
+fn get_uv_in_atlas(uv: vec2<f32>, texture_index: u32, atlas_size: vec2<u32>) -> vec2<f32> {
+    let column: f32 = f32(texture_index) % f32(atlas_size.x);
+    let line: f32 = floor(f32(texture_index) / f32(atlas_size.y));
+    let texture_size: f32 = 1.0 / f32(atlas_size.y);
+    let repeated_uv = fract(uv * vec2<f32>(1.0, 1.0));
+    return vec2<f32>(
+        (column * texture_size) + (repeated_uv.x * texture_size),
+        (line * texture_size) + (repeated_uv.y * texture_size),
+    );
+}
+
 const SHADOW_START: f32 = 0.10;
 const SHADOW_ZENITH: f32 = 0.5;
 const SHADOW_END: f32 = 0.90;
@@ -170,14 +174,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let uv = in.tex_coords;
     let tex_uv = uv * 40.0; // TODO: map level textureset.json contains data about this factor
-    let t0 = textureSample(tex_0, sampler_tex, tex_uv) * textureSample(tex_alpha_map_0, sampler_alpha, uv).r;
-    let t1 = textureSample(tex_1, sampler_tex, tex_uv) * textureSample(tex_alpha_map_1, sampler_alpha, uv).r;
-    let t2 = textureSample(tex_2, sampler_tex, tex_uv) * textureSample(tex_alpha_map_2, sampler_alpha, uv).r;
-    let t3 = textureSample(tex_3, sampler_tex, tex_uv) * textureSample(tex_alpha_map_3, sampler_alpha, uv).r;
-    let t4 = textureSample(tex_4, sampler_tex, tex_uv) * textureSample(tex_alpha_map_4, sampler_alpha, uv).r;
-    let t5 = textureSample(tex_5, sampler_tex, tex_uv) * textureSample(tex_alpha_map_5, sampler_alpha, uv).r;
-    let t6 = textureSample(tex_6, sampler_tex, tex_uv) * textureSample(tex_alpha_map_6, sampler_alpha, uv).r;
-    let t7 = textureSample(tex_7, sampler_tex, tex_uv) * textureSample(tex_alpha_map_7, sampler_alpha, uv).r;
+    let t0 = textureSample(tex_0, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 0u, vec2<u32>(3, 3))).r;
+    let t1 = textureSample(tex_1, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 1u, vec2<u32>(3, 3))).r;
+    let t2 = textureSample(tex_2, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 2u, vec2<u32>(3, 3))).r;
+    let t3 = textureSample(tex_3, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 3u, vec2<u32>(3, 3))).r;
+    let t4 = textureSample(tex_4, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 4u, vec2<u32>(3, 3))).r;
+    let t5 = textureSample(tex_5, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 5u, vec2<u32>(3, 3))).r;
+    let t6 = textureSample(tex_6, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 6u, vec2<u32>(3, 3))).r;
+    let t7 = textureSample(tex_7, sampler_tex, tex_uv) * textureSample(tex_alpha_atlas, sampler_alpha, get_uv_in_atlas(uv, 7u, vec2<u32>(3, 3))).r;
 
     for (var i: u32 = 0; i < chunk_informations.textures_count; i = i + 1) {
         switch i {
