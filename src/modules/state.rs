@@ -280,6 +280,7 @@ impl<'a> State<'a> {
 
         let mut character = Character::new("shaman_cheonryun", CharacterKind::PC(PCType::Shaman(Sex::Male)), &mut state).await;
         character.translate(381.0, 200.0, 640.0, &mut state.scene);
+        character.set_weapon("07190", &mut state).await;
         state.actor = Some(Actor::new(character.id.clone()));
         state.characters.push(character);
 

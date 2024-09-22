@@ -66,12 +66,27 @@ impl Bone {
 /// Created by model loaders as base
 pub struct Skeleton {
     pub bones: Vec<Bone>,
+    pub equip_right: Option<usize>,
+    pub equip_left: Option<usize>,
 }
 
 impl Skeleton {
+    pub fn new(bones: Vec<Bone>) -> Self {
+        let skeleton = Self {
+            equip_left: bones.iter().position(|v| v.name == Some("equip_left".to_string())),
+            equip_right: bones.iter().position(|v| v.name == Some("equip_right".to_string())),
+            bones,
+        };
+        // dbg!(skeleton.bones.iter().map(|v| v.name.clone()).collect::<Vec<_>>());
+        // dbg!(&skeleton.equip_left);
+        // dbg!(&skeleton.equip_right);
+        skeleton
+    }
     pub fn create_instance(&self) -> SkeletonInstance {
         let mut instance = SkeletonInstance {
             bones: self.bones.clone(),
+            equip_right: self.equip_right.clone(),
+            equip_left: self.equip_left.clone(),
         };
         instance.calculate_world_matrices();
         instance
@@ -94,6 +109,8 @@ impl Skeleton {
 /// Used by instances
 pub struct SkeletonInstance {
     pub bones: Vec<Bone>,
+    pub equip_right: Option<usize>,
+    pub equip_left: Option<usize>,
 }
 
 impl SkeletonInstance {
@@ -228,7 +245,7 @@ impl AnimationMixer {
             MixerState::Play(_) |
             MixerState::Blend(_) => {
                 if let Some(current) = &self.current_motion_group {
-                    if !["WAIT", "RUN"].contains(&current.name.as_str()) {
+                    if !animation_is_cancellable(&current.name) {
                         self.queued_motion_group = Some(motions_group);
                         return
                     }
@@ -358,4 +375,10 @@ impl AnimationMixer {
 
 
  
+}
+
+fn animation_is_cancellable(name: &str) -> bool {
+    if name.contains("WAIT") { return true }
+    if name.contains("RUN") { return true }
+    false
 }

@@ -4,7 +4,7 @@ use crate::modules::{core::object_3d::GroundAttachable, terrain::terrain::Terrai
 
 use super::camera::Camera;
 
-const VERTICAL_OFFSET: f32 = 2.0;
+const VERTICAL_OFFSET: f32 = 1.5;
 
 pub struct OrbitController {
     target: Point3<f32>,

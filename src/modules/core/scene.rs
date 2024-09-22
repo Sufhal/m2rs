@@ -1,6 +1,10 @@
 use std::collections::{HashMap, VecDeque};
 use cgmath::{Matrix4, SquareMatrix};
+use crate::modules::assets::gltf_loader::load_model_glb;
 use crate::modules::pipelines::common_pipeline::CommonPipeline;
+use crate::modules::pipelines::simple_models_pipeline::{self, SimpleModelPipeline};
+use crate::modules::pipelines::skinned_models_pipeline::{self, SkinnedModelPipeline};
+use crate::modules::state::State;
 use super::object::Object;
 use super::model::{DrawSimpleModel, DrawSkinnedModel, TransformUniform};
 use super::object_3d::Object3D;
@@ -108,6 +112,72 @@ impl Scene {
                 
             }
         }
+    }
+
+    pub async fn create_instance_of(
+        &mut self, 
+        filename: &str, 
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        skinned_models_pipeline: &SkinnedModelPipeline,
+        simple_models_pipeline: &SimpleModelPipeline,
+    ) -> Vec<(String, String)> {
+        // object needs to be created to create an instance
+        let mut objects = Vec::new();
+        let objects = if let Some(childrens) = self.get_childrens_of(filename) {
+            // object is already loaded, we just have to create instances
+            let mut objects = Vec::new();
+            for children in childrens {
+                if let Some(object) = self.get_mut(&children) {
+                    if let Some(object3d) = &mut object.object3d {
+                        match object3d {
+                            Object3D::Simple(simple) => {
+                                let instance = simple.request_instance(device);
+                                instance.take();
+                                objects.push((object.id.clone(), instance.id.clone()));
+                            },
+                            Object3D::Skinned(skinned) => {
+                                let instance = skinned.request_instance(device);
+                                instance.take();
+                                objects.push((object.id.clone(), instance.id.clone()));
+                            },
+                        };
+                    }
+                }
+            }
+            objects
+        } else {
+            let model_objects = load_model_glb(
+                &filename,
+                device,
+                queue,
+                skinned_models_pipeline,
+                simple_models_pipeline,
+            ).await.expect("unable to load");
+            let mut group = Object::new();
+            group.name = Some(filename.to_string());
+            for mut object in model_objects {
+                group.add_child(&mut object);
+                if let Some(object3d) = &mut object.object3d {
+                    match object3d {
+                        Object3D::Simple(simple) => {
+                            let instance = simple.request_instance(device);
+                            instance.take();
+                            objects.push((object.id.clone(), instance.id.clone()));
+                        },
+                        Object3D::Skinned(skinned) => {
+                            let instance = skinned.request_instance(device);
+                            instance.take();
+                            objects.push((object.id.clone(), instance.id.clone()));
+                        },
+                    }
+                }
+                self.add(object);
+            }
+            self.add(group);
+            objects
+        };
+        objects
     }
 }
 

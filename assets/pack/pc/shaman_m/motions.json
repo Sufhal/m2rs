@@ -34,6 +34,24 @@
             "probability": 50
           }
         ]
+      },
+      {
+        "name": "FAN_WAIT",
+        "motions": [
+          {
+            "file": "fan/wait",
+            "probability": 100
+          }
+        ]
+      },
+      {
+        "name": "FAN_RUN",
+        "motions": [
+          {
+            "file": "fan/run",
+            "probability": 100
+          }
+        ]
       }
     ]
 }

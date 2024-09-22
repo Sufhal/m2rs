@@ -106,6 +106,9 @@ impl SkinnedObject3D {
     pub fn get_instance(&mut self, id: &str) -> Option<&mut SkinnedObject3DInstance> {
         self.instances.iter_mut().find(|i| &i.id == id)
     }
+    pub fn get_immutable_instance(&self, id: &str) -> Option<&SkinnedObject3DInstance> {
+        self.instances.iter().find(|i| &i.id == id)
+    }
     pub fn get_instances(&mut self) -> &mut Vec<SkinnedObject3DInstance> {
         &mut self.instances
     }
@@ -311,7 +314,7 @@ impl SimpleObject3DInstance {
 pub struct SkinnedObject3DInstance {
     pub id: String,
     pub mixer: AnimationMixer,
-    skeleton: SkeletonInstance,
+    pub skeleton: SkeletonInstance,
     position: Vec3,
     rotation: Quat,
     scale: Vec3,

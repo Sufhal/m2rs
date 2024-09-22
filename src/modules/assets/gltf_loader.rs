@@ -153,9 +153,9 @@ fn extract_skeleton(
                 .iter()
                 .map(|(index, name, inverse_bind_matrix, translation, rotation, scale, _)| {
                     let parent_node = nodes.iter().find(|(_, _, _, _, _, _, childrens)| childrens.contains(index));
+                    let parent_index = parent_node.map_or(None, |(parent_index, _, _, _, _, _, _)| Some(*bones_map.get(parent_index).unwrap()));
                     Bone::new(
-                        parent_node.map_or(None, |(parent_index, _, _, _, _, _, _)| Some(*bones_map.get(parent_index).unwrap())), 
-                        // (OPENGL_TO_WGPU_MATRIX * cgmath::Matrix4::from(*matrix)).into()
+                        parent_index, 
                         name.clone(),
                         *inverse_bind_matrix,
                         translation,
@@ -165,7 +165,7 @@ fn extract_skeleton(
                 })
                 .collect::<Vec<_>>();
 
-            let model_skeleton = Skeleton { bones };
+            let model_skeleton = Skeleton::new(bones);
             skeleton = Some(model_skeleton);
             break;
         }

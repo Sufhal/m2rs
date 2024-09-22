@@ -1,18 +1,17 @@
 use std::fmt::{self};
 use cgmath::{InnerSpace, Matrix4, Quaternion, Vector3};
-
 use crate::modules::assets::gltf_loader::{load_animation, load_model_glb};
 use crate::modules::core::motions::MotionsGroups;
 use crate::modules::core::object::Object;
 use crate::modules::core::object_3d::{AdditiveTranslation, AdditiveTranslationWithScene, GroundAttachable, Object3D, Rotate, RotateWithScene, Translate, TranslateWithScene};
 use crate::modules::core::scene::Scene;
+use crate::modules::core::skinning::SkeletonInstance;
 use crate::modules::state::State;
 use crate::modules::terrain::terrain::Terrain;
 use crate::modules::utils::id_gen::generate_unique_string;
-
 use super::actor::Actor;
-
-
+use super::attachments::Attachments;
+use super::weapon::Weapon;
 
 pub struct Character {
     pub id: String,
@@ -25,6 +24,7 @@ pub struct Character {
     velocity: f32,
     motions: MotionsGroups,
     state: CharacterState,
+    pub attachments: Attachments,
     has_moved: bool,
 }
 
@@ -33,6 +33,18 @@ impl Character {
         Self::load(name, kind, state).await
     }
     async fn load<'a>(name: &str, kind: CharacterKind, state: &mut State<'a>) -> Self {
+
+        let filename = match &kind {
+            CharacterKind::NPC(npc) => {
+                let npc_type = npc.to_string();
+                format!("pack/{npc_type}/{name}/{name}.glb")
+            },
+            CharacterKind::PC(pc) => {
+                let pc_type = pc.to_string();
+                format!("pack/pc/{pc_type}/{name}.glb")
+            }
+        };
+
         // loading motions descriptions
         let motions = match &kind {
             CharacterKind::NPC(npc) => {
@@ -60,63 +72,21 @@ impl Character {
                 }
             }
         };
-        let objects = if let Some(childrens) = state.scene.get_childrens_of(name) {
-            // object is already loaded, we just have to create instances
-            let mut objects = Vec::new();
-            for children in childrens {
-                if let Some(object) = state.scene.get_mut(&children) {
-                    if let Some(object3d) = &mut object.object3d {
-                        match object3d {
-                            Object3D::Simple(simple) => {
-                                let instance = simple.request_instance(&state.device);
-                                instance.take();
-                                objects.push((object.id.clone(), instance.id.clone()));
-                            },
-                            Object3D::Skinned(skinned) => {
-                                let instance = skinned.request_instance(&state.device);
-                                instance.take();
-                                objects.push((object.id.clone(), instance.id.clone()));
-                            },
-                        };
-                    }
-                }
-            }
-            objects
-        } else {
-            // object needs to be created to create an instance
-            let mut objects = Vec::new();
-            let filename = match &kind {
-                CharacterKind::NPC(npc) => {
-                    let npc_type = npc.to_string();
-                    format!("pack/{npc_type}/{name}/{name}.glb")
-                },
-                CharacterKind::PC(pc) => {
-                    let pc_type = pc.to_string();
-                    format!("pack/pc/{pc_type}/{name}.glb")
-                }
-            };
-            let model_objects = load_model_glb(
-                &filename,
-                &state.device,
-                &state.queue,
-                &state.skinned_models_pipeline,
-                &state.simple_models_pipeline,
-            ).await.expect("unable to load");
-            let mut group = Object::new();
-            group.name = Some(name.to_string());
-            group.matrix = Matrix4::from_scale(3.0).into(); // <- TODO: I should not do that
-            for mut object in model_objects {
-                group.add_child(&mut object);
+
+        let objects = state.scene.create_instance_of(
+            &filename,
+            &state.device,
+            &state.queue,
+            &state.skinned_models_pipeline,
+            &state.simple_models_pipeline
+        ).await;
+
+        for (object_id, _instance_id) in &objects {
+            if let Some(object) = state.scene.get_mut(object_id) {
+                object.matrix = Matrix4::from_scale(1.0).into(); // <- TODO: I should not do that
                 if let Some(object3d) = &mut object.object3d {
                     match object3d {
-                        Object3D::Simple(simple) => {
-                            // create instance
-                            let instance = simple.request_instance(&state.device);
-                            instance.take();
-                            objects.push((object.id.clone(), instance.id.clone()));
-                        },
                         Object3D::Skinned(skinned) => {
-                            // loading animations clips attached to motions
                             for group in &motions.groups {
                                 for motion in &group.motions {
                                     let animations_path = match &kind {
@@ -140,18 +110,12 @@ impl Character {
                                     skinned.add_animation(clip);
                                 }
                             }
-                            // create instance
-                            let instance = skinned.request_instance(&state.device);
-                            instance.take();
-                            objects.push((object.id.clone(), instance.id.clone()));
                         },
+                        _ => (),
                     }
                 }
-                state.scene.add(object);
             }
-            state.scene.add(group);
-            objects
-        };
+        }
 
         Self {
             id: generate_unique_string(),
@@ -163,6 +127,7 @@ impl Character {
             position: Default::default(),
             direction: Default::default(),
             velocity: 1.0,
+            attachments: Attachments::new().await
         }
     }
 
@@ -193,7 +158,24 @@ impl Character {
         if let Some(position) = ground_position {
             self.position = position;
         }
+        self.attachments.weapon.update(&self, scene);
         self.has_moved = false;
+    }
+
+    pub fn get_equip_right_matrix(&self, scene: &Scene) -> Option<Matrix4<f32>> {
+        let (object_id, instance_id) = &self.objects[0];
+        let object = scene.get(object_id).unwrap();
+        let object3d = object.object3d.as_ref().unwrap();
+        match object3d {
+            Object3D::Skinned(skinned) => {
+                let instance = skinned.get_immutable_instance(&instance_id).unwrap();
+                if let Some(idx) = instance.skeleton.equip_right {
+                    return Some(Matrix4::from(instance.skeleton.bones[idx].matrix_world))
+                }
+            },
+            _ => (),
+        }
+        None
     }
 
     fn set_animation(&self, motion_name: &str, scene: &mut Scene) {
@@ -221,10 +203,10 @@ impl Character {
         }
         match state {
             CharacterState::Wait => {
-                self.set_animation("WAIT", scene);
+                self.set_animation("FAN_WAIT", scene);
             },
             CharacterState::Run => {
-                self.set_animation("RUN", scene);
+                self.set_animation("FAN_RUN", scene);
             },
             CharacterState::Attack => {
                 self.set_animation("ATTACK", scene);
@@ -232,6 +214,18 @@ impl Character {
             _ => ()
         }
         self.state = state;
+    }
+
+    pub async fn set_weapon(&mut self, item_id: &str, state: &mut State<'_>) {
+        let objects = state.scene.create_instance_of(
+            &format!("pack/item/weapon/{item_id}.glb"),
+            &state.device,
+            &state.queue,
+            &state.skinned_models_pipeline,
+            &state.simple_models_pipeline
+        ).await;
+        let (object_id, instance_id) = &objects[0];
+        self.attachments.weapon = Weapon::Single(object_id.clone(), instance_id.clone());
     }
 
     pub fn move_in_direction(&mut self, direction: Vector3<f32>, scene: &mut Scene, delta_ms: f32) {
@@ -258,7 +252,6 @@ pub enum CharacterState {
     Run,
     Attack,
 }
-
 
 impl TranslateWithScene for Character {
     fn translate(&mut self, x: f32, y: f32, z: f32, scene: &mut Scene) {
