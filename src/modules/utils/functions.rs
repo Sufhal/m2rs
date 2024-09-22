@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use cgmath::{Rad, Vector3};
+use cgmath::{InnerSpace, Matrix3, Matrix4, Quaternion, Rad, Vector3};
 use super::time_factory::TimeFactory;
 
 pub fn debug_using_trash_file(
@@ -155,4 +155,23 @@ pub fn lerp_angle(start: Rad<f32>, end: Rad<f32>, t: f32) -> Rad<f32> {
         delta += 2.0 * PI;
     }
     Rad(start.0 + delta * t.clamp(0.0, 1.0))
+}
+
+pub fn decompose_matrix(matrix: &Matrix4<f32>) -> (Vector3<f32>, Quaternion<f32>, Vector3<f32>) {
+    let translation = Vector3::new(matrix.w.x, matrix.w.y, matrix.w.z);
+
+    let scale_x = Vector3::new(matrix.x.x, matrix.x.y, matrix.x.z).magnitude();
+    let scale_y = Vector3::new(matrix.y.x, matrix.y.y, matrix.y.z).magnitude();
+    let scale_z = Vector3::new(matrix.z.x, matrix.z.y, matrix.z.z).magnitude();
+    let scale = Vector3::new(scale_x, scale_y, scale_z);
+
+    let rotation_matrix3 = Matrix3::new(
+        matrix.x.x / scale_x, matrix.x.y / scale_x, matrix.x.z / scale_x,
+        matrix.y.x / scale_y, matrix.y.y / scale_y, matrix.y.z / scale_y,
+        matrix.z.x / scale_z, matrix.z.y / scale_z, matrix.z.z / scale_z,
+    );
+
+    let rotation = Quaternion::from(rotation_matrix3);
+
+    (translation, rotation, scale)
 }

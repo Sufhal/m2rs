@@ -26,6 +26,7 @@ pub struct Bone {
     pub bind_matrix: [[f32; 4]; 4],
     pub inverse_bind_matrix: [[f32; 4]; 4],
     pub matrix_world: [[f32; 4]; 4],
+    pub childrens: Vec<usize>,
 }
 impl Bone {
     pub fn new(
@@ -35,6 +36,7 @@ impl Bone {
         translation: &[f32; 3],
         rotation: &[f32; 4],
         scale: &[f32; 3],
+        childrens: Vec<usize>,
     ) -> Self {
         Self {
             name,
@@ -49,6 +51,7 @@ impl Bone {
             ).into(),
             inverse_bind_matrix, 
             matrix_world: Matrix4::identity().into(),
+            childrens,
         }
     }
     pub fn set_translation(&mut self, translation: &[f32; 3]) {
@@ -73,13 +76,10 @@ pub struct Skeleton {
 impl Skeleton {
     pub fn new(bones: Vec<Bone>) -> Self {
         let skeleton = Self {
-            equip_left: bones.iter().position(|v| v.name == Some("equip_left".to_string())),
-            equip_right: bones.iter().position(|v| v.name == Some("equip_right".to_string())),
+            equip_left: None,
+            equip_right: None,
             bones,
         };
-        // dbg!(skeleton.bones.iter().map(|v| v.name.clone()).collect::<Vec<_>>());
-        // dbg!(&skeleton.equip_left);
-        // dbg!(&skeleton.equip_right);
         skeleton
     }
     pub fn create_instance(&self) -> SkeletonInstance {

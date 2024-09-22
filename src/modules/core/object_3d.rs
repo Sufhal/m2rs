@@ -1,5 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
-use cgmath::{One, Vector3};
+use cgmath::{Matrix4, One, Vector3};
 use wgpu::util::DeviceExt;
 use crate::modules::{pipelines::{simple_models_pipeline::SimpleModelBindGroupLayouts, skinned_models_pipeline::SkinnedModelBindGroupLayouts}, terrain::terrain::Terrain, utils::id_gen::generate_unique_string};
 use super::{instance::InstanceRaw, model::{SimpleModel, SkinnedModel}, raycaster::Raycaster, scene::Scene, skinning::{AnimationClip, AnimationMixer, Mat4x4, Skeleton, SkeletonInstance}};
@@ -41,6 +41,9 @@ impl SimpleObject3D {
     }
     pub fn get_instance(&mut self, id: &str) -> Option<&mut SimpleObject3DInstance> {
         self.instances.iter_mut().find(|i| &i.id == id)
+    }
+    pub fn get_immutable_instance(&self, id: &str) -> Option<&SimpleObject3DInstance> {
+        self.instances.iter().find(|i| &i.id == id)
     }
     pub fn get_instances(&mut self) -> &mut Vec<SimpleObject3DInstance> {
         &mut self.instances
@@ -305,6 +308,9 @@ impl SimpleObject3DInstance {
         self.scale = scale;
         self.needs_update = true;   
     }
+    pub fn get_matrix(&self) -> Matrix4<f32> {
+        Matrix4::from_translation(self.position) * Matrix4::from(self.rotation) * Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z)
+    }
     pub fn to_instance_raw(&self) -> InstanceRaw {
         InstanceRaw::new(self.position, self.rotation, self.scale)
     }
@@ -354,6 +360,9 @@ impl SkinnedObject3DInstance {
     pub fn set_scale(&mut self, scale: Vec3) {
         self.scale = scale;
         self.needs_update = true;   
+    }
+    pub fn get_matrix(&self) -> Matrix4<f32> {
+        Matrix4::from_translation(self.position) * Matrix4::from(self.rotation) * Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z)
     }
     pub fn to_instance_raw(&self) -> InstanceRaw {
         InstanceRaw::new(self.position, self.rotation, self.scale)

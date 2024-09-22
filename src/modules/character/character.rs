@@ -178,6 +178,22 @@ impl Character {
         None
     }
 
+    pub fn get_matrix(&self, scene: &Scene) -> Matrix4<f32> {
+        let (object_id, instance_id) = &self.objects[0];
+        let object = scene.get(object_id).unwrap();
+        let object3d = object.object3d.as_ref().unwrap();
+        match object3d {
+            Object3D::Skinned(skinned) => {
+                let instance = skinned.get_immutable_instance(&instance_id).unwrap();
+                instance.get_matrix()
+            },
+            Object3D::Simple(simple) => {
+                let instance = simple.get_immutable_instance(&instance_id).unwrap();
+                instance.get_matrix()
+            },
+        }
+    } 
+
     fn set_animation(&self, motion_name: &str, scene: &mut Scene) {
         for (object_id, instance_id) in &self.objects {
             if let Some(object) = scene.get_mut(object_id) {

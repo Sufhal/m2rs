@@ -151,7 +151,7 @@ fn extract_skeleton(
         if nodes.len() > 0 {
             let bones = nodes
                 .iter()
-                .map(|(index, name, inverse_bind_matrix, translation, rotation, scale, _)| {
+                .map(|(index, name, inverse_bind_matrix, translation, rotation, scale, childrens)| {
                     let parent_node = nodes.iter().find(|(_, _, _, _, _, _, childrens)| childrens.contains(index));
                     let parent_index = parent_node.map_or(None, |(parent_index, _, _, _, _, _, _)| Some(*bones_map.get(parent_index).unwrap()));
                     Bone::new(
@@ -160,7 +160,8 @@ fn extract_skeleton(
                         *inverse_bind_matrix,
                         translation,
                         rotation,
-                        scale
+                        scale,
+                        childrens.clone(),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -168,6 +169,36 @@ fn extract_skeleton(
             let model_skeleton = Skeleton::new(bones);
             skeleton = Some(model_skeleton);
             break;
+        }
+    }
+
+    // artifically creating bones for equip anchors
+    for node in model.nodes() {
+        if let Some(name) = node.name() {
+            let index = node.index();
+            if name.starts_with("equip_") {
+                if let Some(skeleton) = &mut skeleton {
+                    if let Some(parent_index) =  skeleton.bones.iter().position(|v| v.childrens.contains(&index)) {
+                        let (translation, rotation, scale) = node.transform().decomposed();
+                        skeleton.bones.push(
+                            Bone::new(
+                                Some(parent_index), 
+                                Some(name.to_string()), 
+                                Default::default(), 
+                                &translation, 
+                                &rotation, 
+                                &scale, 
+                                Vec::new()
+                            )
+                        );
+                        match name {
+                            "equip_left" => skeleton.equip_left = Some(skeleton.bones.len() - 1),
+                            "equip_right" => skeleton.equip_right = Some(skeleton.bones.len() - 1),
+                            _ => (),
+                        };
+                    }
+                }
+            }
         }
     }
 
