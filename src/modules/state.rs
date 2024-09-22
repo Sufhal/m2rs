@@ -20,7 +20,8 @@ use super::core::object_3d::{Object3D, TranslateWithScene};
 use super::core::scene;
 use super::pipelines::clouds_pipeline::CloudsPipeline;
 use super::pipelines::common_pipeline::CommonPipeline;
-use super::pipelines::shadow_pipeline::ShadowPipeline;
+use super::pipelines::shadow_simple_mesh_pipeline::ShadowSimpleMeshPipeline;
+use super::pipelines::shadow_skinned_mesh_pipeline::ShadowSkinnedMeshPipeline;
 use super::pipelines::simple_models_pipeline::SimpleModelPipeline;
 use super::pipelines::skinned_models_pipeline::SkinnedModelPipeline;
 use super::pipelines::sky_pipeline::SkyPipeline;
@@ -50,7 +51,8 @@ pub struct State<'a> {
     pub sun_pipeline: SunPipeline,
     pub sky_pipeline: SkyPipeline,
     pub clouds_pipeline: CloudsPipeline,
-    pub shadow_pipeline: ShadowPipeline,
+    pub shadow_simple_mesh_pipeline: ShadowSimpleMeshPipeline,
+    pub shadow_skinned_mesh_pipeline: ShadowSkinnedMeshPipeline,
     directional_light: DirectionalLight,
     camera: camera::Camera,
     projection: camera::Projection,
@@ -182,7 +184,8 @@ impl<'a> State<'a> {
         let clouds_pipeline = CloudsPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let skinned_models_pipeline = SkinnedModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
         let simple_models_pipeline = SimpleModelPipeline::new(&device, &config, Some(texture::Texture::DEPTH_FORMAT), &multisampled_texture, &common_pipeline);
-        let shadow_pipeline = ShadowPipeline::new(&device, &simple_models_pipeline);
+        let shadow_simple_mesh_pipeline = ShadowSimpleMeshPipeline::new(&device, &simple_models_pipeline);
+        let shadow_skinned_mesh_pipeline = ShadowSkinnedMeshPipeline::new(&device, &skinned_models_pipeline);
 
 
         let mut scene = scene::Scene::new();
@@ -248,7 +251,8 @@ impl<'a> State<'a> {
             sun_pipeline,
             sky_pipeline,
             clouds_pipeline,
-            shadow_pipeline,
+            shadow_simple_mesh_pipeline,
+            shadow_skinned_mesh_pipeline,
             directional_light,
             camera,
             projection,
@@ -276,7 +280,6 @@ impl<'a> State<'a> {
 
         let mut character = Character::new("shaman_cheonryun", CharacterKind::PC(PCType::Shaman(Sex::Male)), &mut state).await;
         character.translate(381.0, 200.0, 640.0, &mut state.scene);
-        character.set_state(CharacterState::Wait, &mut state.scene);
         state.actor = Some(Actor::new(character.id.clone()));
         state.characters.push(character);
 
@@ -461,9 +464,11 @@ impl<'a> State<'a> {
 
         // self.shadow_pipeline.uniforms.directional_light = self.directional_light.uniform(self.projection.aspect);
         self.directional_light.update(self.common_pipeline.uniforms.camera.view_proj.into(), &self.terrains[0]);
-        self.shadow_pipeline.uniforms.directional_light = self.directional_light.uniform_from_camera(self.common_pipeline.uniforms.camera.view_proj.into());
-        self.queue.write_buffer(&self.shadow_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.directional_light])); 
-        self.queue.write_buffer(&self.common_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_pipeline.uniforms.directional_light]));
+        self.shadow_simple_mesh_pipeline.uniforms.directional_light = self.directional_light.uniform_from_camera(self.common_pipeline.uniforms.camera.view_proj.into());
+        self.queue.write_buffer(&self.shadow_simple_mesh_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_simple_mesh_pipeline.uniforms.directional_light])); 
+        self.queue.write_buffer(&self.common_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_simple_mesh_pipeline.uniforms.directional_light]));
+        self.shadow_skinned_mesh_pipeline.uniforms.directional_light = self.shadow_simple_mesh_pipeline.uniforms.directional_light;
+        self.queue.write_buffer(&self.shadow_skinned_mesh_pipeline.buffers.directional_light, 0, bytemuck::cast_slice(&[self.shadow_skinned_mesh_pipeline.uniforms.directional_light])); 
 
         self.common_pipeline.uniforms.cycle.day_factor = self.terrains[0].environment.cycle.day_factor;
         self.common_pipeline.uniforms.cycle.night_factor = self.terrains[0].environment.cycle.night_factor;
@@ -520,8 +525,9 @@ impl<'a> State<'a> {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-            shadow_pass.set_pipeline(&self.shadow_pipeline.pipeline);
-            shadow_pass.set_bind_group(0, &self.shadow_pipeline.bind_group, &[]);
+
+            shadow_pass.set_pipeline(&self.shadow_simple_mesh_pipeline.pipeline);
+            shadow_pass.set_bind_group(0, &self.shadow_simple_mesh_pipeline.bind_group, &[]);
 
             for object in self.scene.get_all_objects() {
                 if let Some(object3d) = &object.object3d {
@@ -538,6 +544,32 @@ impl<'a> State<'a> {
                                 shadow_pass.set_bind_group(1, &mesh_bind_group, &[]);
                                 shadow_pass.set_bind_group(2, &simple.instances_bind_group, &[]);
                                 shadow_pass.draw_indexed(0..mesh.num_elements, 0, 0..(simple.get_taken_instances_count() as u32));
+                            }
+                        },
+                        _ => ()
+                    
+                    }
+                }
+            }
+
+            shadow_pass.set_pipeline(&self.shadow_skinned_mesh_pipeline.pipeline);
+            shadow_pass.set_bind_group(0, &self.shadow_skinned_mesh_pipeline.bind_group, &[]);
+
+            for object in self.scene.get_all_objects() {
+                if let Some(object3d) = &object.object3d {
+                    match object3d {
+                        Object3D::Skinned(skinned) => {
+                            shadow_pass.set_vertex_buffer(1, skinned.get_instance_buffer_slice());
+
+                            for i in 0..skinned.model.meshes.len() {
+                                let mesh = &skinned.model.meshes[i];
+                                let mesh_bind_group = &skinned.model.meshes_bind_groups[i];
+
+                                shadow_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                                shadow_pass.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                                shadow_pass.set_bind_group(1, &mesh_bind_group, &[]);
+                                shadow_pass.set_bind_group(2, &skinned.instances_bind_group, &[]);
+                                shadow_pass.draw_indexed(0..mesh.num_elements, 0, 0..(skinned.get_taken_instances_count() as u32));
                             }
                         },
                         _ => ()

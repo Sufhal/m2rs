@@ -6,4 +6,5 @@ pub mod water_pipeline;
 pub mod sun_pipeline;
 pub mod sky_pipeline;
 pub mod clouds_pipeline;
-pub mod shadow_pipeline;
+pub mod shadow_simple_mesh_pipeline;
+pub mod shadow_skinned_mesh_pipeline;

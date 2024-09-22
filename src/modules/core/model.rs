@@ -140,6 +140,16 @@ impl Transformable for Vec<SimpleVertex> {
     }
 }
 
+impl Transformable for Vec<SkinnedMeshVertex> {
+    fn apply_matrix(&mut self, matrix: &Matrix4<f32>) {
+        for vertex in self.iter_mut() {
+            let position = Point3::new(vertex.position[0], vertex.position[1], vertex.position[2]);
+            let transformed_position = matrix.transform_point(position);
+            vertex.position = [transformed_position.x, transformed_position.y, transformed_position.z];
+        }
+    }
+}
+
 pub trait BindGroupCreation {
     /// Creates one BindGroup per Mesh
     fn create_bind_groups(

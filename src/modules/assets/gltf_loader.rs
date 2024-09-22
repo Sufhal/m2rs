@@ -1,8 +1,7 @@
 use std::{collections::HashMap, io::{BufReader, Cursor}};
 use cgmath::Matrix4;
 use wgpu::util::DeviceExt;
-
-use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{BindGroupCreation, Material, Mesh, SimpleModel, SimpleVertex, SkinnedMeshVertex, SkinnedModel, TransformUniform}, object::Object, object_3d::Object3D, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::{simple_models_pipeline::SimpleModelPipeline, skinned_models_pipeline::SkinnedModelPipeline}};
+use crate::modules::{assets::assets::{load_material, load_material_from_bytes}, core::{model::{BindGroupCreation, Material, Mesh, SimpleModel, SimpleVertex, SkinnedMeshVertex, SkinnedModel, TransformUniform, Transformable}, object::Object, object_3d::Object3D, skinning::{AnimationClip, Bone, BoneAnimation, Keyframes, Skeleton}}, pipelines::{simple_models_pipeline::SimpleModelPipeline, skinned_models_pipeline::SkinnedModelPipeline}};
 use super::assets::load_binary;
 
 pub async fn load_animation(path: &str, name: &str) -> anyhow::Result<AnimationClip> {
@@ -17,77 +16,6 @@ pub async fn load_animation(path: &str, name: &str) -> anyhow::Result<AnimationC
     clip.name = name.to_string();
     Ok(clip)
 }
-
-pub async fn load_animations(
-    file_name: &str,
-    skeleton: &Skeleton
-) -> anyhow::Result<Vec<AnimationClip>> {
-    let gltf_bin = load_binary(file_name).await?;
-    let gltf_cursor = Cursor::new(gltf_bin);
-    let gltf_reader = BufReader::new(gltf_cursor);
-    let model = gltf::Gltf::from_reader(gltf_reader)?;
-    let buffer_data = extract_buffer_data(&model).await?;
-    let (attached_skeleton, bones_map, skin_joints_map) = extract_skeleton(&model, &buffer_data);
-    let mut animations_clips = extract_animations(&model, &buffer_data, &bones_map, &skin_joints_map);
-
-    let _ = std::fs::write(
-        std::path::Path::new(&format!("trash/skeleton_original_{file_name}.txt")), 
-        format!("{:#?}", skeleton)
-    );
-
-    let _ = std::fs::write(
-        std::path::Path::new(&format!("trash/skeleton_from_animation_{file_name}.txt")), 
-        format!("{:#?}", &attached_skeleton.clone())
-    );
-
-    if let Some(attached_skeleton) = attached_skeleton {
-
-        let mut map_attached_to_current = HashMap::new();
-        for (index, bone) in skeleton.bones.iter().enumerate() {
-            match attached_skeleton.bones.iter().position(|v| v.name == bone.name) {
-                Some(position) => {
-                    // println!("Bone name is '{:?}' at position {index}, in attached skeleton, found at position {position}", attached_skeleton.bones[position].name);
-                    map_attached_to_current.insert(position, index);
-                },
-                None => {}
-            };
-        }
-
-        let _ = std::fs::write(
-            std::path::Path::new(&format!("trash/clips_original_{file_name}.txt")), 
-            format!("{:#?}", &animations_clips)
-        );
-    
-        for clip in &mut animations_clips {
-            for animation in &mut clip.animations {
-                let index = *map_attached_to_current.get(&animation.bone).unwrap();
-                // println!("for animation of bone {}, the index {index} will be used using map_attached_to_current", animation.bone);
-                animation.bone = index;
-            }
-        }
-
-        // dbg!(&map_attached_to_current);
-
-        let _ = std::fs::write(
-            std::path::Path::new(&format!("trash/clips_modified_{file_name}.txt")), 
-            format!("{:#?}", &animations_clips)
-        );
-
-    }
-    
-
-    let _ = std::fs::write(
-        std::path::Path::new(&format!("trash/animations_{file_name}.txt")), 
-        format!("{:#?}", &animations_clips)
-    );
-
-    let _ = std::fs::write(
-        std::path::Path::new(&format!("trash/skeleton_{file_name}.txt")), 
-        format!("{:#?}", &skeleton)
-    );
-
-    Ok(animations_clips)
-} 
 
 pub async fn load_model_glb(
     file_name: &str,
@@ -116,8 +44,6 @@ pub async fn load_model_glb(
         acc.insert(idx, material);
         acc
     });
-
-    // dbg!(&materials_per_idx.iter().map(|(idx, material)| (idx, material.name.clone())).collect::<Vec<_>>());
 
     objects.iter_mut().for_each(|object| {
         if let Some(object_3d) = &mut object.object3d {
@@ -376,42 +302,29 @@ fn extract_objects(
     buffer_data: &Vec<Vec<u8>>
 ) -> Vec<Object> {
 
-    let mut objects = Vec::new();
     let (skeleton, bones_map, skin_joints_map) = extract_skeleton(&model, &buffer_data);
     let animations_clips = extract_animations(&model, &buffer_data, &bones_map, &skin_joints_map);
 
     fn extract_from_node(
         node: &gltf::Node<'_>, 
         device: &wgpu::Device, 
-        skinned_models_pipeline: &SkinnedModelPipeline,
-        simple_models_pipeline: &SimpleModelPipeline,
-        objects: &mut Vec<Object>,
         bones_map: &HashMap<usize, usize>,
         skin_joints_map: &HashMap<usize, usize>,
-        skeleton: &Option<Skeleton>,
-        animation_clips: &Vec<AnimationClip>,
         buffer_data: &Vec<Vec<u8>>, 
-        file_name: &str
-    ) -> Option<String> {
+        file_name: &str,
+        model_meshes: &mut Vec<Mesh>,
+        model_matrices: &mut Vec<Matrix4<f32>>,
+    ) {
         if let Some(_) = bones_map.get(&node.index()) {
             // don't create Object from bone
-            return None;
-        }
-        let object = Object::new();
-        let position = objects.len();
-        objects.push(object);
-        let object = objects.get_mut(position).unwrap();
-        let object_id = object.id.clone();
-
-        if let Some(name) = node.name() {
-            object.name = Some(name.to_string());
+            return;
         }
 
-        object.matrix = node.transform().matrix();
+        let matrix = Matrix4::from(node.transform().matrix());
+        model_matrices.push(matrix);
 
         if let Some(mesh) = node.mesh() {
 
-            let mut meshes = Vec::new();
             let primitives = mesh.primitives();
             
             primitives.for_each(|primitive| {
@@ -480,11 +393,14 @@ fn extract_objects(
 
                 }
 
+                // only apply matrix on simple vertices
+                // skinned vertices will inherit matrix from object matrix (because of skeleton)
+                vertices_simple.apply_matrix(&matrix);
+
                 let mut indices = Vec::new();
                 if let Some(indices_raw) = reader.read_indices() {
                     indices.append(&mut indices_raw.into_u32().collect::<Vec<u32>>());
                 }
-
                 let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("{:?} Vertex Buffer", file_name)),
                     contents: match is_skinned {
@@ -500,10 +416,10 @@ fn extract_objects(
                 });
                 let transform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Transform Buffer"),
-                    contents: bytemuck::cast_slice(&[TransformUniform::from(object.matrix_world)]),
+                    contents: bytemuck::cast_slice(&[TransformUniform::from(Default::default())]),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
-                meshes.push(Mesh {
+                model_meshes.push(Mesh {
                     name: file_name.to_string(),
                     transform_buffer,
                     vertex_buffer,
@@ -512,117 +428,86 @@ fn extract_objects(
                     material: primitive.material().index().unwrap_or(0),
                 });
             });
-            if meshes.len() > 0 {
-                let object3d = match skeleton {
-                    Some(skeleton) => {
-                        let model = SkinnedModel { 
-                            meshes, 
-                            skeleton: skeleton.clone(), 
-                            animations: animation_clips.clone(),
-                            materials: Vec::new() ,
-                            meshes_bind_groups: Vec::new()
-                        };
-                        Object3D::from_skinned_model(device, &skinned_models_pipeline.bind_group_layouts, model)
-                    },
-                    None => {
-                        let model = SimpleModel {
-                            meshes,
-                            materials: Vec::new() ,
-                            meshes_bind_groups: Vec::new()
-                        };
-                        Object3D::from_simple_model(device, &simple_models_pipeline.bind_group_layouts, model)
-                    }
-                };
-                object.set_object_3d(object3d);
-            }
         }
-        Some(object_id)
     }
 
     fn traverse(
         node: &gltf::Node<'_>,
         device: &wgpu::Device, 
-        skinned_models_pipeline: &SkinnedModelPipeline,
-        simple_models_pipeline: &SimpleModelPipeline,
-        parent_id: Option<String>,
-        objects: &mut Vec<Object>,
         bones_map: &HashMap<usize, usize>,
         skin_joints_map: &HashMap<usize, usize>,
-        skeleton: &Option<Skeleton>,
-        animation_clips: &Vec<AnimationClip>,
         buffer_data: &Vec<Vec<u8>>, 
-        file_name: &str
+        file_name: &str,
+        model_meshes: &mut Vec<Mesh>,
+        model_matrices: &mut Vec<Matrix4<f32>>,
     ) {
-        let object_id = extract_from_node(
+        extract_from_node(
             node, 
             device, 
-            skinned_models_pipeline,
-            simple_models_pipeline,
-            objects, 
             bones_map,
             skin_joints_map,
-            skeleton,
-            animation_clips,
             buffer_data, 
-            file_name
+            file_name,
+            model_meshes,
+            model_matrices,
         );
-        if let Some(object_id) = object_id {
-            if let Some(parent_id) = parent_id {
-                let (current_object, parent_object) = objects.iter_mut().fold((None, None), |mut acc, object| {
-                    if object.id == object_id {
-                        acc.0 = Some(object);
-                    }
-                    else if object.id == parent_id {
-                        acc.1 = Some(object);
-                    }
-                    acc
-                });
-                if let Some(current_object) = current_object {
-                    current_object.parent = Some(parent_id.clone());
-                }
-                if let Some(parent_object) = parent_object {
-                    parent_object.childrens.push(object_id.clone());
-                }
-            }
-            for children in node.children() {
-                traverse(
-                    &children, 
-                    device, 
-                    skinned_models_pipeline,
-                    simple_models_pipeline,
-                    Some(object_id.clone()), 
-                    objects, 
-                    bones_map, 
-                    skin_joints_map,
-                    skeleton, 
-                    animation_clips,
-                    buffer_data, 
-                    file_name
-                );
-            }
+        for children in node.children() {
+            traverse(
+                &children, 
+                device, 
+                bones_map, 
+                skin_joints_map,
+                buffer_data, 
+                file_name,
+                model_meshes,
+                model_matrices,
+            );
         }
     }
+
+    let mut model_meshes = Vec::new();
+    let mut model_matrices = Vec::new();
 
     for scene in model.scenes() {
         for node in scene.nodes() {
             traverse(
                 &node, 
                 device, 
-                skinned_models_pipeline,
-                simple_models_pipeline,
-                None, 
-                &mut objects, 
                 &bones_map, 
                 &skin_joints_map,
-                &skeleton, 
-                &animations_clips,
                 buffer_data, 
-                file_name
+                file_name,
+                &mut model_meshes,
+                &mut model_matrices,
             );
         }
     }
 
-    objects
+    let mut object = Object::new();
+    let object3d = match skeleton {
+        Some(skeleton) => {
+            object.matrix = model_matrices[0].into();
+            let model = SkinnedModel { 
+                meshes: model_meshes, 
+                skeleton: skeleton.clone(), 
+                animations: animations_clips.clone(),
+                materials: Vec::new() ,
+                meshes_bind_groups: Vec::new()
+            };
+            Object3D::from_skinned_model(device, &skinned_models_pipeline.bind_group_layouts, model)
+        },
+        None => {
+            let model = SimpleModel {
+                meshes: model_meshes,
+                materials: Vec::new() ,
+                meshes_bind_groups: Vec::new()
+            };
+            Object3D::from_simple_model(device, &simple_models_pipeline.bind_group_layouts, model)
+        }
+    };
+    object.set_object_3d(object3d);
+
+    vec![object]
 }
 
 async fn extract_materials(
