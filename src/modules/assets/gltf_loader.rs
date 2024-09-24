@@ -192,8 +192,8 @@ fn extract_skeleton(
                             )
                         );
                         match name {
-                            "equip_left" => skeleton.equip_left = Some(skeleton.bones.len() - 1),
-                            "equip_right" => skeleton.equip_right = Some(skeleton.bones.len() - 1),
+                            "equip_left" | "equip_left_hand" => skeleton.equip_left = Some(skeleton.bones.len() - 1),
+                            "equip_right" | "equip_right_hand" => skeleton.equip_right = Some(skeleton.bones.len() - 1),
                             _ => (),
                         };
                     }

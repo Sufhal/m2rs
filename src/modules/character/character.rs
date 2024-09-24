@@ -10,13 +10,13 @@ use crate::modules::state::State;
 use crate::modules::terrain::terrain::Terrain;
 use crate::modules::utils::id_gen::generate_unique_string;
 use super::actor::Actor;
-use super::attachments::Attachments;
-use super::weapon::Weapon;
+use super::attachments::{AttachmentType, Attachments, Hair, Weapon};
 
 pub struct Character {
     pub id: String,
     #[allow(dead_code)]
     kind: CharacterKind,
+    mode: CharacterMode,
     pub objects: Vec<(String, String)>, // (Object ID, Object3DInstance ID)
     pub position: [f32; 3],
     #[allow(dead_code)]
@@ -68,6 +68,15 @@ impl Character {
                             Sex::Female => todo!()
                         }
                     },
+                    PCType::Warrior(sex) => {
+                        match sex {
+                            Sex::Male => {
+                                let filename = format!("pack/pc/{}/motions.json", pc.to_string());
+                                MotionsGroups::load(&filename).await.unwrap()
+                            },
+                            Sex::Female => todo!()
+                        }
+                    },
                     _ => todo!()
                 }
             }
@@ -106,6 +115,7 @@ impl Character {
                                     };
                                     let name = &motion.file;
                                     let path = format!("{animations_path}/{name}.glb");
+                                    dbg!(&path, &name);
                                     let clip = load_animation(&path, name).await.unwrap();
                                     skinned.add_animation(clip);
                                 }
@@ -123,6 +133,7 @@ impl Character {
             objects,
             motions,
             state: CharacterState::None,
+            mode: CharacterMode::General,
             has_moved: true,
             position: Default::default(),
             direction: Default::default(),
@@ -159,6 +170,9 @@ impl Character {
             self.position = position;
         }
         self.attachments.weapon.update(&self, scene);
+        if let Some(hair) = &self.attachments.hair {
+            hair.update(&self, scene);
+        }
         self.has_moved = false;
     }
 
@@ -194,6 +208,21 @@ impl Character {
         }
     } 
 
+    pub fn get_skeleton(&self, scene: &Scene) -> Option<SkeletonInstance> {
+        let (object_id, instance_id) = &self.objects[0];
+        let object = scene.get(object_id).unwrap();
+        let object3d = object.object3d.as_ref().unwrap();
+        match object3d {
+            Object3D::Skinned(skinned) => {
+                let instance = skinned.get_immutable_instance(&instance_id).unwrap();
+                Some(instance.skeleton.clone())
+            },
+            Object3D::Simple(_) => {
+                None
+            },
+        }
+    }
+
     fn set_animation(&self, motion_name: &str, scene: &mut Scene) {
         for (object_id, instance_id) in &self.objects {
             if let Some(object) = scene.get_mut(object_id) {
@@ -217,18 +246,7 @@ impl Character {
         if self.state == state {
             return;
         }
-        match state {
-            CharacterState::Wait => {
-                self.set_animation("FAN_WAIT", scene);
-            },
-            CharacterState::Run => {
-                self.set_animation("FAN_RUN", scene);
-            },
-            CharacterState::Attack => {
-                self.set_animation("ATTACK", scene);
-            },
-            _ => ()
-        }
+        self.set_animation(&format!("{}_{}", self.mode, state), scene);
         self.state = state;
     }
 
@@ -242,6 +260,38 @@ impl Character {
         ).await;
         let (object_id, instance_id) = &objects[0];
         self.attachments.weapon = Weapon::Single(object_id.clone(), instance_id.clone());
+    }
+
+    pub async fn set_attachment(&mut self, attachment_type: AttachmentType, id: &str, state: &mut State<'_>) {
+        let objects = state.scene.create_instance_of(
+            &match &attachment_type {
+                AttachmentType::Weapon => format!("pack/item/weapon/{id}.glb"),
+                AttachmentType::Hair => match &self.kind {
+                    CharacterKind::PC(pc) => format!("pack/pc/{pc}/hair/{id}.glb"),
+                    _ => return
+                }
+            },
+            &state.device,
+            &state.queue,
+            &state.skinned_models_pipeline,
+            &state.simple_models_pipeline
+        ).await;
+        let (object_id, instance_id) = &objects[0];
+        match &attachment_type {
+            AttachmentType::Weapon => {
+                self.attachments.weapon = Weapon::Single(object_id.clone(), instance_id.clone());
+            },
+            AttachmentType::Hair => {
+                if let Some(object) = state.scene.get_mut(object_id) {
+                    object.matrix = Matrix4::from_scale(1.0).into(); // <- TODO: I should not do that
+                }
+                self.attachments.hair = Some(Hair(object_id.clone(), instance_id.clone()));
+            }
+        }
+    }
+
+    pub fn set_mode(&mut self, mode: CharacterMode) {
+        self.mode = mode;
     }
 
     pub fn move_in_direction(&mut self, direction: Vector3<f32>, scene: &mut Scene, delta_ms: f32) {
@@ -267,6 +317,18 @@ pub enum CharacterState {
     Wait,
     Run,
     Attack,
+}
+
+impl fmt::Display for CharacterState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let output = match self {
+            CharacterState::None => "",
+            CharacterState::Wait => "WAIT",
+            CharacterState::Run => "RUN",
+            CharacterState::Attack => "ATTACK",
+        };
+        write!(f, "{}", output)
+    }
 }
 
 impl TranslateWithScene for Character {
@@ -405,5 +467,26 @@ pub trait GetActor {
 impl GetActor for Vec<Character> {
     fn get_actor(&mut self, actor: &Actor) -> &mut Character {
         self.iter_mut().find(|v| v.id == actor.character).unwrap()
+    }
+}
+
+pub enum CharacterMode {
+    General,
+    Bell,
+    Fan,
+    Sword,
+    TwohandSword,
+}
+
+impl fmt::Display for CharacterMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let output = match self {
+            CharacterMode::General => "GENERAL",
+            CharacterMode::Bell => "BELL",
+            CharacterMode::Fan => "FAN",
+            CharacterMode::Sword => "ONEHANDSWORD",
+            CharacterMode::TwohandSword => "TWOHANDSWORD",
+        };
+        write!(f, "{}", output)
     }
 }

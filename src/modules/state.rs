@@ -14,7 +14,8 @@ use crate::modules::ui::ui::MetricData;
 use crate::modules::utils::time_factory::TimeFragment;
 use super::camera::free_camera_controller::FreeCameraController;
 use super::character::actor::Actor;
-use super::character::character::{Character, CharacterKind, CharacterState, GetActor, PCType, Sex};
+use super::character::attachments::AttachmentType;
+use super::character::character::{Character, CharacterKind, CharacterMode, CharacterState, GetActor, PCType, Sex};
 use super::core::directional_light::DirectionalLight;
 use super::core::object_3d::{Object3D, TranslateWithScene};
 use super::core::scene;
@@ -278,9 +279,17 @@ impl<'a> State<'a> {
         // character.translate(384.0, 186.0, 640.0, &mut state.scene);
         // state.characters.push(character);
 
+        // let mut character = Character::new("shaman_cheonryun", CharacterKind::PC(PCType::Shaman(Sex::Male)), &mut state).await;
+        // let mut character = Character::new("warrior_cheongrin", CharacterKind::PC(PCType::Warrior(Sex::Male)), &mut state).await;
+        // character.translate(381.0, 200.0, 640.0, &mut state.scene);
+        // character.set_attachment(AttachmentType::Weapon, "03180", &mut state).await;
+        // character.set_mode(CharacterMode::TwohandSword);
+        // character.set_attachment(AttachmentType::Hair, "hair_4_1", &mut state).await;
         let mut character = Character::new("shaman_cheonryun", CharacterKind::PC(PCType::Shaman(Sex::Male)), &mut state).await;
         character.translate(381.0, 200.0, 640.0, &mut state.scene);
-        character.set_weapon("07190", &mut state).await;
+        character.set_attachment(AttachmentType::Weapon, "05330", &mut state).await;
+        character.set_mode(CharacterMode::Bell);
+        character.set_attachment(AttachmentType::Hair, "hair_4_1", &mut state).await;
         state.actor = Some(Actor::new(character.id.clone()));
         state.characters.push(character);
 
@@ -412,9 +421,7 @@ impl<'a> State<'a> {
             actor.apply_controls(character, &mut self.scene, &self.camera, delta_ms as f32);
             actor.orbit_controller.update_target(character.position);
         }
-        for character in &mut self.characters {
-            character.update(&mut self.scene, &self.terrains[0]);
-        }
+        
 
         if self.camera_controller.enabled {
             self.camera_controller.update_camera(&mut self.camera, dt);
@@ -441,6 +448,7 @@ impl<'a> State<'a> {
 
         self.ui.update(delta_ms);
         
+        
 
         for object in self.scene.get_all_objects_mut() {
             if let Some(object3d) = &mut object.object3d {
@@ -458,6 +466,12 @@ impl<'a> State<'a> {
                 };
             }
         }
+
+        for character in &mut self.characters {
+            character.update(&mut self.scene, &self.terrains[0]);
+        }
+
+       
 
         for terrain in &mut self.terrains {
             terrain.update(elapsed_time, delta_ms as f32, &self.queue);

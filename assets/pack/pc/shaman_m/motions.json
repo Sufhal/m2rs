@@ -1,57 +1,168 @@
 {
-    "groups": [
-      {
-        "name": "WAIT",
-        "motions": [
-          {
-            "file": "wait",
-            "probability": 70
-          },
-          {
-            "file": "wait_1",
-            "probability": 30
-          }
-        ]
-      },
-      {
-        "name": "RUN",
-        "motions": [
-          {
-            "file": "run",
-            "probability": 100
-          }
-        ]
-      },
-      {
-        "name": "ATTACK",
-        "motions": [
-          {
-            "file": "attack",
-            "probability": 50
-          },
-          {
-            "file": "attack_1",
-            "probability": 50
-          }
-        ]
-      },
-      {
-        "name": "FAN_WAIT",
-        "motions": [
-          {
-            "file": "fan/wait",
-            "probability": 100
-          }
-        ]
-      },
-      {
-        "name": "FAN_RUN",
-        "motions": [
-          {
-            "file": "fan/run",
-            "probability": 100
-          }
-        ]
-      }
-    ]
+  "groups": [
+    {
+      "name": "WAIT",
+      "motions": [
+        {
+          "file": "wait",
+          "probability": 70
+        },
+        {
+          "file": "wait_1",
+          "probability": 30
+        }
+      ]
+    },
+    {
+      "name": "RUN",
+      "motions": [
+        {
+          "file": "run",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "ATTACK",
+      "motions": [
+        {
+          "file": "attack",
+          "probability": 50
+        },
+        {
+          "file": "attack_1",
+          "probability": 50
+        }
+      ]
+    },
+    {
+      "name": "FAN_WAIT",
+      "motions": [
+        {
+          "file": "fan/wait",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "FAN_RUN",
+      "motions": [
+        {
+          "file": "fan/run",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_WALK",
+      "motions": [
+        {
+          "file": "bell/walk",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_RUN",
+      "motions": [
+        {
+          "file": "bell/run",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_WAIT",
+      "motions": [
+        {
+          "file": "bell/wait",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_COMBO_1",
+      "motions": [
+        {
+          "file": "bell/combo_01",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_COMBO_2",
+      "motions": [
+        {
+          "file": "bell/combo_02",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_COMBO_3",
+      "motions": [
+        {
+          "file": "bell/combo_03",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_COMBO_4",
+      "motions": [
+        {
+          "file": "bell/combo_04",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_COMBO_5",
+      "motions": [
+        {
+          "file": "bell/combo_05",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_COMBO_6",
+      "motions": [
+        {
+          "file": "bell/combo_06",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_COMBO_7",
+      "motions": [
+        {
+          "file": "bell/combo_07",
+          "probability": 100
+        }
+      ]
+    },
+    {
+      "name": "BELL_DAMAGE",
+      "motions": [
+        {
+          "file": "bell/damage",
+          "probability": 25
+        },
+        {
+          "file": "bell/damage_1",
+          "probability": 25
+        },
+        {
+          "file": "bell/damage_2",
+          "probability": 25
+        },
+        {
+          "file": "bell/damage_3",
+          "probability": 25
+        }
+      ]
+    }
+  ]
 }

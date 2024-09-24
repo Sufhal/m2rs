@@ -1,0 +1,143 @@
+{
+    "groups": [
+      {
+        "name": "GENERAL_WAIT",
+        "motions": [
+          {
+            "file": "general/wait",
+            "probability": 70
+          },
+          {
+            "file": "general/wait",
+            "probability": 30
+          }
+        ]
+      },
+      {
+        "name": "GENERAL_RUN",
+        "motions": [
+          {
+            "file": "general/run",
+            "probability": 100
+          }
+        ]
+      },
+      {
+        "name": "GENERAL_ATTACK",
+        "motions": [
+          {
+            "file": "general/attack",
+            "probability": 50
+          },
+          {
+            "file": "general/attack_1",
+            "probability": 50
+          }
+        ]
+      },
+      {
+        "name": "ONEHANDSWORD_WAIT",
+        "motions": [
+          {
+            "file": "onehand_sword/wait",
+            "probability": 70
+          },
+          {
+            "file": "onehand_sword/wait_1",
+            "probability": 30
+          }
+        ]
+      },
+      {
+        "name": "ONEHANDSWORD_RUN",
+        "motions": [
+          {
+            "file": "onehand_sword/run",
+            "probability": 100
+          }
+        ]
+      },
+      {
+        "name": "ONEHANDSWORD_WALK",
+        "motions": [
+          {
+            "file": "onehand_sword/walk",
+            "probability": 100
+          }
+        ]
+      },
+      {
+        "name": "ONEHANDSWORD_DAMAGE",
+        "motions": [
+          {
+            "file": "onehand_sword/damage",
+            "probability": 25
+          },
+          {
+            "file": "onehand_sword/damage_1",
+            "probability": 25
+          },
+          {
+            "file": "onehand_sword/damage_2",
+            "probability": 25
+          },
+          {
+            "file": "onehand_sword/damage_3",
+            "probability": 25
+          }
+        ]
+      },
+      {
+        "name": "TWOHANDSWORD_WAIT",
+        "motions": [
+          {
+            "file": "twohand_sword/wait",
+            "probability": 70
+          },
+          {
+            "file": "twohand_sword/wait_1",
+            "probability": 30
+          }
+        ]
+      },
+      {
+        "name": "TWOHANDSWORD_RUN",
+        "motions": [
+          {
+            "file": "twohand_sword/run",
+            "probability": 100
+          }
+        ]
+      },
+      {
+        "name": "TWOHANDSWORD_WALK",
+        "motions": [
+          {
+            "file": "twohand_sword/walk",
+            "probability": 100
+          }
+        ]
+      },
+      {
+        "name": "TWOHANDSWORD_DAMAGE",
+        "motions": [
+          {
+            "file": "twohand_sword/damage",
+            "probability": 25
+          },
+          {
+            "file": "twohand_sword/damage_1",
+            "probability": 25
+          },
+          {
+            "file": "twohand_sword/damage_2",
+            "probability": 25
+          },
+          {
+            "file": "twohand_sword/damage_3",
+            "probability": 25
+          }
+        ]
+      }
+    ]
+}
