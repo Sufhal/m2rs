@@ -280,11 +280,16 @@ impl<'a> State<'a> {
         // state.characters.push(character);
 
         // let mut character = Character::new("shaman_cheonryun", CharacterKind::PC(PCType::Shaman(Sex::Male)), &mut state).await;
-        // let mut character = Character::new("warrior_cheongrin", CharacterKind::PC(PCType::Warrior(Sex::Male)), &mut state).await;
-        // character.translate(381.0, 200.0, 640.0, &mut state.scene);
-        // character.set_attachment(AttachmentType::Weapon, "03180", &mut state).await;
-        // character.set_mode(CharacterMode::TwohandSword);
-        // character.set_attachment(AttachmentType::Hair, "hair_4_1", &mut state).await;
+
+        let mut character = Character::new("warrior_cheongrin", CharacterKind::PC(PCType::Warrior(Sex::Male)), &mut state).await;
+        character.translate(383.0, 200.0, 640.0, &mut state.scene);
+        character.set_attachment(AttachmentType::Weapon, "03180", &mut state).await;
+        character.set_mode(CharacterMode::TwohandSword);
+        character.set_state(CharacterState::Wait, &mut state.scene);
+        character.set_attachment(AttachmentType::Hair, "hair_4_1", &mut state).await;
+        state.characters.push(character);
+
+
         let mut character = Character::new("shaman_cheonryun", CharacterKind::PC(PCType::Shaman(Sex::Male)), &mut state).await;
         character.translate(381.0, 200.0, 640.0, &mut state.scene);
         character.set_attachment(AttachmentType::Weapon, "05330", &mut state).await;
