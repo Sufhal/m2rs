@@ -164,6 +164,7 @@ impl<'a> State<'a> {
 
         let mut ui = UserInterface::new(&device, &config, &multisampled_texture, window.scale_factor() as f32);
         ui.std_out.push(format!("MSAA set to {sample_count}, supported values are {:?}", supported_sample_count));
+        ui.std_out.push("[C] to toggle camera mode, [P] to switch actor, [I] to toggle fog, [Alt] to boost in free camera mode".to_string());
 
         let directional_light = DirectionalLight::new(0.1, 100.0, [300.0, 400.0, 200.0], [376.0, 182.0, 641.0], &device);
 
