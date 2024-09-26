@@ -8,6 +8,7 @@ use crate::modules::state::State;
 use super::object::Object;
 use super::model::{DrawSimpleModel, DrawSkinnedModel, TransformUniform};
 use super::object_3d::Object3D;
+use super::skinning::Skeleton;
 
 pub struct Scene {
     objects: HashMap<String, Object>,
@@ -121,6 +122,7 @@ impl Scene {
         queue: &wgpu::Queue,
         skinned_models_pipeline: &SkinnedModelPipeline,
         simple_models_pipeline: &SimpleModelPipeline,
+        existing_skeleton: Option<Skeleton>,
     ) -> Vec<(String, String)> {
         // object needs to be created to create an instance
         let mut objects = Vec::new();
@@ -153,6 +155,7 @@ impl Scene {
                 queue,
                 skinned_models_pipeline,
                 simple_models_pipeline,
+                existing_skeleton,
             ).await.expect("unable to load");
             let mut group = Object::new();
             group.name = Some(filename.to_string());

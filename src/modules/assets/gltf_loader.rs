@@ -10,7 +10,7 @@ pub async fn load_animation(path: &str, name: &str) -> anyhow::Result<AnimationC
     let gltf_reader = BufReader::new(gltf_cursor);
     let model = gltf::Gltf::from_reader(gltf_reader)?;
     let buffer_data = extract_buffer_data(&model).await?;
-    let (_, bones_map, skin_joints_map) = extract_skeleton(&model, &buffer_data);
+    let (_, bones_map, skin_joints_map) = extract_skeleton(&model, &buffer_data, None);
     let mut animations_clips = extract_animations(&model, &buffer_data, &bones_map, &skin_joints_map);
     let mut clip = animations_clips.swap_remove(0);
     clip.name = name.to_string();
@@ -23,6 +23,7 @@ pub async fn load_model_glb(
     queue: &wgpu::Queue,
     skinned_models_pipeline: &SkinnedModelPipeline,
     simple_models_pipeline: &SimpleModelPipeline,
+    existing_skeleton: Option<Skeleton>,
 ) -> anyhow::Result<Vec<Object>> {
     let gltf_bin = load_binary(file_name).await?;
     let gltf_cursor = Cursor::new(gltf_bin);
@@ -37,8 +38,10 @@ pub async fn load_model_glb(
         simple_models_pipeline,
         file_name, 
         &gltf, 
-        &buffer_data
+        &buffer_data,
+        existing_skeleton,
     );
+
 
     let mut materials_per_idx = materials.into_iter().enumerate().fold(HashMap::new(), |mut acc, (idx, material)| {
         acc.insert(idx, material);
@@ -96,7 +99,7 @@ pub async fn load_model_glb_with_name(
     skinned_models_pipeline: &SkinnedModelPipeline,
     simple_models_pipeline: &SimpleModelPipeline,
 ) -> anyhow::Result<Vec<Object>> {
-    let mut objects = load_model_glb(file_name, device, queue, skinned_models_pipeline, simple_models_pipeline).await?;
+    let mut objects = load_model_glb(file_name, device, queue, skinned_models_pipeline, simple_models_pipeline, None).await?;
     for object in &mut objects {
         object.name = Some(name.to_string());
     }
@@ -105,7 +108,8 @@ pub async fn load_model_glb_with_name(
 
 fn extract_skeleton(
     model: &gltf::Gltf,
-    buffer_data: &Vec<Vec<u8>>
+    buffer_data: &Vec<Vec<u8>>,
+    existing_skeleton: Option<Skeleton>,
 ) -> (Option<Skeleton>, HashMap<usize, usize>, HashMap<usize, usize>) {
     let mut skeleton = None;
     let mut bones_map = HashMap::new();
@@ -202,6 +206,35 @@ fn extract_skeleton(
         }
     }
 
+    if let Some(skeleton) = &skeleton {
+        dbg!(skeleton.bones.iter().map(|v| v.name.clone().unwrap_or("noname".to_string())).collect::<Vec<_>>());
+    }
+
+    // hair have the same skeleton but organized differently
+    // we need to remap skeleton, bones_map & skin_joints_map accordingly
+    if let Some(existing_skeleton) = existing_skeleton {
+        if let Some(skeleton) = &mut skeleton {
+            for (_, bone_index) in &mut bones_map {
+                let bone = &skeleton.bones[*bone_index];
+                let existing_bone_index = existing_skeleton.bones
+                    .iter()
+                    .position(|v| v.name == bone.name)
+                    .unwrap_or(0);
+                println!("mapping {bone_index} to {existing_bone_index}");
+                *bone_index = existing_bone_index;
+            }
+            for (_, bone_index) in &mut skin_joints_map {
+                let bone = &skeleton.bones[*bone_index];
+                let existing_bone_index = existing_skeleton.bones
+                    .iter()
+                    .position(|v| v.name == bone.name)
+                    .unwrap_or(0);
+                *bone_index = existing_bone_index;
+            }
+            // *skeleton = existing_skeleton.clone();
+        }
+    }
+
     (skeleton, bones_map, skin_joints_map)
 }
 
@@ -221,8 +254,6 @@ fn extract_animations(
         let mut animations = Vec::new();
 
         for channel in animation.channels() {
-            // dbg!(&bones_map);
-            // println!("looking for bone original index {}", channel.target().node().index());
 
             let target_node = channel.target().node();
 
@@ -330,11 +361,16 @@ fn extract_objects(
     simple_models_pipeline: &SimpleModelPipeline,
     file_name: &str, 
     model: &gltf::Gltf,
-    buffer_data: &Vec<Vec<u8>>
+    buffer_data: &Vec<Vec<u8>>,
+    existing_skeleton: Option<Skeleton>,
 ) -> Vec<Object> {
 
-    let (skeleton, bones_map, skin_joints_map) = extract_skeleton(&model, &buffer_data);
+    dbg!(file_name);
+
+    let (skeleton, bones_map, skin_joints_map) = extract_skeleton(&model, &buffer_data, existing_skeleton);
     let animations_clips = extract_animations(&model, &buffer_data, &bones_map, &skin_joints_map);
+
+
 
     fn extract_from_node(
         node: &gltf::Node<'_>, 

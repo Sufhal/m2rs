@@ -1,10 +1,7 @@
 pub mod modules;
 use modules::{state::State, utils::time_factory::TimeFragment};
 use winit::{
-    event::*,
-    event_loop::{EventLoop, ControlFlow},
-    keyboard::{PhysicalKey, KeyCode},
-    window::WindowBuilder,
+    dpi::LogicalSize, event::*, event_loop::{ControlFlow, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::WindowBuilder
 };
 use log::info;
 
@@ -45,6 +42,9 @@ pub async fn run() {
                 Some(())
             })
             .expect("Couldn't append canvas to document body.");
+    }
+    if cfg!(target_arch = "wasm32") == false {
+        let _ = window.request_inner_size(LogicalSize::new(1200, 700));
     }
 
     // State::new uses async code, so we're going to wait for it to finish

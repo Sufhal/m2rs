@@ -61,7 +61,8 @@ impl Hair {
     pub fn update(&self, character: &Character, scene: &mut Scene) {
         let object_id = &self.0;
         let instance_id = &self.1;
-        let skeleton = character.get_skeleton(&scene).unwrap();
+        // let mixer = character.get_mixer(&scene).unwrap();
+        let skeleton = character.get_skeleton_instance(&scene).unwrap();
         let character_matrix = character.get_matrix(&scene);
         let world_matrix = character_matrix;
         if let Some(object) = scene.get_mut(object_id) {
@@ -69,11 +70,11 @@ impl Hair {
                 match object3d {
                     Object3D::Skinned(skinned) => {
                         if let Some(instance) = skinned.get_instance(&instance_id) {
-                            instance.skeleton.bones = skeleton.bones;
+                            // instance.mixer = mixer;
+                            instance.skeleton = skeleton.clone();
                             let (translation, rotation, _scale) = decompose_matrix(&world_matrix);
                             instance.set_position(translation);
                             instance.set_rotation(rotation);
-
                         }
                     },
                     _ => (),

@@ -175,3 +175,7 @@ pub fn decompose_matrix(matrix: &Matrix4<f32>) -> (Vector3<f32>, Quaternion<f32>
 
     (translation, rotation, scale)
 }
+
+pub fn clone_from_rc<T: Clone>(rc: std::rc::Rc<T>) -> T {
+    (*rc).clone()
+}

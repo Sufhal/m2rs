@@ -1,13 +1,17 @@
+
+use std::borrow::Borrow;
 use std::fmt::{self};
+use std::rc::Rc;
 use cgmath::{InnerSpace, Matrix4, Quaternion, Vector3};
 use crate::modules::assets::gltf_loader::{load_animation, load_model_glb};
 use crate::modules::core::motions::MotionsGroups;
 use crate::modules::core::object::Object;
 use crate::modules::core::object_3d::{AdditiveTranslation, AdditiveTranslationWithScene, GroundAttachable, Object3D, Rotate, RotateWithScene, Translate, TranslateWithScene};
 use crate::modules::core::scene::Scene;
-use crate::modules::core::skinning::SkeletonInstance;
+use crate::modules::core::skinning::{AnimationMixer, Skeleton, SkeletonInstance};
 use crate::modules::state::State;
 use crate::modules::terrain::terrain::Terrain;
+use crate::modules::utils::functions::clone_from_rc;
 use crate::modules::utils::id_gen::generate_unique_string;
 use super::actor::Actor;
 use super::attachments::{AttachmentType, Attachments, Hair, Weapon};
@@ -87,7 +91,8 @@ impl Character {
             &state.device,
             &state.queue,
             &state.skinned_models_pipeline,
-            &state.simple_models_pipeline
+            &state.simple_models_pipeline,
+            None,
         ).await;
 
         for (object_id, _instance_id) in &objects {
@@ -208,7 +213,21 @@ impl Character {
         }
     } 
 
-    pub fn get_skeleton(&self, scene: &Scene) -> Option<SkeletonInstance> {
+    pub fn get_skeleton(&self, scene: &Scene) -> Option<Skeleton> {
+        let (object_id, _) = &self.objects[0];
+        let object = scene.get(object_id).unwrap();
+        let object3d = object.object3d.as_ref().unwrap();
+        match object3d {
+            Object3D::Skinned(skinned) => {
+                Some(clone_from_rc(skinned.skeleton.clone()))
+            },
+            Object3D::Simple(_) => {
+                None
+            },
+        }
+    }
+
+    pub fn get_skeleton_instance(&self, scene: &Scene) -> Option<SkeletonInstance> {
         let (object_id, instance_id) = &self.objects[0];
         let object = scene.get(object_id).unwrap();
         let object3d = object.object3d.as_ref().unwrap();
@@ -216,6 +235,21 @@ impl Character {
             Object3D::Skinned(skinned) => {
                 let instance = skinned.get_immutable_instance(&instance_id).unwrap();
                 Some(instance.skeleton.clone())
+            },
+            Object3D::Simple(_) => {
+                None
+            },
+        }
+    }
+
+    pub fn get_mixer(&self, scene: &Scene) -> Option<AnimationMixer> {
+        let (object_id, instance_id) = &self.objects[0];
+        let object = scene.get(object_id).unwrap();
+        let object3d = object.object3d.as_ref().unwrap();
+        match object3d {
+            Object3D::Skinned(skinned) => {
+                let instance = skinned.get_immutable_instance(&instance_id).unwrap();
+                Some(instance.mixer.clone())
             },
             Object3D::Simple(_) => {
                 None
@@ -250,18 +284,6 @@ impl Character {
         self.state = state;
     }
 
-    pub async fn set_weapon(&mut self, item_id: &str, state: &mut State<'_>) {
-        let objects = state.scene.create_instance_of(
-            &format!("pack/item/weapon/{item_id}.glb"),
-            &state.device,
-            &state.queue,
-            &state.skinned_models_pipeline,
-            &state.simple_models_pipeline
-        ).await;
-        let (object_id, instance_id) = &objects[0];
-        self.attachments.weapon = Weapon::Single(object_id.clone(), instance_id.clone());
-    }
-
     pub async fn set_attachment(&mut self, attachment_type: AttachmentType, id: &str, state: &mut State<'_>) {
         let objects = state.scene.create_instance_of(
             &match &attachment_type {
@@ -274,7 +296,11 @@ impl Character {
             &state.device,
             &state.queue,
             &state.skinned_models_pipeline,
-            &state.simple_models_pipeline
+            &state.simple_models_pipeline,
+            match &attachment_type {
+                AttachmentType::Hair => Some(self.get_skeleton(&state.scene).unwrap()),
+                _ => None,
+            }
         ).await;
         let (object_id, instance_id) = &objects[0];
         match &attachment_type {

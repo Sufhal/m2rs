@@ -81,7 +81,7 @@ pub struct SkinnedObject3D {
     pub instances: Vec<SkinnedObject3DInstance>,
     instances_buffer: wgpu::Buffer,
     animation_clips: Rc<RefCell<Vec<AnimationClip>>>,
-    skeleton: Rc<Skeleton>,
+    pub skeleton: Rc<Skeleton>,
     skeletons_buffer: wgpu::Buffer,
     skeletons_bind_inverse_buffer: wgpu::Buffer,
 }
@@ -155,11 +155,6 @@ impl SkinnedObject3D {
             0,
             bytemuck::cast_slice(&self.model.skeleton.to_raw_inverse_bind_matrices()),
         );
-    }
-    pub fn set_animations(&mut self, clips: Vec<AnimationClip>) {
-        let mut animation_clips = RefCell::borrow_mut(&self.animation_clips);
-        animation_clips.clear();
-        animation_clips.extend(clips);
     }
     pub fn add_animation(&mut self, clip: AnimationClip) {
         let mut animation_clips = RefCell::borrow_mut(&self.animation_clips);
