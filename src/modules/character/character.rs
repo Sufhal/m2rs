@@ -120,7 +120,7 @@ impl Character {
                                     };
                                     let name = &motion.file;
                                     let path = format!("{animations_path}/{name}.glb");
-                                    dbg!(&path, &name);
+                                    // dbg!(&path, &name);
                                     let clip = load_animation(&path, name).await.unwrap();
                                     skinned.add_animation(clip);
                                 }

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use cgmath::{InnerSpace, Matrix4, Quaternion, SquareMatrix};
 use crate::modules::utils::functions::{clamp_f64, denormalize_f32x3, denormalize_f32x4, normalize_f64};
 use super::motions::MotionsGroup;
@@ -90,6 +90,30 @@ impl Skeleton {
         };
         instance.calculate_world_matrices();
         instance
+    }
+
+    pub fn reorder_based_on_existing(&mut self, existing: &Skeleton) {
+        // Créer un hashmap pour récupérer l'index des bones de l'existant par leur nom
+        let existing_bone_index_map: HashMap<&String, usize> = existing
+            .bones
+            .iter()
+            .enumerate()
+            .filter_map(|(i, bone)| bone.name.as_ref().map(|name| (name, i)))
+            .collect();
+
+        // Trier les bones du nouveau skeleton en fonction de l'ordre des indices de l'existant
+        self.bones.sort_by(|a, b| {
+            let index_a = a.name.as_ref().and_then(|name| existing_bone_index_map.get(name));
+            let index_b = b.name.as_ref().and_then(|name| existing_bone_index_map.get(name));
+            index_a.cmp(&index_b)
+        });
+
+        for i in 0..self.bones.len() {
+            // let existing = existing.bones.get(i).map(|v| v.bind_matrix.clone());
+            // let current = self.bones.get(i).map(|v| v.bind_matrix.clone());
+            // println!("existing bone {i} is {:?} and self {:?}", existing, current);
+        }
+
     }
 
     /// Returns each bones inversed bind matrix

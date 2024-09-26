@@ -365,9 +365,6 @@ impl<'a> State<'a> {
                 ..
             } => {
                 match key {
-                    KeyCode::KeyP => {
-                        // dbg!(self.performance_tracker.get_report());
-                    },
                     KeyCode::KeyI => {
                         if self.key_debouncer.hit(KeyCode::KeyI) {
                             self.ui.std_out.push("[I] pressed, environment toggle requested".to_string());
@@ -380,6 +377,16 @@ impl<'a> State<'a> {
                         if self.key_debouncer.hit(KeyCode::KeyC) {
                             self.ui.std_out.push("[C] pressed, camera control switch".to_string());
                             self.camera_controller.enabled = !self.camera_controller.enabled;
+                        }
+                    },
+                    KeyCode::KeyP => {
+                        if self.key_debouncer.hit(KeyCode::KeyP) {
+                            self.ui.std_out.push("[P] pressed, actor switch".to_string());
+                            if let Some(actor) = &mut self.actor {
+                                let current_idx = self.characters.iter().position(|v| v.id == actor.character).unwrap_or(0);
+                                let new_idx = if current_idx >= self.characters.len() - 1 { 0 } else { current_idx + 1 };
+                                actor.character = self.characters[new_idx].id.clone();
+                            }
                         }
                     },
                     _ => {},

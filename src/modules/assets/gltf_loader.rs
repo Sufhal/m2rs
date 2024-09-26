@@ -207,7 +207,7 @@ fn extract_skeleton(
     }
 
     if let Some(skeleton) = &skeleton {
-        dbg!(skeleton.bones.iter().map(|v| v.name.clone().unwrap_or("noname".to_string())).collect::<Vec<_>>());
+        // dbg!(skeleton.bones.iter().map(|v| v.name.clone().unwrap_or("noname".to_string())).collect::<Vec<_>>());
     }
 
     // hair have the same skeleton but organized differently
@@ -231,7 +231,10 @@ fn extract_skeleton(
                     .unwrap_or(0);
                 *bone_index = existing_bone_index;
             }
+            skeleton.reorder_based_on_existing(&existing_skeleton);
+            
             // *skeleton = existing_skeleton.clone();
+            
         }
     }
 
