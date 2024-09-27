@@ -156,6 +156,18 @@ impl SkinnedObject3D {
             bytemuck::cast_slice(&self.model.skeleton.to_raw_inverse_bind_matrices()),
         );
     }
+    pub fn update_one_skeleton(&mut self, instance_id: &String, queue: &wgpu::Queue) {
+        let size = std::mem::size_of::<Mat4x4>();
+        for (idx, instance) in self.instances.iter().enumerate() {
+            if &instance.id == instance_id {
+                queue.write_buffer(
+                    &self.skeletons_buffer,
+                    (idx * size * instance.skeleton.bones.len()) as wgpu::BufferAddress,
+                    bytemuck::cast_slice(&instance.skeleton.to_raw_transform()),
+                );
+            }
+        }
+    }
     pub fn add_animation(&mut self, clip: AnimationClip) {
         let mut animation_clips = RefCell::borrow_mut(&self.animation_clips);
         if animation_clips.iter().find(|c| c.name == clip.name).is_none() {

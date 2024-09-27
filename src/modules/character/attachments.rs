@@ -58,7 +58,7 @@ impl Weapon {
 pub struct Hair(pub String, pub String);
 
 impl Hair {
-    pub fn update(&self, character: &Character, scene: &mut Scene) {
+    pub fn update(&self, character: &Character, scene: &mut Scene, queue: &wgpu::Queue) {
         let object_id = &self.0;
         let instance_id = &self.1;
         // let mixer = character.get_mixer(&scene).unwrap();
@@ -76,6 +76,7 @@ impl Hair {
                             instance.set_position(translation);
                             instance.set_rotation(rotation);
                         }
+                        skinned.update_one_skeleton(instance_id, queue);
                     },
                     _ => (),
                 }

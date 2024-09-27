@@ -462,6 +462,9 @@ impl<'a> State<'a> {
         self.ui.update(delta_ms);
         
         
+        for character in &mut self.characters {
+            character.update(&mut self.scene, &self.queue, &self.terrains[0]);
+        }
 
         for object in self.scene.get_all_objects_mut() {
             if let Some(object3d) = &mut object.object3d {
@@ -479,11 +482,6 @@ impl<'a> State<'a> {
                 };
             }
         }
-
-        for character in &mut self.characters {
-            character.update(&mut self.scene, &self.terrains[0]);
-        }
-
        
 
         for terrain in &mut self.terrains {

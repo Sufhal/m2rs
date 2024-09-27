@@ -147,7 +147,7 @@ impl Character {
         }
     }
 
-    pub fn update(&mut self, scene: &mut Scene, terrain: &Terrain) {
+    pub fn update(&mut self, scene: &mut Scene, queue: &wgpu::Queue, terrain: &Terrain) {
         let mut ground_position = None;
         for (object_id, instance_id) in &self.objects {
             if let Some(object) = scene.get_mut(object_id) {
@@ -176,7 +176,7 @@ impl Character {
         }
         self.attachments.weapon.update(&self, scene);
         if let Some(hair) = &self.attachments.hair {
-            hair.update(&self, scene);
+            hair.update(&self, scene, queue);
         }
         self.has_moved = false;
     }
