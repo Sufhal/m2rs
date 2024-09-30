@@ -206,9 +206,9 @@ fn extract_skeleton(
         }
     }
 
-    if let Some(skeleton) = &skeleton {
+    // if let Some(skeleton) = &skeleton {
         // dbg!(skeleton.bones.iter().map(|v| v.name.clone().unwrap_or("noname".to_string())).collect::<Vec<_>>());
-    }
+    // }
 
     // hair have the same skeleton but organized differently
     // we need to remap skeleton, bones_map & skin_joints_map accordingly
@@ -220,7 +220,7 @@ fn extract_skeleton(
                     .iter()
                     .position(|v| v.name == bone.name)
                     .unwrap_or(0);
-                println!("mapping {bone_index} to {existing_bone_index}");
+                // println!("mapping {bone_index} to {existing_bone_index}");
                 *bone_index = existing_bone_index;
             }
             for (_, bone_index) in &mut skin_joints_map {

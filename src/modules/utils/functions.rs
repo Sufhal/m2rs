@@ -57,6 +57,12 @@ pub fn denormalize_f32x4(value: f32, min: &[f32; 4], max: &[f32; 4]) -> [f32; 4]
     ]
 }
 
+pub fn interpolate_rotations(value: f32, from: &[f32; 4], to: &[f32; 4]) -> [f32; 4] {
+    let from = Quaternion::from(*from).normalize();
+    let to = Quaternion::from(*to).normalize();
+    from.nlerp(to, value).normalize().into()
+}
+
 pub fn clamp_f64(value: f64, min: f64, max: f64) -> f64 {
     f64::min(f64::max(value, min), max)
 }

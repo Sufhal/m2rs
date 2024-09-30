@@ -1,9 +1,9 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use cgmath::{InnerSpace, Matrix4, Quaternion, SquareMatrix};
-use crate::modules::utils::functions::{clamp_f64, denormalize_f32x3, denormalize_f32x4, normalize_f64};
+use crate::modules::utils::functions::{clamp_f64, denormalize_f32x3, denormalize_f32x4, interpolate_rotations, normalize_f64};
 use super::motions::MotionsGroup;
 
-const ANIMATION_TRANSITION_DURATION: f64 = 200.0;
+const ANIMATION_TRANSITION_DURATION: f64 = 150.0;
 
 #[repr(C, align(16))]
 #[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
@@ -108,11 +108,11 @@ impl Skeleton {
             index_a.cmp(&index_b)
         });
 
-        for i in 0..self.bones.len() {
+        // for i in 0..self.bones.len() {
             // let existing = existing.bones.get(i).map(|v| v.bind_matrix.clone());
             // let current = self.bones.get(i).map(|v| v.bind_matrix.clone());
             // println!("existing bone {i} is {:?} and self {:?}", existing, current);
-        }
+        // }
 
     }
 
@@ -333,7 +333,7 @@ impl AnimationMixer {
                             Keyframes::Rotation(frames) => {
                                 let previous_frame = &frames[previous];
                                 let next_frame = &frames[next];
-                                let interpolated = denormalize_f32x4(factor as f32, previous_frame, next_frame);
+                                let interpolated = interpolate_rotations(factor as f32, previous_frame, next_frame);
                                 bone.set_rotation(&interpolated);
                             },
                             Keyframes::Scale(frames) => {
@@ -373,8 +373,8 @@ impl AnimationMixer {
                             Keyframes::Rotation(frames) => {
                                 let previous_frame = &frames[previous];
                                 let next_frame = &frames[next];
-                                let interpolated = denormalize_f32x4(factor as f32, previous_frame, next_frame);
-                                let blent = denormalize_f32x4(transition_factor as f32, &bone.rotation, &interpolated);
+                                let interpolated = interpolate_rotations(factor as f32, previous_frame, next_frame);
+                                let blent = interpolate_rotations(transition_factor as f32, &bone.rotation, &interpolated);
                                 bone.set_rotation(&blent);
                             },
                             Keyframes::Scale(frames) => {
