@@ -214,7 +214,7 @@ pub struct AnimationMixer {
     clips: Rc<RefCell<Vec<AnimationClip>>>,
     state: MixerState,
     current_motion_group: Option<MotionsGroup>,
-    queued_motion_group: Option<MotionsGroup>,
+    queued_motion_groups: Vec<MotionsGroup>,
 }
 
 impl AnimationMixer {
@@ -226,7 +226,7 @@ impl AnimationMixer {
                 false => MixerState::None
             },
             current_motion_group: None,
-            queued_motion_group: None,
+            queued_motion_groups: Vec::new(),
         }
     }
     fn find_animation(&self, clip_name: &str) -> Option<usize> {
@@ -250,9 +250,9 @@ impl AnimationMixer {
                 state.elapsed_time += delta_ms;
             },
             MixerState::None => {
-                if let Some(queued_motions_group) = &self.queued_motion_group {
-                    self.play(queued_motions_group.clone());
-                    self.queued_motion_group = None;
+                if self.queued_motion_groups.len() > 0 {
+                    let queued = self.queued_motion_groups.remove(0);
+                    self.play(queued);
                 }
                 else {
                     if let Some(motions_group) = &self.current_motion_group {
@@ -264,20 +264,20 @@ impl AnimationMixer {
     }
     /// Add a motions group to the queue. 
     /// The queue is actually used depending the current motions group
-    pub fn queue(&mut self, motions_group: MotionsGroup) {
+    pub fn queue(&mut self, motions_groups: Vec<MotionsGroup>) {
         match &mut self.state {
             MixerState::Play(_) |
             MixerState::Blend(_) => {
                 if let Some(current) = &self.current_motion_group {
                     if !animation_is_cancellable(&current.name) {
-                        self.queued_motion_group = Some(motions_group);
+                        self.queued_motion_groups.extend(motions_groups);
                         return
                     }
                 }
             },
             _ => (),
         };
-        self.play(motions_group);
+        self.play(motions_groups[0].clone());
     }
     /// Play a motions group immediately
     pub fn play(&mut self, motions_group: MotionsGroup) {

@@ -28,6 +28,7 @@ pub struct Character {
     velocity: f32,
     motions: MotionsGroups,
     state: CharacterState,
+    combo: Option<usize>,
     pub attachments: Attachments,
     has_moved: bool,
 }
@@ -143,7 +144,8 @@ impl Character {
             position: Default::default(),
             direction: Default::default(),
             velocity: 1.0,
-            attachments: Attachments::new().await
+            attachments: Attachments::new().await,
+            combo: None,
         }
     }
 
@@ -174,6 +176,7 @@ impl Character {
         if let Some(position) = ground_position {
             self.position = position;
         }
+        // attachments
         self.attachments.weapon.update(&self, scene);
         if let Some(hair) = &self.attachments.hair {
             hair.update(&self, scene, queue);
@@ -257,16 +260,20 @@ impl Character {
         }
     }
 
-    fn set_animation(&self, motion_name: &str, scene: &mut Scene) {
+    fn set_animation(&self, motion_names: Vec<String>, scene: &mut Scene) {
         for (object_id, instance_id) in &self.objects {
             if let Some(object) = scene.get_mut(object_id) {
                 if let Some(object3d) = &mut object.object3d {
                     match object3d {
                         Object3D::Skinned(skinned) => {
                             if let Some(instance) = skinned.get_instance(&instance_id) {
-                                if let Some(motions_group) = self.motions.get_group(motion_name) {
-                                    instance.mixer.queue(motions_group.clone());
-                                }
+                                let motions = motion_names
+                                    .iter()
+                                    .map(|motion_name| self.motions.get_group(motion_name))
+                                    .flatten()
+                                    .map(|v| v.clone())
+                                    .collect::<Vec<_>>();
+                                instance.mixer.queue(motions);
                             }
                         },
                         _ => ()
@@ -280,7 +287,19 @@ impl Character {
         if self.state == state {
             return;
         }
-        self.set_animation(&format!("{}_{}", self.mode, state), scene);
+        let mut motions_names = Vec::new();
+        let combos = self.motions.get_combos();
+        if combos.len() > 0 && state == CharacterState::Attack {
+            motions_names.extend(
+                combos
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, _)| format!("{}_COMBO_{idx}", self.mode))
+            );
+        } else {
+            motions_names.push(format!("{}_{}", self.mode, state));
+        }
+        self.set_animation(motions_names, scene);
         self.state = state;
     }
 

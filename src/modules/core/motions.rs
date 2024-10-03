@@ -27,6 +27,9 @@ impl MotionsGroups {
     pub fn get_group(&self, motion_name: &str) -> Option<&MotionsGroup> {
         self.groups.iter().find(|group| group.name == motion_name)
     }
+    pub fn get_combos(&self) -> Vec<&MotionsGroup> {
+        self.groups.iter().filter(|v| v.name.contains("COMBO_")).collect::<Vec<_>>()
+    }
 }
 
 impl MotionsGroup {

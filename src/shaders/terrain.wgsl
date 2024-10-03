@@ -293,12 +293,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     shadow = mix(1.0, shadow, shadow_strength);
     final_color *= shadow;
 
+    let distance_to_camera = length(camera.view_pos.xyz - in.world_position);
+
+    // if distance_to_camera > 10.0 {
+    //     discard;
+    // }
+
     // fog
     if fog.enabled == 1.0 {
         let fog_color = mix(fog.night_color, fog.day_color, sun_light_factor);
         let fog_near = mix(fog.night_near, fog.day_near, sun_light_factor);
         let fog_far = mix(fog.night_far, fog.day_far, sun_light_factor);
-        let distance_to_camera = length(camera.view_pos.xyz - in.world_position);
         let fog_factor = clamp((distance_to_camera - fog_near) / (fog_far - fog_near), 0.0, 1.0);
         final_color = mix(final_color, fog_color.rgb, fog_factor);
     }
