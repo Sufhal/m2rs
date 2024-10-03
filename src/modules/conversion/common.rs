@@ -33,3 +33,7 @@ pub fn bye_ymir(path: &str) -> String {
         .replace(".tga", ".png")
         .replace(".gr2", ".glb")
 }
+
+pub fn parse_group_line_as_f32(line: &str) -> f32 {
+    line.split_whitespace().collect::<Vec<_>>()[1].parse().unwrap_or(0.0)
+}

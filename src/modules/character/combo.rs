@@ -1,3 +1,5 @@
+use crate::modules::conversion::common::parse_group_line_as_f32;
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Combos {
     pub combos: Vec<Combo>,
@@ -33,9 +35,9 @@ impl ComboInput {
         while let Some(line) = lines.next() {
             if line.starts_with("Group ComboInputData") {
                 lines.next();
-                input.pre_input_time = lines.next().unwrap().split_whitespace().flatten()[1].parse();
-                input.direct_input_time = lines.next().unwrap().split_whitespace().flatten()[1].parse();
-                input.input_limit_time = lines.next().unwrap().split_whitespace().flatten()[1].parse();
+                input.pre_input_time = parse_group_line_as_f32(lines.next().unwrap());
+                input.direct_input_time = parse_group_line_as_f32(lines.next().unwrap());
+                input.input_limit_time = parse_group_line_as_f32(lines.next().unwrap());
             }
         }
         input
