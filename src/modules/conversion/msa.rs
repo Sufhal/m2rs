@@ -50,12 +50,10 @@ pub fn convert_msa() {
                 .flatten()
                 .collect::<Vec<_>>();
             if combo_inputs.len() > 0 {
-                let combos = Combos {
-                    combos: combo_inputs
-                        .into_iter()
-                        .map(|input| Combo { input })
-                        .collect()
-                };
+                let combos = combo_inputs
+                    .into_iter()
+                    .map(|input| Combo { input })
+                    .collect::<Vec<Combo>>();
                 write(&format!("{dir}/combos.json"), serde_json::to_string(&combos).unwrap());
             }
         }
